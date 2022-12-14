@@ -1,0 +1,15 @@
+[helpers]
+
+[alacritty.files]
+"alacritty/alacritty.yml"="~/.config/alacritty/alacritty.yml"
+
+[bash.files]
+"bash/.bashrc"="~/.bashrc"
+
+[coc.files]
+
+"coc/init.vim"="~/.config/nvim/init.vim"
+
+[tmux.files]
+"tmux/.tmux.conf"="~/.tmux.conf"
+"tmux/tmuxline"="~/tmuxline"

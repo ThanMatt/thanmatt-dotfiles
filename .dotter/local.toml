@@ -1,0 +1,12 @@
+includes = []
+packages = [
+  "alacritty",
+  "bash",
+  "coc",
+  "fish",
+  "tmux",
+]
+
+[files]
+
+[variables]
