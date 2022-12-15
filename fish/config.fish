@@ -1,3 +1,8 @@
+
+function fish_greeting
+  fortune | cowsay
+end
+
 alias l="ls -aslh"
 alias pls="sudo"
 alias pip="pip3"
