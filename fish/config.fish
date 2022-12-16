@@ -1,9 +1,3 @@
-if not set -q TMUX
-  # set -g TMUX tmux new-session -d -s base
-  # eval $TMUX
-  tmux attach -t 1
-end
-
 function fish_greeting
   fortune | cowsay
 end
@@ -22,6 +16,7 @@ alias Tmux="code ~/.tmux.conf"
 alias Tmux!="source ~/.tmux.conf"
 alias Alacritty="code ~/.config/alacritty/alacritty.yml"
 alias Nginx="cd /etc/nginx"
+alias tmux="tmux attach -t 1"
 
 # migrating from https://github.com/robbyrussell/oh-my-zsh/blob/master/plugins/git/git.plugin.zsh
 
