@@ -7,7 +7,8 @@ alias l="ls -aslh"
 alias pls="sudo"
 alias pip="pip3"
 alias vi="nvim"
-alias adb="adb.exe"
+# :: Windows config
+# alias adb="adb.exe"
 alias Fish="code ~/.config/fish/config.fish"
 alias Fish!="source ~/.config/fish/config.fish"
 alias Vim="nvim ~/.config/nvim/init.vim"
@@ -16,7 +17,8 @@ alias Tmux="code ~/.tmux.conf"
 alias Tmux!="source ~/.tmux.conf"
 alias Alacritty="code ~/.config/alacritty/alacritty.yml"
 alias Nginx="cd /etc/nginx"
-alias tmux="tmux attach -t 1"
+alias tmux="tmux attach -t base"
+alias Logid="code /etc/logid.cfg"
 
 # migrating from https://github.com/robbyrussell/oh-my-zsh/blob/master/plugins/git/git.plugin.zsh
 
@@ -181,28 +183,41 @@ function nvm
     bass source ~/.nvm/nvm.sh --no-use ';' nvm $argv
 end
 
-set --export ANDROID /mnt/c/Users/belph/AppData/Local/Android;
-set --export ANDROID_HOME $ANDROID/Sdk;
-set --export JAVA_HOME /usr/lib/jvm/java-1.8.0-openjdk-amd64;
-set -gx PATH $ANDROID_HOME/tools $PATH;
-set -gx PATH $ANDROID_HOME/tools/bin $PATH;
-set -gx PATH $ANDROID_HOME/platform-tools $PATH;
-set -gx PATH $ANDROID_HOME/emulator $PATH;
+# :: Windows Config
+# set --export ANDROID /mnt/c/Users/belph/AppData/Local/Android;
+# set --export ANDROID_HOME $ANDROID/Sdk;
+# set --export JAVA_HOME /usr/lib/jvm/java-1.8.0-openjdk-amd64;
+# set -gx PATH $ANDROID_HOME/tools $PATH;
+# set -gx PATH $ANDROID_HOME/tools/bin $PATH;
+# set -gx PATH $ANDROID_HOME/platform-tools $PATH;
+# set -gx PATH $ANDROID_HOME/emulator $PATH;
+
 set -gx PATH /home/thanmatt/.asdf/installs/nodejs/16.3.0/.npm/bin $PATH;
 
-# Flutter
-set -gx PATH $HOME/Applications/flutter/bin $PATH;
-set -gx PATH $HOME/Applications/android/cmdline-tools/6.0/bin $PATH;
-set -gx PATH $HOME/Applications/android/emulator $PATH;
-set -gx PATH $HOME/Applications/android/platform-tools $PATH;
-set -gx PATH $HOME/.cargo/bin $PATH;
+# # Flutter
+# set -gx PATH $HOME/Applications/flutter/bin $PATH;
+# set -gx PATH $HOME/Applications/android/cmdline-tools/6.0/bin $PATH;
+# set -gx PATH $HOME/Applications/android/emulator $PATH;
+# set -gx PATH $HOME/Applications/android/platform-tools $PATH;
+# set -gx PATH $HOME/.cargo/bin $PATH;
+# set -gx PATH $HOME/
 
-set --export WSL_HOST (tail -1 /etc/resolv.conf | cut -d' ' -f2)
-set --export ADB_SERVER_SOCKET tcp:$WSL_HOST:5037
+# :: Windows Config
+# set --export WSL_HOST (tail -1 /etc/resolv.conf | cut -d' ' -f2)
+# set --export ADB_SERVER_SOCKET tcp:$WSL_HOST:5037
+
+
 set --export FZF_DEFAULT_COMMAND 'rg --files --follow --no-ignore-vcs --hidden -g !{"node_modules/*,.git/*}"''}'
 set --export EDITOR vim
 set --export GTK_IM_MODULE "xim"
 
+
+# Ubuntu
+set -gx PATH $HOME/android-studio/bin $PATH;
+set --export ANDROID $HOME/Android;
+set --export ANDROID_HOME $ANDROID/Sdk;
+set --export ANDROID_SDK_ROOT $ANDROID/Sdk/platform-tools;
+set -gx PATH $ANDROID/Sdk/platform-tools $PATH;
 
 set -x DOCKER_BUILDKIT 1
 set -x COMPOSE_DOCKER_CLI_BUILD 1
