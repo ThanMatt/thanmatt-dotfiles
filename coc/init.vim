@@ -1,7 +1,7 @@
 call plug#begin() 
 Plug 'neoclide/coc.nvim', {'branch': 'release'} 
-Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' } 
-Plug 'junegunn/fzf.vim' 
+Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
+Plug 'junegunn/fzf.vim'
 Plug 'itchyny/lightline.vim' 
 Plug 'scrooloose/nerdtree'
 Plug 'terryma/vim-multiple-cursors'
@@ -28,12 +28,13 @@ nnoremap <C-K> <C-W><C-K>
 nnoremap <C-L> <C-W><C-L>
 nnoremap <C-H> <C-W><C-H>
 nnoremap <C-P> <C-I>
+nnoremap <silent> <Leader>f :Rg<CR>
 "nmap <C-P> :call GotoJump()<CR>
 
 "inoremap q <c-v>
 
 let g:NERDTreeGitStatusWithFlags = 1
-let g:NERDTreeIgnore = ['^node_modules$']
+let g:NERDTreeIgnore = ['^node_modules$', '^dist$']
 let NERDTreeShowHidden = 1
 let g:closetag_filenames = '*.html,*.xhtml,*.phtml, *.js'
 let g:closetag_xhtml_filenames = '*.xhtml,*.jsx'
@@ -77,7 +78,7 @@ set relativenumber
 set wildignore=*/node_modules/*,*/android/*,*/ios/*
 set mouse=a
 
-colorscheme gruvbox
+"colorscheme gruvbox
 
 
 "Indentations 
@@ -91,7 +92,12 @@ set number
 
 command! -nargs=0 Prettier :CocCommand prettier.formatFile
 
-inoremap <silent><expr> <c-space> coc#refresh()
+noremap <silent> <C-S> :update<CR>
+"vnoremap <silent> <C-S> <C-C>:update<CR>
+"inoremap <silent> <C-S> <C-O>:update<CR>
+
+<silent><expr> <c-space> coc#refresh()
+inoremap <silent><expr> <CR> coc#pum#visible() ? coc#pum#confirm() : "\<C-g>u\<CR>"
 
 nmap <silent> gd <Plug>(coc-definition)
 nmap <silent> gy <Plug>(coc-type-definition)
@@ -145,6 +151,7 @@ let g:coc_global_extensions = [
 " if hidden is not set, TextEdit might fail.
 set hidden " Some servers have issues with backup files, see #649 set nobackup set nowritebackup " Better display for messages set cmdheight=2 " You will have bad experience for diagnostic messages when it's default 4000.
 set updatetime=300
+set clipboard+=unnamedplus
 
 command! -nargs=0 Format :call CocAction('format')
 autocmd! User GoyoEnter nested call <SID>goyo_enter()

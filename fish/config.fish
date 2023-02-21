@@ -20,6 +20,9 @@ alias Nginx="cd /etc/nginx"
 alias tmux="tmux attach -t base"
 alias Logid="code /etc/logid.cfg"
 
+# :: Ubuntu config
+alias Vpn="openvpn3 session-start --config ~/Downloads/UBX-2202834.ovp"
+
 # migrating from https://github.com/robbyrussell/oh-my-zsh/blob/master/plugins/git/git.plugin.zsh
 
 # Aliases
@@ -217,7 +220,10 @@ set -gx PATH $HOME/android-studio/bin $PATH;
 set --export ANDROID $HOME/Android;
 set --export ANDROID_HOME $ANDROID/Sdk;
 set --export ANDROID_SDK_ROOT $ANDROID/Sdk/platform-tools;
+set --export JAVA_HOME $HOME/android-studio/jbr
 set -gx PATH $ANDROID/Sdk/platform-tools $PATH;
+set -gx PATH $JAVA_HOME/bin $PATH;
+
 
 set -x DOCKER_BUILDKIT 1
 set -x COMPOSE_DOCKER_CLI_BUILD 1
@@ -228,5 +234,14 @@ source ~/.asdf/asdf.fish
 if [ -f '/home/thanmatt/google-cloud-sdk/path.fish.inc' ]; . '/home/thanmatt/google-cloud-sdk/path.fish.inc'; end
 
 test -s /home/thanmatt/.nvm-fish/nvm.fish; and source /home/thanmatt/.nvm-fish/nvm.fish
+
+#determines search program for fzf
+if type ag &> /dev/null;
+    set --export FZF_DEFAULT_COMMAND 'ag -p ~/.gitignore -g ""';
+end
+#refer rg over ag
+if type rg &> /dev/null;
+    set --export FZF_DEFAULT_COMMAND 'rg --files --hidden';
+end
 
     # Commands to run in interactive sessions can go here
