@@ -1,0 +1,15 @@
+{
+  "suggest.noselect": false,
+  "eslint.autoFixOnSave": true,
+  "prettier.requireConfig": true,
+  "prettier.formatterPriority": 1,
+  "coc.preferences.formatOnSaveFiletypes": [
+    "javascript",
+    "typescript",
+    "json",
+    "javascriptreact",
+    "typescript.tsx",
+    "typescriptreact",
+    "graphql"
+  ]
+}
