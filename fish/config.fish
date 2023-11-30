@@ -2,6 +2,21 @@ function fish_greeting
   fortune | cowsay
 end
 
+function git_worktree_dynamic_add
+    set repo_name (basename (git rev-parse --show-toplevel))
+    set branch_name $argv[1]
+    git worktree add "../worktrees/$repo_name/$branch_name" -b "$branch_name"
+end
+
+function git_worktree_switch
+  set repo_name (basename (git rev-parse --show-toplevel))
+  set branch_name $argv[1]
+  cd "../worktrees/$repo_name/$branch_name"
+end
+
+funcsave git_worktree_dynamic_add
+funcsave git_worktree_switch
+
 
 alias l="ls -aslh"
 alias pls="sudo"
@@ -17,8 +32,14 @@ alias Tmux="code ~/.tmux.conf"
 alias Tmux!="source ~/.tmux.conf"
 alias Alacritty="code ~/.config/alacritty/alacritty.yml"
 alias Nginx="cd /etc/nginx"
-alias tmux="tmux attach -t base"
+# alias tmux="tmux attach -t base"
 alias Logid="code /etc/logid.cfg"
+alias dps='docker ps --format "table {{.ID | printf \"%.12s\"}}\t{{.Names | printf \"%.15s\"}}\t{{.Status | printf \"%.20s\"}}\t{{.Ports | printf \"%.15s\"}}\t{{.Image | printf \"%.20s\"}}"'
+
+
+alias gitwtadd='git_worktree_dynamic_add'
+alias gitwt='git_worktree_switch'
+
 
 # :: Ubuntu config
 alias Vpn="openvpn3 session-start --config ~/Downloads/UBX-2202834.ovp"
@@ -198,7 +219,7 @@ end
 set -gx PATH /home/thanmatt/.asdf/installs/nodejs/16.3.0/.npm/bin $PATH;
 
 # # Flutter
-# set -gx PATH $HOME/Applications/flutter/bin $PATH;
+set -gx PATH $HOME/flutter/bin $PATH;
 # set -gx PATH $HOME/Applications/android/cmdline-tools/6.0/bin $PATH;
 # set -gx PATH $HOME/Applications/android/emulator $PATH;
 # set -gx PATH $HOME/Applications/android/platform-tools $PATH;
@@ -229,7 +250,7 @@ set -x DOCKER_BUILDKIT 1
 set -x COMPOSE_DOCKER_CLI_BUILD 1
 # eval keychain --eval --agents ssh id_ed25519
 # fish_ssh_agent
-source ~/.asdf/asdf.fish
+# source ~/.asdf/asdf.fish
 # The next line updates PATH for the Google Cloud SDK.
 if [ -f '/home/thanmatt/google-cloud-sdk/path.fish.inc' ]; . '/home/thanmatt/google-cloud-sdk/path.fish.inc'; end
 
@@ -244,4 +265,5 @@ if type rg &> /dev/null;
     set --export FZF_DEFAULT_COMMAND 'rg --files --hidden';
 end
 
-    # Commands to run in interactive sessions can go here
+
+source /opt/homebrew/opt/asdf/libexec/asdf.fish
