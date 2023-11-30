@@ -4,7 +4,7 @@ Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'junegunn/fzf.vim'
 Plug 'itchyny/lightline.vim' 
 Plug 'scrooloose/nerdtree'
-Plug 'terryma/vim-multiple-cursors'
+Plug 'mg979/vim-visual-multi', {'branch': 'master'}
 Plug 'maxmellon/vim-jsx-pretty'
 Plug 'yuezk/vim-js'
 Plug 'alvan/vim-closetag'
@@ -16,6 +16,7 @@ Plug 'airblade/vim-gitgutter'
 Plug 'APZelos/blamer.nvim'
 Plug 'preservim/nerdcommenter'
 Plug 'jremmen/vim-ripgrep'
+Plug 'easymotion/vim-easymotion'
 
 call plug#end()
 
@@ -42,6 +43,24 @@ let g:blamer_enabled = 1
 
 vmap ++ <plug>NERDCommenterToggle
 nmap ++ <plug>NERDCommenterToggle
+
+
+let g:EasyMotion_do_mapping = 0 " Disable default mappings
+
+" Jump to anywhere you want with minimal keystrokes, with just one key binding.
+" `s{char}{label}`
+nmap s <Plug>(easymotion-overwin-f)
+" or
+" `s{char}{char}{label}`
+" Need one more keystroke, but on average, it may be more comfortable.
+nmap s <Plug>(easymotion-overwin-f2)
+
+" Turn on case-insensitive feature
+let g:EasyMotion_smartcase = 1
+
+" JK motions: Line motions
+map <Leader>j <Plug>(easymotion-j)
+map <Leader>k <Plug>(easymotion-k)
 
 
 function! Start()
@@ -75,6 +94,13 @@ endfunction
 autocmd VimEnter * call Start()
 
 set relativenumber
+" When entering Insert mode, disable relativenumber
+autocmd InsertEnter * :set norelativenumber
+
+" When leaving Insert mode, enable relativenumber
+autocmd InsertLeave * :set relativenumber
+
+
 set wildignore=*/node_modules/*,*/android/*,*/ios/*
 set mouse=a
 
@@ -96,7 +122,7 @@ noremap <silent> <C-S> :update<CR>
 "vnoremap <silent> <C-S> <C-C>:update<CR>
 "inoremap <silent> <C-S> <C-O>:update<CR>
 
-<silent><expr> <c-space> coc#refresh()
+nmap <silent><expr> <c-space> coc#refresh()
 inoremap <silent><expr> <CR> coc#pum#visible() ? coc#pum#confirm() : "\<C-g>u\<CR>"
 
 nmap <silent> gd <Plug>(coc-definition)
