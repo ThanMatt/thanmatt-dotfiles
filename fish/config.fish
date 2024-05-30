@@ -2,22 +2,6 @@ function fish_greeting
   fortune | cowsay
 end
 
-function git_worktree_dynamic_add
-    set repo_name (basename (git rev-parse --show-toplevel))
-    set branch_name $argv[1]
-    git worktree add "../worktrees/$repo_name/$branch_name" -b "$branch_name"
-end
-
-function git_worktree_switch
-  set repo_name (basename (git rev-parse --show-toplevel))
-  set branch_name $argv[1]
-  cd "../worktrees/$repo_name/$branch_name"
-end
-
-funcsave git_worktree_dynamic_add
-funcsave git_worktree_switch
-
-
 alias l="ls -aslh"
 alias pls="sudo"
 alias pip="pip3"
