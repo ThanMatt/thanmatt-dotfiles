@@ -1,21 +1,7 @@
 function fish_greeting
-  fortune | cowsay
+    fortune | cowsay
+    refresh_tmux_vars
 end
-
-function git_worktree_dynamic_add
-    set repo_name (basename (git rev-parse --show-toplevel))
-    set branch_name $argv[1]
-    git worktree add "../worktrees/$repo_name/$branch_name" -b "$branch_name"
-end
-
-function git_worktree_switch
-  set repo_name (basename (git rev-parse --show-toplevel))
-  set branch_name $argv[1]
-  cd "../worktrees/$repo_name/$branch_name"
-end
-
-funcsave git_worktree_dynamic_add
-funcsave git_worktree_switch
 
 
 alias l="ls -aslh"
@@ -24,25 +10,19 @@ alias pip="pip3"
 alias vi="nvim"
 # :: Windows config
 # alias adb="adb.exe"
-alias Fish="code ~/.config/fish/config.fish"
+alias Fish="vi ~/.config/fish/config.fish"
+# alias Fish="code ~/.config/fish/config.fish"
 alias Fish!="source ~/.config/fish/config.fish"
-alias Vim="nvim ~/.config/nvim/init.vim"
-alias Vim!="source ~/.config/nvim/init.vim"
+alias Vim="cd ~/.config/nvim"
+# alias Vim!="source ~/.config/nvim/init.vim"
 alias Tmux="code ~/.tmux.conf"
-alias Tmux!="source ~/.tmux.conf"
-alias Alacritty="code ~/.config/alacritty/alacritty.yml"
+alias Tmux!="tmux source ~/.tmux.conf"
+alias Alacritty="vi ~/.config/alacritty/alacritty.yml"
 alias Nginx="cd /etc/nginx"
-# alias tmux="tmux attach -t base"
+#alias tmux="tmux attach -t base"
 alias Logid="code /etc/logid.cfg"
-alias dps='docker ps --format "table {{.ID | printf \"%.12s\"}}\t{{.Names | printf \"%.15s\"}}\t{{.Status | printf \"%.20s\"}}\t{{.Ports | printf \"%.15s\"}}\t{{.Image | printf \"%.20s\"}}"'
-
-
-alias gitwtadd='git_worktree_dynamic_add'
-alias gitwt='git_worktree_switch'
-
-
-# :: Ubuntu config
-alias Vpn="openvpn3 session-start --config ~/Downloads/UBX-2202834.ovp"
+alias dps='docker ps --format "table {{.ID | printf \"%.12s\"}}\t{{.Names | printf \"%.30s\"}}\t{{.Status | printf \"%.20s\"}}\t{{.Ports | printf \"%.30s\"}}\t{{.Image | printf \"%.20s\"}}"'
+alias claude="python ~/dev/personal/misc/claude/claude_chatbot_2.py"
 
 # migrating from https://github.com/robbyrussell/oh-my-zsh/blob/master/plugins/git/git.plugin.zsh
 
@@ -62,10 +42,15 @@ alias gup='git pull --rebase'
 alias gp='git push'
 #compdef _git gp=git-push
 alias gd='git diff'
+alias gundo='git reset --soft HEAD^'
 
 
 function gdv
-  git diff -w $argv | view -
+    git diff -w $argv | view -
+end
+
+function mock_merge
+    git merge --no-commit --no-ff $argv
 end
 
 #compdef _git gdv=git-diff
@@ -159,16 +144,15 @@ alias gsd='git svn Dcommit'
 # Usage example: git pull origin $(current_branch)
 #
 function current_branch
-  git rev-parse --abbrev-ref HEAD
-  # set ref (git symbolic-ref HEAD 2> /dev/null); or \
-  # set ref (git rev-parse --short HEAD 2> /dev/null); or return
-  # echo ref | sed s-refs/heads--
+    git rev-parse --abbrev-ref HEAD
+    # set ref (git symbolic-ref HEAD 2> /dev/null); or \
+    # set ref (git rev-parse --short HEAD 2> /dev/null); or return
+    # echo ref | sed s-refs/heads--
 end
 
 function current_repository
-  set ref (git symbolic-ref HEAD 2> /dev/null); or \
-  set ref (git rev-parse --short HEAD 2> /dev/null); or return
-  echo (git remote -v | cut -d':' -f 2)
+    set ref (git symbolic-ref HEAD 2> /dev/null); or set ref (git rev-parse --short HEAD 2> /dev/null); or return
+    echo (git remote -v | cut -d':' -f 2)
 end
 
 # these aliases take advantage of the previous function
@@ -184,9 +168,10 @@ alias gfetch='git fetch origin && git pull --rebase origin (current_branch)'
 
 # Pretty log messages
 function _git_log_prettily
-  if ! [ -z $1 ]; then
-    git log --pretty=$1
-  end
+    if ! [ -z $1 ]
+        then
+        git log --pretty=$1
+    end
 end
 
 alias glp="_git_log_prettily"
@@ -198,9 +183,10 @@ alias glp="_git_log_prettily"
 #
 # This function return a warning if the current branch is a wip
 function work_in_progress
-  if git log -n 1 | grep -q -c wip; then
-    echo "WIP!!"
-  end
+    if git log -n 1 | grep -q -c wip
+        then
+        echo "WIP!!"
+    end
 end
 
 function nvm
@@ -216,10 +202,10 @@ end
 # set -gx PATH $ANDROID_HOME/platform-tools $PATH;
 # set -gx PATH $ANDROID_HOME/emulator $PATH;
 
-set -gx PATH /home/thanmatt/.asdf/installs/nodejs/16.3.0/.npm/bin $PATH;
+set -gx PATH /home/thanmatt/.asdf/installs/nodejs/16.3.0/.npm/bin $PATH
 
 # # Flutter
-set -gx PATH $HOME/flutter/bin $PATH;
+# set -gx PATH $HOME/Applications/flutter/bin $PATH;
 # set -gx PATH $HOME/Applications/android/cmdline-tools/6.0/bin $PATH;
 # set -gx PATH $HOME/Applications/android/emulator $PATH;
 # set -gx PATH $HOME/Applications/android/platform-tools $PATH;
@@ -233,37 +219,38 @@ set -gx PATH $HOME/flutter/bin $PATH;
 
 set --export FZF_DEFAULT_COMMAND 'rg --files --follow --no-ignore-vcs --hidden -g !{"node_modules/*,.git/*}"''}'
 set --export EDITOR vim
-set --export GTK_IM_MODULE "xim"
+set --export GTK_IM_MODULE xim
 
 
 # Ubuntu
-set -gx PATH $HOME/android-studio/bin $PATH;
-set --export ANDROID $HOME/Android;
-set --export ANDROID_HOME $ANDROID/Sdk;
-set --export ANDROID_SDK_ROOT $ANDROID/Sdk/platform-tools;
+set -gx PATH $HOME/android-studio/bin $PATH
+set --export ANDROID $HOME/Android
+set --export ANDROID_HOME $ANDROID/Sdk
+set --export ANDROID_SDK_ROOT $ANDROID/Sdk/platform-tools
 set --export JAVA_HOME $HOME/android-studio/jbr
-set -gx PATH $ANDROID/Sdk/platform-tools $PATH;
-set -gx PATH $JAVA_HOME/bin $PATH;
+set -gx PATH $ANDROID/Sdk/platform-tools $PATH
+set -gx PATH $JAVA_HOME/bin $PATH
+set -x PATH $PATH /usr/bin
 
 
 set -x DOCKER_BUILDKIT 1
 set -x COMPOSE_DOCKER_CLI_BUILD 1
 # eval keychain --eval --agents ssh id_ed25519
 # fish_ssh_agent
-# source ~/.asdf/asdf.fish
+source ~/.asdf/asdf.fish
+source "$HOME/.cargo/env.fish"
 # The next line updates PATH for the Google Cloud SDK.
-if [ -f '/home/thanmatt/google-cloud-sdk/path.fish.inc' ]; . '/home/thanmatt/google-cloud-sdk/path.fish.inc'; end
+if [ -f '/home/thanmatt/google-cloud-sdk/path.fish.inc' ]
+    . '/home/thanmatt/google-cloud-sdk/path.fish.inc'
+end
 
 test -s /home/thanmatt/.nvm-fish/nvm.fish; and source /home/thanmatt/.nvm-fish/nvm.fish
 
 #determines search program for fzf
-if type ag &> /dev/null;
-    set --export FZF_DEFAULT_COMMAND 'ag -p ~/.gitignore -g ""';
+if type ag &>/dev/null
+    set --export FZF_DEFAULT_COMMAND 'ag -p ~/.gitignore -g ""'
 end
 #refer rg over ag
-if type rg &> /dev/null;
-    set --export FZF_DEFAULT_COMMAND 'rg --files --hidden';
+if type rg &>/dev/null
+    set --export FZF_DEFAULT_COMMAND 'rg --files --hidden'
 end
-
-
-source /opt/homebrew/opt/asdf/libexec/asdf.fish
