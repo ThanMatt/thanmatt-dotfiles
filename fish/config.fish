@@ -1,5 +1,5 @@
 function fish_greeting
-    fortune | cowsay
+    cbonsai -m (fortune) -p -L 27
     refresh_tmux_vars
 end
 
@@ -23,6 +23,8 @@ alias Nginx="cd /etc/nginx"
 alias Logid="code /etc/logid.cfg"
 alias dps='docker ps --format "table {{.ID | printf \"%.12s\"}}\t{{.Names | printf \"%.30s\"}}\t{{.Status | printf \"%.20s\"}}\t{{.Ports | printf \"%.30s\"}}\t{{.Image | printf \"%.20s\"}}"'
 alias claude="python ~/dev/personal/misc/claude/claude_chatbot_2.py"
+alias I3="vi ~/.config/i3/config"
+alias Polybar="vi ~/.config/polybar/config.ini"
 
 # migrating from https://github.com/robbyrussell/oh-my-zsh/blob/master/plugins/git/git.plugin.zsh
 
@@ -220,6 +222,7 @@ set -gx PATH /home/thanmatt/.asdf/installs/nodejs/16.3.0/.npm/bin $PATH
 set --export FZF_DEFAULT_COMMAND 'rg --files --follow --no-ignore-vcs --hidden -g !{"node_modules/*,.git/*}"''}'
 set --export EDITOR vim
 set --export GTK_IM_MODULE xim
+set --export MONITOR DP-0
 
 
 # Ubuntu
@@ -236,7 +239,7 @@ set -x PATH $PATH /usr/bin
 set -x DOCKER_BUILDKIT 1
 set -x COMPOSE_DOCKER_CLI_BUILD 1
 # eval keychain --eval --agents ssh id_ed25519
-# fish_ssh_agent
+fish_ssh_agent
 source ~/.asdf/asdf.fish
 source "$HOME/.cargo/env.fish"
 # The next line updates PATH for the Google Cloud SDK.
