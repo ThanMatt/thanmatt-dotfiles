@@ -35,7 +35,6 @@ bindsym Ctrl+$mod+j workspace next_on_output
 bindsym Ctrl+$mod+k workspace prev_on_output
 
 
-bindsym $mod+Escape exec i3lock
 # xss-lock grabs a logind suspend inhibit lock and will use i3lock to lock the
 # screen before suspend. Use loginctl lock-session to lock your screen.
 exec --no-startup-id xss-lock --transfer-sleep-lock -- i3lock --nofork
@@ -59,7 +58,7 @@ floating_modifier $mod
 tiling_drag modifier titlebar
 
 # start a terminal
-bindsym $mod+Return exec alacritty
+bindsym $mod+t exec alacritty
 
 # kill focused window
 bindsym $mod+q kill
@@ -164,6 +163,7 @@ bindsym $mod+Shift+e exec "i3-nagbar -t warning -m 'You pressed the exit shortcu
 
 # :: open Rofi (Spotlight search)
 bindsym $mod+space exec rofi -no-config -no-lazy-grab -show drun -modi drun -theme ~/.config/polybar/hack/scripts/rofi/launcher.rasi
+bindsym $mod+Escape exec ~/.config/polybar/hack/scripts/powermenu.sh &
 
 
 ## Screenshots
