@@ -47,6 +47,7 @@ alias gd='git diff'
 alias gundo='git reset --soft HEAD^'
 
 
+
 function gdv
     git diff -w $argv | view -
 end
@@ -167,6 +168,7 @@ alias ggpush='git push origin (current_branch)'
 alias ggpnp='git pull origin (current_branch); and git push origin (current_branch)'
 #compdef ggpnp=git
 alias gfetch='git fetch origin && git pull --rebase origin (current_branch)'
+alias glog='git log -p'
 
 # Pretty log messages
 function _git_log_prettily
