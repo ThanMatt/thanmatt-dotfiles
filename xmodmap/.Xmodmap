@@ -1,4 +1,8 @@
-keycode 64 = Mode_switch
+clear mod1
+clear Lock
+keycode 66 = Mode_switch
+keycode 64 = Alt_L
+add mod1 = Alt_L Alt_R
 keysym h = h H Left
 keysym j = j J Down
 keysym k = k K Up
