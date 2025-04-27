@@ -29,5 +29,5 @@ setw -g window-status-separator ""
 setw -g window-status-style "none,fg=brightwhite,bg=default"
 set -g status-left "#[fg=brightwhite,bg=default,bold]#S #[fg=brightwhite,bg=default,nobold,nounderscore,noitalics]"
 set -g status-right "#[fg=red,bg=default]  #[fg=brightwhite,bg=default]%I:%M%p #[fg=brightgreen,bg=default]•#[fg=brightwhite,bg=default] %m/%d/%Y #[fg=brightgreen,bg=default,bold,nounderscore,noitalics] #[fg=brightwhite,bg=default]#h #[fg=brightgreen,bg=default] #[fg=brightwhite,bg=default] #{battery_percentage} #{battery_icon} "
-setw -g window-status-format "#[fg=brightwhite,bg=default] #I #[fg=brightwhite,bg=default] #W "
-setw -g window-status-current-format "#[fg=brightgreen,bg=default,bold]#[fg=brightwhite,bg=default,bold] #W #[fg=brightgreen,bg=default,bold]
+setw -g window-status-format "#[fg=brightwhite,bg=default] #I #[fg=#{?window_zoomed_flag,colour214,brightwhite},bg=default] #W "
+setw -g window-status-current-format "#[fg=brightgreen,bg=default,bold]#[fg=#{?window_zoomed_flag,colour214,brightwhite},bg=default,bold] #W #[fg=brightgreen,bg=default,bold]
