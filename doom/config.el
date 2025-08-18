@@ -36,7 +36,7 @@
 
 ;; This determines the style of line numbers in effect. If set to `nil', line
 ;; numbers are disabled. For relative line numbers, set this to `relative'.
-(setq display-line-numbers-type t)
+(setq display-line-numbers-type 'relative)
 
 ;; If you use `org' and don't want your org files in the default location below,
 ;; change `org-directory'. It must be set before org loads!
@@ -102,3 +102,28 @@
                       (format-time-string "%Y-%m-%d"))))
     ;; Open the new project file
     (find-file (concat project-dir "/project.org"))))
+
+(setq org-export-show-temporary-export-buffer nil)
+(defun my/org-export-html-open ()
+  (interactive)
+  (org-html-export-to-html)
+  (browse-url (concat "file://" (expand-file-name (org-export-output-file-name ".html")))))
+(global-set-key (kbd "C-c e h") #'my/org-export-html-open)
+
+
+(org-babel-do-load-languages
+ 'org-babel-load-languages
+ '((emacs-lisp . t)
+   (python     . t)
+   (shell      . t)
+   (js         . t)))   ;; <- this enables JavaScript
+
+
+(setq +doom-dashboard-ascii-banner-fn #'my/simple-banner)
+
+(defun my/simple-banner ()
+  '("                                    "
+    "    Welcome to My Emacs Setup!     "
+    "                                    "
+    "         Ready to code...           "
+    "                                    "))
