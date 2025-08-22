@@ -40,7 +40,7 @@
 
 ;; If you use `org' and don't want your org files in the default location below,
 ;; change `org-directory'. It must be set before org loads!
-(setq org-directory "~/org/")
+(setq org-directory "~/notes/")
 
 
 ;; Whenever you reconfigure a package, make sure to wrap your config in an
@@ -78,8 +78,8 @@
 (setq shell-file-name (executable-find "bash"))
 
 ;; But keep Fish for terminal emulators within Emacs
-(setq-default vterm-shell "/usr/bin/fish")
-(setq-default explicit-shell-file-name "/usr/bin/fish")
+(setq-default vterm-shell "/opt/homebrew/bin/fish")
+(setq-default explicit-shell-file-name "/opt/homebrew/bin/fish")
 
 ;; Set the default font
 (setq doom-font (font-spec :family "FiraCode Nerd Font" :size 12)
@@ -127,3 +127,20 @@
     "                                    "
     "         Ready to code...           "
     "                                    "))
+
+; (set-frame-parameter nil 'internal-border-width 0)
+;; Remove title bar (gives you more screen space)
+; (add-to-list 'default-frame-alist '(undecorated . t))
+
+; ;; Optional: Also remove the menu bar if you want
+(menu-bar-mode -1)
+;;
+;; This gives you a minimal title bar
+(add-to-list 'default-frame-alist '(ns-transparent-titlebar . t))
+(add-to-list 'default-frame-alist '(ns-appearance . dark)) ; or 'light
+
+(setq org-image-actual-width '(400))
+
+(setq org-agenda-files '("~/notes/notes.org"
+                         "~/notes/projects/"))
+
