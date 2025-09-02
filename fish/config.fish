@@ -1,8 +1,6 @@
 function fish_greeting
-    cbonsai -m (fortune) -p -L 27
-    refresh_tmux_vars
+    fastfetch -s title:separator:os:kernel:uptime:shell:display:theme:memory:disk:separator:colors
 end
-
 
 alias l="ls -aslh"
 alias pls="sudo"
@@ -45,8 +43,6 @@ alias gp='git push'
 #compdef _git gp=git-push
 alias gd='git diff'
 alias gundo='git reset --soft HEAD^'
-
-
 
 function gdv
     git diff -w $argv | view -
@@ -220,12 +216,10 @@ set -gx PATH /home/thanmatt/.asdf/installs/nodejs/16.3.0/.npm/bin $PATH
 # set --export WSL_HOST (tail -1 /etc/resolv.conf | cut -d' ' -f2)
 # set --export ADB_SERVER_SOCKET tcp:$WSL_HOST:5037
 
-
 set --export FZF_DEFAULT_COMMAND 'rg --files --follow --no-ignore-vcs --hidden -g !{"node_modules/*,.git/*}"''}'
 set --export EDITOR vim
 set --export GTK_IM_MODULE xim
 set --export MONITOR DP-0
-
 
 # Ubuntu
 set -gx PATH $HOME/android-studio/bin $PATH
@@ -236,7 +230,6 @@ set --export JAVA_HOME $HOME/android-studio/jbr
 set -gx PATH $ANDROID/Sdk/platform-tools $PATH
 set -gx PATH $JAVA_HOME/bin $PATH
 set -x PATH $PATH /usr/bin
-
 
 set -x DOCKER_BUILDKIT 1
 set -x COMPOSE_DOCKER_CLI_BUILD 1
