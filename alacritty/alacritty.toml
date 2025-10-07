@@ -1,0 +1,56 @@
+[[keyboard.bindings]]
+action = "ToggleFullscreen"
+key = "Return"
+mods = "Alt"
+
+[mouse]
+
+[[mouse.bindings]]
+action = "PasteSelection"
+mouse = "Middle"
+
+[colors.bright]
+black = "0x7f7060"
+blue = "0x709585"
+cyan = "0x7db568"
+green = "0xa9b01d"
+magenta = "0xc76f89"
+red = "0xf63028"
+white = "0xe5d3a2"
+yellow = "0xf7b024"
+
+[colors.cursor]
+cursor = "0xe5d3a2"
+text = "0x1d1d1d"
+
+[colors.normal]
+black = "0x1d1d1d"
+blue = "0x377274"
+cyan = "0x568d57"
+green = "0x868715"
+magenta = "0x9f4b73"
+red = "0xbe0e17"
+white = "0x978771"
+yellow = "0xcc871a"
+
+[colors.primary]
+background = "0x1d1d1d"
+foreground = "0xe5d3a2"
+
+[font.normal]
+family = "FiraCode Nerd Font Mono"
+style = "Regular"
+
+[font]
+size=11.25 # :: 11.25
+# size=17.25 # :: 11.25
+
+
+[window]
+opacity = 1
+option_as_alt = "Both"
+decorations = "None"
+
+[terminal.shell]
+program = "/opt/homebrew/bin/fish"
+
