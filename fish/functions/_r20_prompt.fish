@@ -74,7 +74,7 @@ function _r20_color \
     else if test $token = fastprompt
         set_color white
     else if test $token = branch
-        set_color white
+        set_color magenta
     else if test $token = repo
         set_color -o brblue
     else if test $token = path
