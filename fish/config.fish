@@ -1,5 +1,5 @@
 function fish_greeting
-    fastfetch -l /home/thanmatt/arch.txt -s title:separator:os:kernel:uptime:shell:display:theme:memory:disk:separator:colors
+    fastfetch -s title:separator:os:kernel:uptime:shell:display:theme:memory:disk:separator:colors
 end
 
 alias l="ls -aslh"
@@ -27,6 +27,8 @@ alias Polybar="vi ~/.config/polybar/config.ini"
 # :: Hyprland
 
 alias Hypr="vi ~/.config/hypr/"
+
+set -U fish_color_autosuggestion 5a7f70
 
 # migrating from https://github.com/robbyrussell/oh-my-zsh/blob/master/plugins/git/git.plugin.zsh
 
