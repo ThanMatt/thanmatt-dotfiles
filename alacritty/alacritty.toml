@@ -9,33 +9,30 @@ mods = "Alt"
 action = "PasteSelection"
 mouse = "Middle"
 
-[colors.bright]
-black = "0x7f7060"
-blue = "0x709585"
-cyan = "0x7db568"
-green = "0xa9b01d"
-magenta = "0xc76f89"
-red = "0xf63028"
-white = "0xe5d3a2"
-yellow = "0xf7b024"
-
-[colors.cursor]
-cursor = "0xe5d3a2"
-text = "0x1d1d1d"
+[colors]
+[colors.primary]
+background = "0x282828"
+foreground = "0xd4be98"
 
 [colors.normal]
-black = "0x1d1d1d"
-blue = "0x377274"
-cyan = "0x568d57"
-green = "0x868715"
-magenta = "0x9f4b73"
-red = "0xbe0e17"
-white = "0x978771"
-yellow = "0xcc871a"
+black = "0x3c3836"
+red = "0xea6962"
+green = "0xa9b665"
+yellow = "0xd8a657"
+blue = "0x7daea3"
+magenta = "0xd3869b"
+cyan = "0x89b482"
+white = "0xd4be98"
 
-[colors.primary]
-background = "0x1d1d1d"
-foreground = "0xe5d3a2"
+[colors.bright]
+black = "0x3c3836"
+red = "0xea6962"
+green = "0xa9b665"
+yellow = "0xd8a657"
+blue = "0x7daea3"
+magenta = "0xd3869b"
+cyan = "0x89b482"
+white = "0xd4be98"
 
 [font.normal]
 family = "FiraCode Nerd Font Mono"
@@ -47,10 +44,17 @@ size=11.25 # :: 11.25
 
 
 [window]
-opacity = 1
 option_as_alt = "Both"
+padding.x = 14
+padding.y = 14
 decorations = "None"
 
+# :: MAC
+# [terminal.shell]
+# program = "/opt/homebrew/bin/fish"
+
+
+# :: Linux
 [terminal.shell]
-program = "/opt/homebrew/bin/fish"
+program = "/usr/bin/fish"
 
