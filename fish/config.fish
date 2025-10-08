@@ -1,5 +1,5 @@
 function fish_greeting
-    fastfetch -s title:separator:os:kernel:uptime:shell:display:theme:memory:disk:separator:colors
+    fastfetch -l /home/thanmatt/arch.txt -s title:separator:os:kernel:uptime:shell:display:theme:memory:disk:separator:colors
 end
 
 alias l="ls -aslh"
@@ -13,7 +13,7 @@ alias Fish="vi ~/.config/fish/config.fish"
 alias Fish!="source ~/.config/fish/config.fish"
 alias Vim="cd ~/.config/nvim"
 # alias Vim!="source ~/.config/nvim/init.vim"
-alias Tmux="code ~/.tmux.conf"
+alias Tmux="vi ~/.tmux.conf"
 alias Tmux!="tmux source ~/.tmux.conf"
 alias Alacritty="vi ~/.config/alacritty/alacritty.yml"
 alias Nginx="cd /etc/nginx"
@@ -23,6 +23,10 @@ alias dps='docker ps --format "table {{.ID | printf \"%.12s\"}}\t{{.Names | prin
 alias claude="python ~/dev/personal/misc/claude/claude_chatbot_2.py"
 alias I3="vi ~/.config/i3/config"
 alias Polybar="vi ~/.config/polybar/config.ini"
+
+# :: Hyprland
+
+alias Hypr="vi ~/.config/hypr/"
 
 # migrating from https://github.com/robbyrussell/oh-my-zsh/blob/master/plugins/git/git.plugin.zsh
 
@@ -234,9 +238,25 @@ set -x PATH $PATH /usr/bin
 set -x DOCKER_BUILDKIT 1
 set -x COMPOSE_DOCKER_CLI_BUILD 1
 # eval keychain --eval --agents ssh id_ed25519
-fish_ssh_agent
-source ~/.asdf/asdf.fish
-source "$HOME/.cargo/env.fish"
+# fish_ssh_agent
+# source ~/.asdf/asdf.fish
+
+# ASDF configuration code
+if test -z $ASDF_DATA_DIR
+    set _asdf_shims "$HOME/.asdf/shims"
+else
+    set _asdf_shims "$ASDF_DATA_DIR/shims"
+end
+
+# Do not use fish_add_path (added in Fish 3.2) because it
+# potentially changes the order of items in PATH
+if not contains $_asdf_shims $PATH
+    set -gx --prepend PATH $_asdf_shims
+end
+
+set --erase _asdf_shims
+
+# source "$HOME/.cargo/env.fish"
 # The next line updates PATH for the Google Cloud SDK.
 if [ -f '/home/thanmatt/google-cloud-sdk/path.fish.inc' ]
     . '/home/thanmatt/google-cloud-sdk/path.fish.inc'
