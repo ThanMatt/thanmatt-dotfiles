@@ -18,6 +18,10 @@ set $term alacritty
 # Your preferred application launcher
 set $menu wofi --show drun
 
+
+font pango:FiraCode Nerd Font Mono 8
+for_window [class="^.*"] border pixel 0
+
 ### Output configuration
 #
 # Default wallpaper (more resolutions are available in /usr/share/backgrounds/sway/)
@@ -62,6 +66,19 @@ input type:keyboard {
 # You can also configure each device individually.
 # Read `man 5 sway-input` for more information about this section.
 
+
+
+bindsym Ctrl+$mod+l workspace next_on_output
+bindsym Ctrl+$mod+h workspace prev_on_output
+
+
+gaps inner 8px
+
+# Configure an additional 5px of extra space to the screen edges,
+# for a total gap of 10px to the screen edges, and 5px between windows.
+gaps outer 2px
+
+bindsym $mod+t exec alacritty
 ### Key bindings
 #
 # Basics:
@@ -70,7 +87,7 @@ input type:keyboard {
     bindsym $mod+Return exec $term
 
     # Kill focused window
-    bindsym $mod+Shift+q kill
+    bindsym $mod+q kill
 
     # Start your launcher
     bindsym $mod+d exec $menu
@@ -144,8 +161,10 @@ input type:keyboard {
     # You can "split" the current object of your focus with
     # $mod+b or $mod+v, for horizontal and vertical splits
     # respectively.
-    bindsym $mod+b splith
-    bindsym $mod+v splitv
+    bindsym $mod+bar split h
+
+# Split in vertical orientation (like vim's horizontal split)
+    bindsym $mod+minus split v
 
     # Switch the current container between different layout styles
     bindsym $mod+s layout stacking
@@ -153,7 +172,7 @@ input type:keyboard {
     bindsym $mod+e layout toggle split
 
     # Make the current focus fullscreen
-    bindsym $mod+f fullscreen
+    bindsym $mod+m fullscreen toggle
 
     # Toggle the current focus between tiling and floating mode
     bindsym $mod+Shift+space floating toggle
@@ -163,6 +182,8 @@ input type:keyboard {
 
     # Move focus to the parent container
     bindsym $mod+a focus parent
+
+
 #
 # Scratchpad:
 #
@@ -174,29 +195,32 @@ input type:keyboard {
 
     # Show the next scratchpad window or hide the focused scratchpad window.
     # If there are multiple scratchpad windows, this command cycles through them.
-    bindsym $mod+minus scratchpad show
+    # bindsym $mod+minus scratchpad show
 #
 # Resizing containers:
 #
 mode "resize" {
-    # left will shrink the containers width
-    # right will grow the containers width
-    # up will shrink the containers height
-    # down will grow the containers height
-    bindsym $left resize shrink width 10px
-    bindsym $down resize grow height 10px
-    bindsym $up resize shrink height 10px
-    bindsym $right resize grow width 10px
+        # These bindings trigger as soon as you enter the resize mode
 
-    # Ditto, with arrow keys
-    bindsym Left resize shrink width 10px
-    bindsym Down resize grow height 10px
-    bindsym Up resize shrink height 10px
-    bindsym Right resize grow width 10px
+        # Pressing left will shrink the window’s width.
+        # Pressing right will grow the window’s width.
+        # Pressing up will shrink the window’s height.
+        # Pressing down will grow the window’s height.
+        bindsym h resize shrink width 5 px or 5 ppt
+        bindsym j resize grow height 5 px or 5 ppt
+        bindsym k resize shrink height 5 px or 5 ppt
+        bindsym l resize grow width 5 px or 5 ppt
 
-    # Return to default mode
-    bindsym Return mode "default"
-    bindsym Escape mode "default"
+        # same bindings, but for the arrow keys
+        bindsym Left resize shrink width 10 px or 10 ppt
+        bindsym Down resize grow height 10 px or 10 ppt
+        bindsym Up resize shrink height 10 px or 10 ppt
+        bindsym Right resize grow width 10 px or 10 ppt
+
+        # back to normal: Enter or Escape or $mod+r
+        bindsym Return mode "default"
+        bindsym Escape mode "default"
+        bindsym $mod+r mode "default"
 }
 bindsym $mod+r mode "resize"
 #
