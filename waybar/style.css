@@ -1,4 +1,9 @@
-@import "../omarchy/current/theme/waybar.css";
+@define-color foreground #d4be98;
+@define-color background #282828;
+@define-color accent #d8a657;
+@define-color active #7daea3;
+@define-color urgent #ea6962;
+@define-color hover #3c3836;
 
 * {
   background-color: @background;
@@ -19,23 +24,49 @@
   margin-right: 8px;
 }
 
+/* Workspaces */
 #workspaces button {
   all: initial;
   padding: 0 6px;
   margin: 0 1.5px;
   min-width: 9px;
+  color: @foreground;
+  background-color: transparent;
+  transition: all 0.2s ease;
 }
 
 #workspaces button.empty {
   opacity: 0.5;
 }
 
+#workspaces button:hover {
+  background-color: transparent;
+  color: @accent;
+}
+
+#workspaces button.focused,
+#workspaces button.active {
+  background-color: transparent;
+  color: @accent;
+  font-weight: bold;
+}
+
+#workspaces button.urgent {
+  background-color: transparent;
+  color: @urgent;
+  font-weight: bold;
+}
+/* Modules */
 #tray,
 #cpu,
+#memory,
+#temperature,
+#backlight,
 #battery,
 #network,
 #bluetooth,
 #pulseaudio,
+#idle_inhibitor,
 #custom-omarchy,
 #custom-screenrecording-indicator,
 #custom-update {
@@ -49,6 +80,8 @@
 
 tooltip {
   padding: 2px;
+  background-color: @background;
+  border: 1px solid @hover;
 }
 
 #custom-update {
@@ -56,7 +89,40 @@ tooltip {
 }
 
 #clock {
-  margin-left: 8.75px;
+  /* margin-left: 8.75px; */
+  /* color: @accent; */
+  /* font-weight: bold; */
+}
+
+#battery.warning {
+  color: #d8a657;
+}
+
+#battery.critical {
+  color: @urgent;
+  animation: blink 1s linear infinite;
+}
+
+#battery.charging {
+  color: @active;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+#network.disconnected {
+  color: @urgent;
+}
+
+#pulseaudio.muted {
+  color: #665c54;
+}
+
+#idle_inhibitor.activated {
+  color: @active;
 }
 
 .hidden {
@@ -70,5 +136,5 @@ tooltip {
 }
 
 #custom-screenrecording-indicator.active {
-  color: #a55555;
+  color: @urgent;
 }
