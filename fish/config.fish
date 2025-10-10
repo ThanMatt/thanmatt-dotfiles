@@ -20,15 +20,14 @@ alias Nginx="cd /etc/nginx"
 #alias tmux="tmux attach -t base"
 alias Logid="code /etc/logid.cfg"
 alias dps='docker ps --format "table {{.ID | printf \"%.12s\"}}\t{{.Names | printf \"%.30s\"}}\t{{.Status | printf \"%.20s\"}}\t{{.Ports | printf \"%.30s\"}}\t{{.Image | printf \"%.20s\"}}"'
-alias claude="python ~/dev/personal/misc/claude/claude_chatbot_2.py"
+# alias claude="python ~/dev/personal/misc/claude/claude_chatbot_2.py"
 alias I3="vi ~/.config/i3/config"
 alias Polybar="vi ~/.config/polybar/config.ini"
+alias Sway="vi ~/.config/sway/config"
 
 # :: Hyprland
 
 alias Hypr="vi ~/.config/hypr/"
-
-set -U fish_color_autosuggestion 5a7f70
 
 # migrating from https://github.com/robbyrussell/oh-my-zsh/blob/master/plugins/git/git.plugin.zsh
 
@@ -53,6 +52,8 @@ alias gundo='git reset --soft HEAD^'
 function gdv
     git diff -w $argv | view -
 end
+
+set -U fish_color_autosuggestion 5a7f70
 
 function mock_merge
     git merge --no-commit --no-ff $argv
@@ -208,7 +209,12 @@ end
 # set -gx PATH $ANDROID_HOME/platform-tools $PATH;
 # set -gx PATH $ANDROID_HOME/emulator $PATH;
 
-set -gx PATH /home/thanmatt/.asdf/installs/nodejs/16.3.0/.npm/bin $PATH
+# set -gx PATH /home/thanmatt/.asdf/installs/nodejs/16.3.0/.npm/bin $PATH
+
+# :: Start Sway on TTY1 login
+if test -z "$DISPLAY"; and test (tty) = /dev/tty1
+    exec sway
+end
 
 # # Flutter
 # set -gx PATH $HOME/Applications/flutter/bin $PATH;
@@ -228,14 +234,14 @@ set --export GTK_IM_MODULE xim
 set --export MONITOR DP-0
 
 # Ubuntu
-set -gx PATH $HOME/android-studio/bin $PATH
-set --export ANDROID $HOME/Android
-set --export ANDROID_HOME $ANDROID/Sdk
-set --export ANDROID_SDK_ROOT $ANDROID/Sdk/platform-tools
-set --export JAVA_HOME $HOME/android-studio/jbr
-set -gx PATH $ANDROID/Sdk/platform-tools $PATH
-set -gx PATH $JAVA_HOME/bin $PATH
-set -x PATH $PATH /usr/bin
+# set -gx PATH $HOME/android-studio/bin $PATH
+# set --export ANDROID $HOME/Android
+# set --export ANDROID_HOME $ANDROID/Sdk
+# set --export ANDROID_SDK_ROOT $ANDROID/Sdk/platform-tools
+# set --export JAVA_HOME $HOME/android-studio/jbr
+# set -gx PATH $ANDROID/Sdk/platform-tools $PATH
+# set -gx PATH $JAVA_HOME/bin $PATH
+# set -x PATH $PATH /usr/bin
 
 set -x DOCKER_BUILDKIT 1
 set -x COMPOSE_DOCKER_CLI_BUILD 1
@@ -257,6 +263,19 @@ if not contains $_asdf_shims $PATH
 end
 
 set --erase _asdf_shims
+
+# :: Wayland + tmux restoration
+if set -q TMUX
+    # Update WAYLAND_DISPLAY from tmux environment
+    if tmux show-environment -g WAYLAND_DISPLAY 2>/dev/null | grep -q "^WAYLAND_DISPLAY="
+        set -gx WAYLAND_DISPLAY (tmux show-environment -g WAYLAND_DISPLAY | cut -d= -f2)
+    end
+
+    # Update DISPLAY from tmux environment
+    if tmux show-environment -g DISPLAY 2>/dev/null | grep -q "^DISPLAY="
+        set -gx DISPLAY (tmux show-environment -g DISPLAY | cut -d= -f2)
+    end
+end
 
 # source "$HOME/.cargo/env.fish"
 # The next line updates PATH for the Google Cloud SDK.
