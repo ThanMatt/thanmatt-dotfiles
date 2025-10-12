@@ -1,0 +1,39 @@
+# Gruvbox Dark Theme
+font=monospace 10
+background-color=#282828
+text-color=#ebdbb2
+border-color=#458588
+border-size=2
+border-radius=5
+
+# Layout
+width=300
+height=100
+margin=10
+padding=15
+
+# Behavior
+default-timeout=5000
+ignore-timeout=0
+
+# Icons
+icons=1
+max-icon-size=64
+
+# Grouping
+group-by=app-name
+
+# Urgency levels
+[urgency=low]
+border-color=#b8bb26
+background-color=#3c3836
+
+[urgency=normal]
+border-color=#458588
+background-color=#282828
+
+[urgency=critical]
+border-color=#fb4934
+background-color=#cc241d
+text-color=#ebdbb2
+default-timeout=0
