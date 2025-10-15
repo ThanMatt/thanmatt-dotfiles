@@ -1,0 +1,23 @@
+ignore-empty-password
+show-failed-attempts
+
+# Colors
+color=1e1e1e
+
+# Indicator
+indicator-radius=120
+indicator-thickness=10
+
+# Ring colors
+ring-color=3b4252
+key-hl-color=a3be8c
+bs-hl-color=bf616a
+
+# Inside colors
+inside-color=2e3440
+inside-clear-color=81a1c1
+inside-ver-color=5e81ac
+inside-wrong-color=bf616a
+
+# Text colors
+text-color=eceff4
