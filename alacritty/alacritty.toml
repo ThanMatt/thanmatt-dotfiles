@@ -45,7 +45,8 @@ style = "Regular"
 
 [font]
 # size=11.25 # :: 11.25
-size=8.5 # :: 11.25 for smaller resolution displays
+# size=8.5 # :: 11.25 for smaller resolution displays
+size=9 # :: For bigger resolution displays
 # size=17.25 # :: 11.25
 
 

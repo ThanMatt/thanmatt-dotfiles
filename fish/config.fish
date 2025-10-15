@@ -212,8 +212,10 @@ end
 # set -gx PATH /home/thanmatt/.asdf/installs/nodejs/16.3.0/.npm/bin $PATH
 
 # :: Start Sway on TTY1 login
-if test -z "$DISPLAY"; and test (tty) = /dev/tty1
-    exec sway
+if status is-login
+    if test -z "$DISPLAY"; and test -z "$WAYLAND_DISPLAY"; and test "$XDG_VTNR" = 1
+        exec sway
+    end
 end
 
 # # Flutter

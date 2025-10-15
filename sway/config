@@ -43,6 +43,8 @@ output * enable
 bindswitch --reload --locked lid:on output eDP-1 disable
 bindswitch --reload --locked lid:off output eDP-1 enable
 
+bindsym $mod+backslash split toggle
+
 
 
 exec mako
@@ -79,6 +81,10 @@ input type:pointer {
     natural_scroll enabled
     accel_profile flat
     pointer_accel -0.5
+}
+
+input "type:touch" {
+    events disabled
 }
 #
 # You can also configure each device individually.
