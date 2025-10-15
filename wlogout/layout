@@ -1,6 +1,6 @@
 {
     "label" : "lock",
-    "action" : "swaylock -i /home/thanmatt/.config/sway/wallpapers/wallpaper-blurred.jpg",
+    "action" : "swaylock -i /home/thanmatt/.config/sway/wallpapers/wallpaper-blurred.jpg --clock --indicator-idle-visible",
     "text" : "Lock",
     "keybind" : "l"
 }
