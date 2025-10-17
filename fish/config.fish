@@ -25,12 +25,6 @@ alias I3="vi ~/.config/i3/config"
 alias Polybar="vi ~/.config/polybar/config.ini"
 alias Sway="vi ~/.config/sway/config"
 
-# :: Proton VPN 
-alias SG_VPN_ON="sudo wg-quick up sg-SG-220"
-alias SG_VPN_OFF="sudo wg-quick down sg-SG-220"
-alias PH_VPN_ON="sudo wg-quick up wg-PH-11"
-alias PH_VPN_OFF="sudo wg-quick down wg-PH-11"
-
 # :: Hyprland
 
 alias Hypr="vi ~/.config/hypr/"
