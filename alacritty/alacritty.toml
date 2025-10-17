@@ -40,7 +40,7 @@ text = "CellBackground"
 background = "#504945"
 
 [font.normal]
-family = "CaskaydiaMono Nerd Font"
+family = "FiraCode Nerd Font"
 style = "Regular"
 
 [font]

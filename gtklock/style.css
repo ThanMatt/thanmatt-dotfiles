@@ -1,0 +1,72 @@
+window {
+  background-image: url("/home/thanmatt/.config/sway/wallpapers/wallpaper-blurred.jpg");
+  background-size: cover;
+  background-position: center;
+}
+
+#clock-label {
+  color: #d4be98;
+  font-size: 72px;
+  font-weight: bold;
+}
+
+#date-label {
+  color: #d4be98;
+  font-size: 24px;
+}
+
+/* Hide password label */
+#input-label {
+  opacity: 0;
+  font-size: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+}
+
+#input-field {
+  background-color: rgba(60, 56, 54, 0.7);
+  color: #d4be98;
+  border: 2px solid rgba(60, 56, 54, 0.9);
+  border-radius: 64px;
+  padding: 12px 20px;
+  font-size: 16px;
+  min-width: 300px;
+}
+
+#input-field:focus {
+  border-color: #d8a657;
+  background-color: rgba(40, 40, 40, 0.8);
+}
+
+#error-label {
+  color: #ea6962;
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+#message-label {
+  color: #a9b665;
+  font-size: 14px;
+}
+
+/* Hide unlock button */
+#unlock-button {
+  opacity: 0;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Hide password visibility toggle if present */
+#reveal-button {
+  opacity: 0;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Red border flash on wrong password */
+#input-field.error {
+  border-color: #ea6962;
+  background-color: rgba(234, 105, 98, 0.1);
+  transition: all 0.3s ease;
+}

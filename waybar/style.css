@@ -138,3 +138,16 @@ tooltip {
 #custom-screenrecording-indicator.active {
   color: @urgent;
 }
+
+#custom-vpn {
+  padding: 0 10px;
+}
+
+#custom-vpn.connected {
+  color: #5fd700;
+}
+
+#custom-vpn.disconnected {
+  color: #808080;
+  opacity: 0.5;
+}

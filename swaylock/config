@@ -2,22 +2,22 @@ ignore-empty-password
 show-failed-attempts
 
 # Colors
-color=1e1e1e
+color=282828
 
 # Indicator
 indicator-radius=120
 indicator-thickness=10
 
 # Ring colors
-ring-color=3b4252
-key-hl-color=a3be8c
-bs-hl-color=bf616a
+ring-color=3c3836
+key-hl-color=a9b665
+bs-hl-color=ea6962
 
 # Inside colors
-inside-color=2e3440
-inside-clear-color=81a1c1
-inside-ver-color=5e81ac
-inside-wrong-color=bf616a
+inside-color=282828
+inside-clear-color=d8a657
+inside-ver-color=7daea3
+inside-wrong-color=ea6962
 
 # Text colors
-text-color=eceff4
+text-color=d4be98

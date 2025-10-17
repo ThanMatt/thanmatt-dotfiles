@@ -1,5 +1,5 @@
 function fish_greeting
-    fastfetch -s title:separator:os:kernel:uptime:shell:display:theme:memory:disk:separator:colors
+    fastfetch -s title:separator:os:cpu:kernel:uptime:shell:display:theme:memory:disk:separator:colors
 end
 
 alias l="ls -aslh"
@@ -24,6 +24,12 @@ alias dps='docker ps --format "table {{.ID | printf \"%.12s\"}}\t{{.Names | prin
 alias I3="vi ~/.config/i3/config"
 alias Polybar="vi ~/.config/polybar/config.ini"
 alias Sway="vi ~/.config/sway/config"
+
+# :: Proton VPN 
+alias SG_VPN_ON="sudo wg-quick up sg-SG-220"
+alias SG_VPN_OFF="sudo wg-quick down sg-SG-220"
+alias PH_VPN_ON="sudo wg-quick up wg-PH-11"
+alias PH_VPN_OFF="sudo wg-quick down wg-PH-11"
 
 # :: Hyprland
 
