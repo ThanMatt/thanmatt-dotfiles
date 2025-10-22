@@ -144,3 +144,5 @@
 (setq org-agenda-files '("~/notes/notes.org"
                          "~/notes/projects/"))
 
+;; Toggle vterm in a popup window
+(map! "C-c t" #'+vterm/toggle)
