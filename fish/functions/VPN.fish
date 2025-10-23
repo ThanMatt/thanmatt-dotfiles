@@ -36,34 +36,40 @@ function VPN
     # Prompt user to select a server
     read -P "Select a server (1-"(count $servers)"): " selection
 
-    # Validate input
-    if not string match -qr '^[0-9]+$' -- $selection
-        echo "Error: Invalid selection. Please enter a number"
-        return 1
-    end
+    # ... existing validation ...
 
-    if test $selection -lt 1 -o $selection -gt (count $servers)
-        echo "Error: Invalid selection. Please enter a number between 1 and "(count $servers)
-        return 1
-    end
-
-    # Get selected server name
     set selected_server $servers[$selection]
 
     echo ""
-    echo "Connecting to $selected_server..."
+    echo "🔒 Enabling kill switch..."
+    echo "================================"
+    sudo ~/.local/bin/vpn-killswitch.sh enable
+
+    if test $status -ne 0
+        echo "❌ Failed to enable kill switch"
+        return 1
+    end
+
+    echo ""
+    echo "✓ Kill switch active"
     echo "================================"
 
-    # Connect to the selected VPN
+    echo ""
+    echo "🔌 Connecting to $selected_server..."
+    echo "================================"
+
     sudo wg-quick up $selected_server
 
-    # Check if connection was successful
     if test $status -eq 0
         echo ""
-        echo "Successfully connected to $selected_server"
+        echo "✓ Successfully connected to $selected_server"
+        echo ""
+        echo "Your connection is now protected by the kill switch"
     else
         echo ""
-        echo "Error: Failed to connect to $selected_server"
+        echo "❌ Failed to connect to $selected_server"
+        echo "Disabling kill switch..."
+        sudo ~/.local/bin/vpn-killswitch.sh disable
         return 1
     end
 end

@@ -25,6 +25,10 @@ alias I3="vi ~/.config/i3/config"
 alias Polybar="vi ~/.config/polybar/config.ini"
 alias Sway="vi ~/.config/sway/config"
 
+alias vpn-killswitch='sudo ~/.local/bin/vpn-killswitch.sh'
+
+alias test-killswitch='~/.local/bin/test-killswitch'
+
 # :: Hyprland
 
 alias Hypr="vi ~/.config/hypr/"

@@ -47,16 +47,21 @@ bindswitch --reload --locked lid:off output eDP-1 enable
 
 bindsym $mod+backslash split toggle
 
-exec wlsunset -l 14.5995 -L 120.9842 -t 4500 -T 6500
+bindsym $mod+period exec bemoji -t
+
+exec wlsunset -l 14.5995 -L 120.9842 -t 2700 -T 6500
 
 
 exec swayidle -w \
-    timeout 100 'gtklock' \
-    timeout 200 'swaymsg "output * power off"' resume 'swaymsg "output * power on"' \
+    timeout 300 'gtklock' \
+    timeout 300 'swaymsg "output * power off"' resume 'swaymsg "output * power on"' \
     before-sleep 'gtklock'
 
 
 exec mako
+
+# Audio routing configuration
+exec ~/.config/sway/scripts/audio-routing.sh
 ### Idle configuration
 #
 # Example configuration:
@@ -222,7 +227,7 @@ bindsym $mod+t exec alacritty
     bindsym $mod+bar split h
 
 # Split in vertical orientation (like vim's horizontal split)
-    # bindsym $mod+minus split v
+    bindsym $mod+minus split v
 
     # Switch the current container between different layout styles
     bindsym $mod+s layout stacking
@@ -253,7 +258,7 @@ bindsym $mod+t exec alacritty
 
     # Show the next scratchpad window or hide the focused scratchpad window.
     # If there are multiple scratchpad windows, this command cycles through them.
-    bindsym $mod+minus scratchpad show
+    bindsym $mod+alt+minus scratchpad show
 #
 # Resizing containers:
 #
@@ -295,9 +300,9 @@ bindsym $mod+r mode "resize"
     exec mkfifo /tmp/wob_volume && tail -f /tmp/wob_volume | wob
     
     # Volume controls with wob feedback
-    bindsym XF86AudioRaiseVolume exec pamixer -i 5 && pamixer --get-volume > /tmp/wob_volume
-    bindsym XF86AudioLowerVolume exec pamixer -d 5 && pamixer --get-volume > /tmp/wob_volume
-    bindsym XF86AudioMute exec pamixer --toggle-mute && (pamixer --get-mute && echo 0 > /tmp/wob_volume) || pamixer --get-volume > /tmp/wob_volume
+    bindsym XF86AudioRaiseVolume exec pamixer --sink @DEFAULT_SINK@ -i 5 && pamixer --sink @DEFAULT_SINK@ --get-volume > /tmp/wob_volume
+    bindsym XF86AudioLowerVolume exec pamixer --sink @DEFAULT_SINK@ -d 5 && pamixer --sink @DEFAULT_SINK@ --get-volume > /tmp/wob_volume
+    bindsym XF86AudioMute exec pamixer --sink @DEFAULT_SINK@ --toggle-mute && (pamixer --sink @DEFAULT_SINK@ --get-mute && echo 0 > /tmp/wob_volume) || pamixer --sink @DEFAULT_SINK@ --get-volume > /tmp/wob_volume
     # Special keys to adjust brightness via brightnessctl
     
     bindsym --locked XF86MonBrightnessDown exec brightnessctl set 5%-

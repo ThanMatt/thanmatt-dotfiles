@@ -13,11 +13,15 @@ function VPN-down
         sudo wg-quick down $interface
     end
 
-    # Restart NetworkManager to restore normal network state
+    echo ""
+    echo "Disabling kill switch..."
+    echo "================================"
+    sudo ~/.local/bin/vpn-killswitch.sh disable
+
+    echo ""
     echo "Restoring network connection..."
     sudo systemctl restart NetworkManager
 
-    # Wait a moment for NetworkManager to initialize
     sleep 2
 
     echo "Network restored. You may need to reconnect to WiFi."
