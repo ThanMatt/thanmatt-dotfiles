@@ -299,3 +299,5 @@ end
 if type rg &>/dev/null
     set --export FZF_DEFAULT_COMMAND 'rg --files --hidden'
 end
+
+set -gx PATH ~/.config/emacs/bin $PATH

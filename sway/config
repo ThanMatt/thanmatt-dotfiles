@@ -23,6 +23,7 @@ font pango:FiraCode Nerd Font Mono 8
 # for_window [class="^.*"] border pixel 0
 
 for_window [app_id="org.gnome.Nautilus"] floating enable
+for_window [app_id="qalculate-gtk"] floating enable
 
 ### Output configuration
 #
@@ -154,6 +155,7 @@ bindsym $mod+t exec alacritty
 
     # Start your launcher
     bindsym $mod+space exec $menu
+    bindsym $mod+c exec ~/.config/sway/scripts/calc.sh
 
     # Drag floating windows by holding down $mod and left mouse button.
     # Resize them with right mouse button + $mod.

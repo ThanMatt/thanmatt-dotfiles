@@ -146,3 +146,14 @@
 
 ;; Toggle vterm in a popup window
 (map! "C-c t" #'+vterm/toggle)
+
+;; Window splitting keybindings (LazyVim style)
+(map! :leader
+      :desc "Split window vertically" "|" #'evil-window-vsplit
+      :desc "Split window horizontally" "-" #'evil-window-split)
+
+;; Window navigation (LazyVim style with Ctrl+hjkl)
+(map! :n "C-h" #'evil-window-left
+      :n "C-j" #'evil-window-down
+      :n "C-k" #'evil-window-up
+      :n "C-l" #'evil-window-right)
