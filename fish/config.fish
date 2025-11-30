@@ -16,6 +16,7 @@ alias Vim="cd ~/.config/nvim"
 alias Tmux="vi ~/.tmux.conf"
 alias Tmux!="tmux source ~/.tmux.conf"
 alias Alacritty="vi ~/.config/alacritty/alacritty.toml"
+alias Kitty="vi ~/.config/kitty/kitty.conf"
 alias Nginx="cd /etc/nginx"
 #alias tmux="tmux attach -t base"
 alias Logid="code /etc/logid.cfg"
@@ -305,6 +306,6 @@ set -gx PATH ~/.config/emacs/bin $PATH
 # pnpm
 set -gx PNPM_HOME "/home/thanmatt/.local/share/pnpm"
 if not string match -q -- $PNPM_HOME $PATH
-  set -gx PATH "$PNPM_HOME" $PATH
+    set -gx PATH "$PNPM_HOME" $PATH
 end
 # pnpm end

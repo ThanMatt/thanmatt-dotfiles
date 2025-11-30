@@ -142,7 +142,8 @@ gaps inner 8px
 # for a total gap of 10px to the screen edges, and 5px between windows.
 gaps outer 2px
 
-bindsym $mod+t exec alacritty
+# bindsym $mod+t exec alacritty
+bindsym $mod+t exec kitty
 ### Key bindings
 #
 # Basics:
