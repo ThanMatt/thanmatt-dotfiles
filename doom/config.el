@@ -78,8 +78,11 @@
 (setq shell-file-name (executable-find "bash"))
 
 ;; But keep Fish for terminal emulators within Emacs
-(setq-default vterm-shell "/opt/homebrew/bin/fish")
-(setq-default explicit-shell-file-name "/opt/homebrew/bin/fish")
+; :: For mac
+; (setq-default vterm-shell "/opt/homebrew/bin/fish")
+; (setq-default explicit-shell-file-name "/opt/homebrew/bin/fish")
+
+(setq vterm-shell "/usr/bin/fish")
 
 ;; Set the default font
 (setq doom-font (font-spec :family "FiraCode Nerd Font" :size 12)

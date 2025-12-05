@@ -25,6 +25,7 @@ alias dps='docker ps --format "table {{.ID | printf \"%.12s\"}}\t{{.Names | prin
 alias I3="vi ~/.config/i3/config"
 alias Polybar="vi ~/.config/polybar/config.ini"
 alias Sway="vi ~/.config/sway/config"
+alias Doom!="doom sync"
 
 alias vpn-killswitch='sudo ~/.local/bin/vpn-killswitch.sh'
 
