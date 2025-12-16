@@ -48,6 +48,7 @@ style = "Regular"
 # size=8.5 # :: 11.25 for smaller resolution displays
 size=9 # :: For bigger resolution displays
 # size=17.25 # :: 11.25
+# size=16
 
 
 [window]
