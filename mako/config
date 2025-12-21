@@ -1,5 +1,5 @@
 # Gruvbox Dark Theme
-font=monospace 10
+font=monospace 8
 background-color=#282828
 text-color=#ebdbb2
 border-color=#458588
@@ -18,7 +18,7 @@ ignore-timeout=0
 
 # Icons
 icons=1
-max-icon-size=64
+max-icon-size=32
 
 # Grouping
 group-by=app-name
