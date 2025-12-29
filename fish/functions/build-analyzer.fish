@@ -1,7 +1,7 @@
 function build-analyzer --description "Analyze build directory sizes with breakdown"
     # Check if directory argument is provided, default to current directory
     set target_dir (test (count $argv) -gt 0; and echo $argv[1]; or echo ".")
-    
+
     # Check if directory exists
     if not test -d $target_dir
         echo "❌ Directory '$target_dir' does not exist"
@@ -14,7 +14,7 @@ function build-analyzer --description "Analyze build directory sizes with breakd
     # Get total size
     set total_size (du -sh $target_dir | cut -f1)
     set total_bytes (du -sb $target_dir | cut -f1)
-    
+
     echo "🗂️  Total Size: $total_size"
     echo ""
 
@@ -49,7 +49,7 @@ function build-analyzer --description "Analyze build directory sizes with breakd
         set img_size_human (echo $img_size_bytes | numfmt --to=iec-i --suffix=B)
         set img_percent (math "round($img_size_bytes * 100 / $total_bytes)")
         echo "🖼️  Images: $img_size_human ($img_percent%)"
-        
+
         # Show largest images
         echo "   📸 Largest images:"
         find $target_dir \( -name "*.jpg" -o -name "*.jpeg" -o -name "*.png" -o -name "*.gif" -o -name "*.webp" -o -name "*.svg" -o -name "*.avif" \) -type f -exec du -h {} \; | sort -hr | head -3 | while read size file
@@ -70,7 +70,7 @@ function build-analyzer --description "Analyze build directory sizes with breakd
     echo ""
     echo "🔍 File count breakdown:"
     echo "   JS files: "(count $js_files)
-    echo "   CSS files: "(count $css_files) 
+    echo "   CSS files: "(count $css_files)
     echo "   Images: "(count $image_files)
     echo "   Total files: "(find $target_dir -type f | wc -l)
 end
