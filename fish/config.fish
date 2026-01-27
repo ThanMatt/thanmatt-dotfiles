@@ -28,6 +28,10 @@ alias Polybar="vi ~/.config/polybar/config.ini"
 alias Sway="vi ~/.config/sway/config"
 alias Doom!="doom sync"
 
+# :: Arch
+alias update='yay -Sy'
+alias update-all='yay -Syu'
+
 alias vpn-killswitch='sudo ~/.local/bin/vpn-killswitch.sh'
 
 alias test-killswitch='~/.local/bin/test-killswitch'
@@ -232,6 +236,9 @@ end
 # set -gx PATH $HOME/Applications/android/platform-tools $PATH;
 # set -gx PATH $HOME/.cargo/bin $PATH;
 # set -gx PATH $HOME/
+
+# :: Arch flutter config
+set -gx PATH $PATH ~/develop/flutter/bin
 
 # :: Windows Config
 # set --export WSL_HOST (tail -1 /etc/resolv.conf | cut -d' ' -f2)
