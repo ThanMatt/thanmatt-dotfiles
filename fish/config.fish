@@ -35,6 +35,7 @@ alias update-all='yay -Syu'
 # :: Waydroid shortcuts
 alias wd='waydroid'
 alias wdstart='waydroid show-full-ui'
+alias wdstart-detach='waydroid show-full-ui &> /dev/null & disown'
 alias wdstop='waydroid session stop'
 alias wdrestart='waydroid session stop && waydroid show-full-ui'
 alias wdstatus='waydroid status'
