@@ -32,6 +32,25 @@ alias Doom!="doom sync"
 alias update='yay -Sy'
 alias update-all='yay -Syu'
 
+# :: Waydroid shortcuts
+alias wd='waydroid'
+alias wdstart='waydroid show-full-ui'
+alias wdstop='waydroid session stop'
+alias wdrestart='waydroid session stop && waydroid show-full-ui'
+alias wdstatus='waydroid status'
+alias wdshell='waydroid shell'
+
+# :: Waydroid + ADB
+alias wdconnect='adb connect 192.168.240.112'
+alias wddevices='adb devices'
+
+# :: Waydroid resolution presets
+alias wdphone='waydroid session stop && waydroid prop set persist.waydroid.width 506 && waydroid prop set persist.waydroid.height 2400 && waydroid show-full-ui'
+# alias wdsmall='waydroid session stop && waydroid prop set persist.waydroid.width 720 && waydroid prop set persist.waydroid.height 1600 && waydroid show-full-ui'
+
+# :: Waydroid cleanup (nuclear option)
+alias wdclean='waydroid session stop && sudo systemctl stop waydroid-container && sudo rm -rf /var/lib/waydroid /home/.waydroid ~/waydroid ~/.share/waydroid ~/.local/share/waydroid'
+
 alias vpn-killswitch='sudo ~/.local/bin/vpn-killswitch.sh'
 
 alias test-killswitch='~/.local/bin/test-killswitch'
@@ -239,6 +258,8 @@ end
 
 # :: Arch flutter config
 set -gx PATH $PATH ~/develop/flutter/bin
+set -gx ANDROID_HOME $HOME/Android/Sdk
+set -gx PATH $PATH $ANDROID_HOME/cmdline-tools/latest/bin $ANDROID_HOME/platform-tools
 
 # :: Windows Config
 # set --export WSL_HOST (tail -1 /etc/resolv.conf | cut -d' ' -f2)
