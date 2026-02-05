@@ -65,6 +65,8 @@ function VPN
         echo "✓ Successfully connected to $selected_server"
         echo ""
         echo "Your connection is now protected by the kill switch"
+        # :: Update resolvconf signature to prevent future errors
+        sudo resolvconf -u 2>/dev/null
     else
         echo ""
         echo "❌ Failed to connect to $selected_server"
