@@ -28,11 +28,9 @@ function VPN-down
     echo ""
     echo "Restoring DNS settings..."
     echo "================================"
-    # :: Clear resolvconf database first
-    sudo resolvconf -d lo.* -f 2>/dev/null
-    # :: Write DNS manually
+    # :: Use resolvconf properly to avoid signature mismatch
     echo "nameserver 8.8.8.8
-nameserver 1.1.1.1" | sudo tee /etc/resolv.conf > /dev/null
+nameserver 1.1.1.1" | sudo resolvconf -a lo.base -m 0 -x
     echo "✓ DNS restored (Google DNS: 8.8.8.8, Cloudflare: 1.1.1.1)"
 
     echo ""
