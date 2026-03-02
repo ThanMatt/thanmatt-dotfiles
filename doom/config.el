@@ -163,3 +163,6 @@
 
 ;; :: Load finance module
 (load! "finance")
+
+;; :: Load inventory module
+(load! "inventory")
