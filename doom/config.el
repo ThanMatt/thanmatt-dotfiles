@@ -131,6 +131,33 @@
     "         Ready to code...           "
     "                                    "))
 
+;; :: Dashboard helper function for knowledgebase
+(defun my/open-knowledgebase ()
+  "Open the knowledgebase directory."
+  (interactive)
+  (dired "~/org-notes"))
+
+;; :: Custom dashboard menu
+(setq +doom-dashboard-menu-sections
+      '(("Open Inventory"
+         :icon (nerd-icons-octicon "nf-oct-package" :face 'doom-dashboard-menu-title)
+         :action inventory/open-or-create)
+        ("Current Financials"
+         :icon (nerd-icons-octicon "nf-oct-graph" :face 'doom-dashboard-menu-title)
+         :action finance/create-expense-tracker)
+        ("Knowledgebase"
+         :icon (nerd-icons-octicon "nf-oct-book" :face 'doom-dashboard-menu-title)
+         :action my/open-knowledgebase)
+        ("Open project"
+         :icon (nerd-icons-octicon "nf-oct-briefcase" :face 'doom-dashboard-menu-title)
+         :action projectile-switch-project)
+        ("Recently opened files"
+         :icon (nerd-icons-octicon "nf-oct-file" :face 'doom-dashboard-menu-title)
+         :action recentf-open-files)
+        ("Open org-agenda"
+         :icon (nerd-icons-octicon "nf-oct-calendar" :face 'doom-dashboard-menu-title)
+         :action org-agenda)))
+
 ; (set-frame-parameter nil 'internal-border-width 0)
 ;; Remove title bar (gives you more screen space)
 ; (add-to-list 'default-frame-alist '(undecorated . t))
