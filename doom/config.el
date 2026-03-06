@@ -188,8 +188,20 @@
       :n "C-k" #'evil-window-up
       :n "C-l" #'evil-window-right)
 
+(defun +org/insert-file-link ()
+  ":: Insert org link to file with filesystem completion"
+  (interactive)
+  (let ((file (read-file-name "Select file: ")))
+    (org-insert-link nil (concat "file:" file) (file-name-nondirectory file))))
+
+(map! :map org-mode-map
+      :localleader
+      "il" #'+org/insert-file-link)
+
 ;; :: Load finance module
 (load! "finance")
 
 ;; :: Load inventory module
 (load! "inventory")
+
+
