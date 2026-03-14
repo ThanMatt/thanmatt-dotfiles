@@ -204,4 +204,19 @@
 ;; :: Load inventory module
 (load! "inventory")
 
+;; :: Open HEIC files with external viewer
+(defun my/open-heic-externally ()
+  "Open HEIC file at point with external viewer."
+  (interactive)
+  (let ((file (buffer-file-name)))
+    (when (and file (string-match-p "\\.heic\\'" file))
+      (start-process "open-heic" nil "xdg-open" file))))
+
+;; Automatically use external viewer for HEIC files
+(add-to-list 'auto-mode-alist '("\\.heic\\'" . image-mode))
+(add-hook 'image-mode-hook
+          (lambda ()
+            (when (string-match-p "\\.heic\\'" (or (buffer-file-name) ""))
+              (my/open-heic-externally))))
+
 

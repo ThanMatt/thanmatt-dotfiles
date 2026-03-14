@@ -1,0 +1,188 @@
+// :: Niri config - converted from Sway
+// :: Reference: https://github.com/YaLTeR/niri/wiki/Configuration
+
+input {
+    keyboard {
+        repeat-delay 300
+        repeat-rate 50
+    }
+
+    touchpad {
+        tap
+        natural-scroll
+    }
+
+    mouse {
+        natural-scroll
+        accel-speed -0.5
+        accel-profile "flat"
+    }
+
+    // :: Disable touch input
+    touch {
+        off
+    }
+}
+
+output "eDP-1" {
+    // :: Lid switch handling is done via systemd/logind in niri, not natively
+    // :: Add to /etc/systemd/logind.conf: HandleLidSwitch=suspend
+    variable-refresh-rate
+}
+
+// :: Set wallpaper per output - niri doesn't handle wallpapers natively
+// :: Use swaybg or hyprpaper instead:
+// :: exec swaybg -i ~/.config/sway/wallpapers/3840x2160-dark-windows.png -m fill
+
+spawn-at-startup "swaybg" "-i" "~/.config/sway/wallpapers/3840x2160-dark-windows.png" "-m" "fill"
+
+layout {
+    gaps 8
+
+    // :: outer gaps equivalent
+    struts {
+        left 2
+        right 2
+        top 2
+        bottom 2
+    }
+
+    border {
+        width 2
+        active-color "#7daea3"
+        inactive-color "#282828"
+    }
+
+    focus-ring {
+        off
+    }
+
+    default-column-width {proportion 0.5;}
+}
+
+
+// :: Floating window rules
+window-rule {
+    match app-id="org.gnome.Nautilus"
+    open-floating true
+}
+
+window-rule {
+    match app-id="qalculate-gtk"
+    open-floating true
+}
+
+// :: Autostart
+spawn-at-startup "mako"
+spawn-at-startup "wlsunset" "-l" "14.5995" "-L" "120.9842" "-t" "2700" "-T" "6500"
+spawn-at-startup "waybar"
+spawn-at-startup "sh" "-c" "~/.config/sway/scripts/audio-routing.sh"
+spawn-at-startup "sh" "-c" "~/.config/sway/scripts/start-cliphist.sh"
+
+// :: swayidle works with niri too
+spawn-at-startup "sh" "-c" "swayidle -w timeout 300 'gtklock' timeout 300 'niri msg action power-off-monitors' resume 'niri msg action power-on-monitors' before-sleep 'gtklock'"
+
+    
+// :: wob pipe for volume/brightness overlay
+spawn-at-startup "sh" "-c" "mkfifo /tmp/wob_volume && tail -f /tmp/wob_volume | wob"
+
+binds {
+    // :: Mod key = Super
+    Mod+Return { spawn "kitty"; }
+    Mod+T { spawn "kitty"; }
+    Mod+Q { close-window; }
+    Mod+Space { spawn "wofi" "--show" "drun"; }
+    Mod+C { spawn "sh" "-c" "~/.config/sway/scripts/calc.sh"; }
+
+    Mod+E { spawn "sh" "-c" "emacs &"; }
+
+    Mod+Comma { consume-window-into-column; }
+    Mod+Period { expel-window-from-column; }
+
+    // :: Emoji picker
+    Mod+Alt+Period { spawn "bemoji" "-t"; }
+
+    // :: Clipboard
+    Mod+Alt+V { spawn "sh" "-c" "cliphist list | wofi --dmenu | cliphist decode | wl-copy"; }
+
+    // :: Screenshots
+    Print { spawn "sh" "-c" "grim -g \"$(slurp)\" - | wl-copy"; }
+    Ctrl+Print { spawn "sh" "-c" "grim - | wl-copy"; }
+    Mod+Shift+S { spawn "sh" "-c" "grim -g \"$(slurp)\" - | swappy -f -"; }
+
+    // :: Session
+    Mod+Alt+Space { spawn "wlogout"; }
+    Mod+Shift+C { spawn "sh" "-c" "niri msg action reload-config"; }
+
+    // :: Focus movement (vim keys)
+    Mod+H { focus-column-left; }
+    Mod+L { focus-column-right; }
+    Mod+J { focus-window-down; }
+    Mod+K { focus-window-up; }
+    Mod+Left { focus-column-left; }
+    Mod+Right { focus-column-right; }
+    Mod+Down { focus-window-down; }
+    Mod+Up { focus-window-up; }
+
+    // :: Move windows
+    Mod+Shift+H { move-column-left; }
+    Mod+Shift+L { move-column-right; }
+    Mod+Shift+J { move-window-down; }
+    Mod+Shift+K { move-window-up; }
+    Mod+Shift+Left { move-column-left; }
+    Mod+Shift+Right { move-column-right; }
+    Mod+Shift+Down { move-window-down; }
+    Mod+Shift+Up { move-window-up; }
+
+    // :: Workspaces (niri uses dynamic workspaces, these switch between them)
+    Mod+1 { focus-workspace 1; }
+    Mod+2 { focus-workspace 2; }
+    Mod+3 { focus-workspace 3; }
+    Mod+4 { focus-workspace 4; }
+    Mod+5 { focus-workspace 5; }
+    Mod+6 { focus-workspace 6; }
+    Mod+7 { focus-workspace 7; }
+    Mod+8 { focus-workspace 8; }
+    Mod+9 { focus-workspace 9; }
+    Mod+0 { focus-workspace 10; }
+
+    // :: Move window to workspace
+    Mod+Shift+1 { move-window-to-workspace 1; }
+    Mod+Shift+2 { move-window-to-workspace 2; }
+    Mod+Shift+3 { move-window-to-workspace 3; }
+    Mod+Shift+4 { move-window-to-workspace 4; }
+    Mod+Shift+5 { move-window-to-workspace 5; }
+    Mod+Shift+6 { move-window-to-workspace 6; }
+    Mod+Shift+7 { move-window-to-workspace 7; }
+    Mod+Shift+8 { move-window-to-workspace 8; }
+    Mod+Shift+9 { move-window-to-workspace 9; }
+    Mod+Shift+0 { move-window-to-workspace 10; }
+
+    // :: Cycle workspaces (replaces Ctrl+Mod+H/L)
+    Ctrl+Mod+J { focus-workspace-down; }
+    Ctrl+Mod+K { focus-workspace-up; }
+
+    // :: Fullscreen
+    Mod+M { maximize-column; }
+
+    // :: Floating toggle
+    Mod+Shift+Space { toggle-window-floating; }
+
+    // :: Split direction (niri uses columns, backslash toggles column/window)
+    Mod+Backslash { switch-preset-column-width; }
+
+    // :: Resize
+    Mod+R { switch-preset-column-width; }
+    Mod+Shift+R { reset-window-height; }
+    Mod+Minus { set-column-width "-5%"; }
+    Mod+Equal { set-column-width "+5%"; }
+
+    // :: Volume (with wob)
+    XF86AudioRaiseVolume { spawn "sh" "-c" "pamixer --sink @DEFAULT_SINK@ -i 5 && pamixer --sink @DEFAULT_SINK@ --get-volume > /tmp/wob_volume"; }
+    XF86AudioLowerVolume { spawn "sh" "-c" "pamixer --sink @DEFAULT_SINK@ -d 5 && pamixer --sink @DEFAULT_SINK@ --get-volume > /tmp/wob_volume"; }
+    XF86AudioMute { spawn "sh" "-c" "pamixer --sink @DEFAULT_SINK@ --toggle-mute && (pamixer --sink @DEFAULT_SINK@ --get-mute && echo 0 > /tmp/wob_volume) || pamixer --sink @DEFAULT_SINK@ --get-volume > /tmp/wob_volume"; }
+
+    // :: Brightness
+    XF86MonBrightnessDown { spawn "brightnessctl" "set" "5%-"; }
+    XF86MonBrightnessUp { spawn "brightnessctl" "set" "5%+"; }
+}

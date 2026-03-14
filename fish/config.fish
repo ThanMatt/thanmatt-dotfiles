@@ -334,6 +334,9 @@ end
 
 set -gx PATH ~/.config/emacs/bin $PATH
 
+set -gx MOZ_ENABLE_WAYLAND 1
+set -gx LIBVA_DRIVER_NAME iHD
+
 # pnpm
 set -gx PNPM_HOME "/home/thanmatt/.local/share/pnpm"
 if not string match -q -- $PNPM_HOME $PATH
