@@ -30,6 +30,20 @@ output "eDP-1" {
     variable-refresh-rate
 }
 
+
+output "eDP-1" {
+    // :: Lid switch handling is done via systemd/logind in niri, not natively
+    // :: Add to /etc/systemd/logind.conf: HandleLidSwitch=suspend
+    variable-refresh-rate
+    scale 1.0
+}
+
+output "DP-1" {
+    mode "3440x1440@59.999"
+    scale 1.0
+}
+
+
 // :: Set wallpaper per output - niri doesn't handle wallpapers natively
 // :: Use swaybg or hyprpaper instead:
 // :: exec swaybg -i ~/.config/sway/wallpapers/3840x2160-dark-windows.png -m fill
