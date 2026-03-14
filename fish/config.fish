@@ -27,6 +27,7 @@ alias I3="vi ~/.config/i3/config"
 alias Polybar="vi ~/.config/polybar/config.ini"
 alias Sway="vi ~/.config/sway/config"
 alias Doom!="doom sync"
+alias Niri="vi ~/.config/niri/config.kdl"
 
 # :: Arch
 alias update='yay -Sy'
