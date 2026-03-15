@@ -53,8 +53,8 @@ size=9 # :: For bigger resolution displays
 
 [window]
 option_as_alt = "Both"
-padding.x = 14
-padding.y = 14
+# padding.x = 14
+# padding.y = 14
 decorations = "None"
 
 # :: MAC

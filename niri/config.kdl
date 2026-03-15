@@ -69,9 +69,9 @@ layout {
 }
 
 animations {
-    workspace-switch {
-        off
-    }
+    // workspace-switch {
+    //     off
+    // }
 }
 
 prefer-no-csd
@@ -174,8 +174,8 @@ binds {
     Mod+Shift+0 { move-window-to-workspace 10; }
 
     // :: Cycle workspaces (replaces Ctrl+Mod+H/L)
-    Ctrl+Mod+L { focus-workspace-down; }
-    Ctrl+Mod+H { focus-workspace-up; }
+    Ctrl+Mod+J { focus-workspace-down; }
+    Ctrl+Mod+K { focus-workspace-up; }
 
     // :: Fullscreen
     Mod+M { maximize-column; }

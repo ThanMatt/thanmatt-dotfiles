@@ -352,3 +352,5 @@ if not string match -q -- $PNPM_HOME $PATH
 end
 # pnpm end
 export PATH="$HOME/.local/bin:$PATH"
+
+set -gx COLORTERM truecolor
