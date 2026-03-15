@@ -24,12 +24,6 @@ input {
     }
 }
 
-output "eDP-1" {
-    // :: Lid switch handling is done via systemd/logind in niri, not natively
-    // :: Add to /etc/systemd/logind.conf: HandleLidSwitch=suspend
-    variable-refresh-rate
-}
-
 
 output "eDP-1" {
     // :: Lid switch handling is done via systemd/logind in niri, not natively
@@ -48,7 +42,7 @@ output "DP-1" {
 // :: Use swaybg or hyprpaper instead:
 // :: exec swaybg -i ~/.config/sway/wallpapers/3840x2160-dark-windows.png -m fill
 
-spawn-at-startup "swaybg" "-i" "~/.config/sway/wallpapers/3840x2160-dark-windows.png" "-m" "fill"
+spawn-at-startup "sh" "-c" "swaybg -i ~/.config/sway/wallpapers/3840x2160-dark-windows.png -m fill"
 
 layout {
     gaps 8
@@ -74,6 +68,13 @@ layout {
     default-column-width {proportion 0.5;}
 }
 
+animations {
+    workspace-switch {
+        off
+    }
+}
+
+prefer-no-csd
 
 // :: Floating window rules
 window-rule {
@@ -108,7 +109,7 @@ binds {
     Mod+Space { spawn "wofi" "--show" "drun"; }
     Mod+C { spawn "sh" "-c" "~/.config/sway/scripts/calc.sh"; }
 
-    Mod+E { spawn "sh" "-c" "emacs &"; }
+    Mod+E { spawn "emacsclient" "-c" "-a" "emacs"; }
 
     Mod+Comma { consume-window-into-column; }
     Mod+Period { expel-window-from-column; }
@@ -125,7 +126,7 @@ binds {
     Mod+Shift+S { spawn "sh" "-c" "grim -g \"$(slurp)\" - | swappy -f -"; }
 
     // :: Session
-    Mod+Alt+Space { spawn "wlogout"; }
+    Mod+Alt+Space { spawn "wlogout" "-C" "/home/thanmatt/.config/wlogout/layout-niri" "--css" "/home/thanmatt/.config/wlogout/style.css"; }
     Mod+Shift+C { spawn "sh" "-c" "niri msg action reload-config"; }
 
     // :: Focus movement (vim keys)
@@ -173,8 +174,8 @@ binds {
     Mod+Shift+0 { move-window-to-workspace 10; }
 
     // :: Cycle workspaces (replaces Ctrl+Mod+H/L)
-    Ctrl+Mod+J { focus-workspace-down; }
-    Ctrl+Mod+K { focus-workspace-up; }
+    Ctrl+Mod+L { focus-workspace-down; }
+    Ctrl+Mod+H { focus-workspace-up; }
 
     // :: Fullscreen
     Mod+M { maximize-column; }
