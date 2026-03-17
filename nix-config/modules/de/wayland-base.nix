@@ -17,7 +17,7 @@
     mako       # :: notifications
     wlogout    # :: logout screen
     wofi       # :: app launcher
-    rofi-wayland
+    rofi
     grim       # :: screenshots
     slurp      # :: region select for screenshots
     swappy     # :: screenshot annotation
