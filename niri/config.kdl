@@ -44,6 +44,8 @@ output "DP-1" {
 
 spawn-at-startup "sh" "-c" "swaybg -i ~/.config/sway/wallpapers/3840x2160-dark-windows.png -m fill"
 
+spawn-at-startup "xwayland-satellite"
+
 layout {
     gaps 8
 
@@ -201,3 +203,4 @@ binds {
     XF86MonBrightnessDown { spawn "brightnessctl" "set" "5%-"; }
     XF86MonBrightnessUp { spawn "brightnessctl" "set" "5%+"; }
 }
+
