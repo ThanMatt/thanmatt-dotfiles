@@ -254,7 +254,7 @@
       if type ag &>/dev/null
           set --export FZF_DEFAULT_COMMAND 'ag -p ~/.gitignore -g ""'
       else if type rg &>/dev/null
-          set --export FZF_DEFAULT_COMMAND 'rg --files --hidden --follow --no-ignore-vcs -g !{"node_modules/*,.git/*}"''}'
+          set --export FZF_DEFAULT_COMMAND 'rg --files --hidden --follow --no-ignore-vcs'
       end
 
       if test -z $ASDF_DATA_DIR
