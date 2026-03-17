@@ -1,3 +1,11 @@
+# Setup
+
+## Pulling lazyvim config (optional)
+
+```
+git submodule update --init --recursive
+```
+
 To install Rofi, install the following dependencies:
 
 ```
