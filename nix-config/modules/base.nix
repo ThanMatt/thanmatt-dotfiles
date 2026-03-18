@@ -37,7 +37,7 @@
           IdentityFile ~/.ssh/id_ed25519
           IdentitiesOnly yes
       '';
-    }
+    };
 
   xdg.configFile."nvim".source = config.lib.file.mkOutOfStoreSymlink
     "${config.home.homeDirectory}/thanmatt-dotfiles/lazyvim";
