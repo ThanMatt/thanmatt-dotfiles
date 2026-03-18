@@ -131,9 +131,9 @@
     };
   };
 
-  programs.kitty.enable = true;
+  # :: Kitty — binary via Nix, config symlinked from dotfiles
+  home.packages = [ pkgs.kitty ];
 
-  # :: Symlink kitty config from dotfiles (includes current-theme.conf)
   xdg.configFile."kitty".source = config.lib.file.mkOutOfStoreSymlink
     "${config.home.homeDirectory}/thanmatt-dotfiles/kitty";
 
