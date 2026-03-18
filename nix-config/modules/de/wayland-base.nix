@@ -10,7 +10,7 @@
 
   programs.waybar = {
     enable = true;
-    systemd.enable = true;
+    systemd.enable = false; # :: niri config handles startup via spawn-at-startup
   };
 
   # :: Symlink waybar config from dotfiles
