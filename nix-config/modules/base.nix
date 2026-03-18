@@ -91,6 +91,9 @@
       set -g @continuum-save-interval '15'
       set -g @continuum-boot 'on'
       set -g @continuum-restore 'on'
+
+      # :: Tmuxline statusbar theme
+      source ${config.home.homeDirectory}/thanmatt-dotfiles/tmux/tmuxline
     '';
   };
 
@@ -116,13 +119,26 @@
     };
   };
 
-  programs.kitty = {
-    enable = true;
-    font = { name = "JetBrainsMono Nerd Font"; size = 11; };
-  };
+  programs.kitty.enable = true;
+
+  # :: Symlink kitty config from dotfiles (includes current-theme.conf)
+  xdg.configFile."kitty".source = config.lib.file.mkOutOfStoreSymlink
+    "${config.home.homeDirectory}/thanmatt-dotfiles/kitty";
 
   programs.fish = {
     enable = true;
+
+    plugins = [
+      {
+        name = "fish-theme-r20";
+        src = pkgs.fetchFromGitHub {
+          owner = "rstacruz";
+          repo  = "fish-theme-r20";
+          rev   = "master";
+          sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+        };
+      }
+    ];
 
     shellAliases = {
       l   = "ls -aslh";

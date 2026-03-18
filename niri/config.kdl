@@ -89,6 +89,7 @@ window-rule {
     open-floating true
 }
 
+
 // :: Autostart
 spawn-at-startup "mako"
 spawn-at-startup "wlsunset" "-l" "14.5995" "-L" "120.9842" "-t" "2700" "-T" "6500"
