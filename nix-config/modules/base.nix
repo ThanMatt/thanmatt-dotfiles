@@ -147,7 +147,7 @@
           owner = "rstacruz";
           repo  = "fish-theme-r20";
           rev   = "master";
-          sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+          sha256 = "sha256-mtFGrv79G55/6NnaOP1jkcEDOtNEYAJg8hRv2jlbFuE=";
         };
       }
     ];
