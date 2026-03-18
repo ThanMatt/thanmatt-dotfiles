@@ -132,8 +132,6 @@
   };
 
   # :: Kitty — binary via Nix, config symlinked from dotfiles
-  home.packages = [ pkgs.kitty ];
-
   xdg.configFile."kitty".source = config.lib.file.mkOutOfStoreSymlink
     "${config.home.homeDirectory}/thanmatt-dotfiles/kitty";
 
@@ -307,6 +305,7 @@
   };
 
   home.packages = with pkgs; [
+    kitty
     lazygit
     ripgrep
     fd
