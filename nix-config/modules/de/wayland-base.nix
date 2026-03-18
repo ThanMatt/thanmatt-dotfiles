@@ -20,6 +20,14 @@
   # :: Symlink wlogout config from dotfiles
   xdg.configFile."wlogout".source = config.lib.file.mkOutOfStoreSymlink
     "${config.home.homeDirectory}/thanmatt-dotfiles/wlogout";
+  #
+  # :: Symlink wofi config from dotfiles
+  xdg.configFile."wofi".source = config.lib.file.mkOutOfStoreSymlink
+    "${config.home.homeDirectory}/thanmatt-dotfiles/wofi";
+
+  # :: Symlink mako config from dotfiles
+  xdg.configFile."mako".source = config.lib.file.mkOutOfStoreSymlink
+    "${config.home.homeDirectory}/thanmatt-dotfiles/mako";
 
   home.packages = with pkgs; [
     mako       # :: notifications

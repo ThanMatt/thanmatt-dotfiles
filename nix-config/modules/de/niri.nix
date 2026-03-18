@@ -17,7 +17,7 @@
   programs.fish.interactiveShellInit = ''
     if status is-login
         if test -z "$DISPLAY"; and test -z "$WAYLAND_DISPLAY"; and test "$XDG_VTNR" = 1
-            exec niri
+            exec niri-session
         end
     end
   '';

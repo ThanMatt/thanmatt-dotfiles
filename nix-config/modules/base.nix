@@ -313,5 +313,7 @@
     fastfetch
     bat
     wl-clipboard
+    firefox
+    chromium
   ];
 }
