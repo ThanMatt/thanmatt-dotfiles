@@ -35,6 +35,10 @@ output * adaptive_sync on
 # :: Automatically enable any connected displays
 
 output * enable
+
+# :: Display layout — ultrawide primary left, laptop right
+output DP-2 position 0,0
+output eDP-1 position 3440,0
 #
 # Example configuration:
 #
