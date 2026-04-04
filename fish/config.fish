@@ -354,3 +354,4 @@ end
 export PATH="$HOME/.local/bin:$PATH"
 
 set -gx COLORTERM truecolor
+zoxide init fish | source
