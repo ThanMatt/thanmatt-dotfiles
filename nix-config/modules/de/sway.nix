@@ -4,7 +4,7 @@
   imports = [ ./wayland-base.nix ];
 
   home.packages = with pkgs; [
-    sway
+    # :: sway itself is installed system-wide via programs.sway.enable
     swayidle
     swaybg
 
@@ -37,14 +37,8 @@
     config.lib.file.mkOutOfStoreSymlink
       "${config.home.homeDirectory}/thanmatt-dotfiles/gtklock";
 
-  # :: Start Sway on TTY1 login (fish shell)
-  programs.fish.interactiveShellInit = ''
-    if status is-login
-        if test -z "$DISPLAY"; and test -z "$WAYLAND_DISPLAY"; and test "$XDG_VTNR" = 1
-            exec sway
-        end
-    end
-  '';
+  # :: Login is handled by ly (configured in configuration.nix).
+  # :: Pick the Sway session from ly's menu instead of auto-exec on TTY1.
 
   programs.fish.shellAliases = {
     Sway = "vi ~/.config/sway/config";

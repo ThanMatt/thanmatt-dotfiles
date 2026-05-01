@@ -13,14 +13,8 @@
     config.lib.file.mkOutOfStoreSymlink
       "${config.home.homeDirectory}/thanmatt-dotfiles/niri/config.kdl";
 
-  # :: Start Niri on TTY1 login (fish shell)
-  programs.fish.interactiveShellInit = ''
-    if status is-login
-        if test -z "$DISPLAY"; and test -z "$WAYLAND_DISPLAY"; and test "$XDG_VTNR" = 1
-            exec niri-session
-        end
-    end
-  '';
+  # :: Login is handled by ly (configured in configuration.nix).
+  # :: Pick the Niri session from ly's menu instead of auto-exec on TTY1.
 
   programs.fish.shellAliases = {
     Niri = "vi ~/.config/niri/config.kdl";

@@ -182,8 +182,8 @@
 
       dps = "docker ps --format 'table {{.ID | printf \"%.12s\"}}\\t{{.Names | printf \"%.30s\"}}\\t{{.Status | printf \"%.20s\"}}\\t{{.Ports | printf \"%.30s\"}}\\t{{.Image | printf \"%.20s\"}}'";
 
-      update     = "nix flake update ~/nix-config";
-      update-all = "sudo nixos-rebuild switch --flake ~/nix-config#nixos-dev";
+      update     = "nix flake update ~/thanmatt-dotfiles/nix-config";
+      update-all = "sudo nixos-rebuild switch --flake ~/thanmatt-dotfiles/nix-config#nixos-dev";
 
       wd               = "waydroid";
       wdstart          = "waydroid show-full-ui";

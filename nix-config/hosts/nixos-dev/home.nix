@@ -4,7 +4,8 @@
   imports = [
     ../../modules/base.nix
     ../../modules/de/niri.nix
-    # ../../modules/de/sway.nix  # :: swap to use Sway instead
+    ../../modules/de/sway.nix
+    ../../modules/de/plasma.nix
     # ../../modules/mobile.nix
   ];
 
