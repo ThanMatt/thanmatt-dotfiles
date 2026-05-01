@@ -6,6 +6,9 @@
     "$HOME/.local/bin"
     "$HOME/.config/emacs/bin"
     "$HOME/.local/share/pnpm"
+    "$HOME/develop/flutter/bin"
+    "$HOME/Android/Sdk/cmdline-tools/latest/bin"
+    "$HOME/Android/Sdk/platform-tools"
   ];
 
   # :: Native environment variables
@@ -17,6 +20,13 @@
     COMPOSE_DOCKER_CLI_BUILD = "1";
     PNPM_HOME = "$HOME/.local/share/pnpm";
     COLORTERM = "truecolor";
+    ANDROID_HOME = "$HOME/Android/Sdk";
+  };
+
+  # :: zoxide — smarter cd, integrates with fish via init below
+  programs.zoxide = {
+    enable = true;
+    enableFishIntegration = true;
   };
 
   # :: Neovim — binary via Nix, config symlinked from dotfiles
@@ -271,7 +281,140 @@
             echo "WIP!!"
         end
       '';
-      nvm = "bass source ~/.nvm/nvm.sh --no-use ';' nvm $argv";
+      history = "builtin history --show-time='%F %T ' $argv";
+
+      vat = ''
+        set selected (fd --type f | fzf --preview="bat --color=always --style=numbers {}")
+        and vi $selected
+      '';
+
+      vig = ''
+        set selected (rg --color=always --line-number --no-heading --smart-case "" | \
+            fzf --ansi \
+                --delimiter : \
+                --preview 'bat --color=always {1} --highlight-line {2}' \
+                --preview-window 'up,60%,border-bottom,+{2}+3/3,~3')
+
+        and begin
+            set file (echo $selected | cut -d: -f1)
+            set line (echo $selected | cut -d: -f2)
+            vi +$line $file
+        end
+      '';
+
+      tmux-resurrect-fix = ''
+        set resurrect_dir ~/.local/share/tmux/resurrect
+
+        if not test -d $resurrect_dir
+            echo "Error: Resurrect directory not found at $resurrect_dir"
+            return 1
+        end
+
+        cd $resurrect_dir
+
+        if not test -L last
+            echo "Error: 'last' symlink not found"
+            return 1
+        end
+
+        if test -s last
+            echo "✓ Resurrect file is healthy (not empty)"
+            return 0
+        end
+
+        echo "⚠ Found empty resurrect file, fixing..."
+
+        set target_file (readlink last)
+        rm -f $target_file
+        rm -f last
+
+        set latest_file (ls -t tmux_resurrect_*.txt 2>/dev/null | while read file
+            if test -s $file
+                echo $file
+                break
+            end
+        end)
+
+        if test -z "$latest_file"
+            echo "Error: No valid resurrect files found"
+            return 1
+        end
+
+        ln -s $latest_file last
+        echo "✓ Fixed: 'last' now points to $latest_file"
+      '';
+
+      build-analyzer = {
+        description = "Analyze build directory sizes with breakdown";
+        body = ''
+          set target_dir (test (count $argv) -gt 0; and echo $argv[1]; or echo ".")
+
+          if not test -d $target_dir
+              echo "❌ Directory '$target_dir' does not exist"
+              return 1
+          end
+
+          echo "📊 Build Analysis for: $target_dir"
+          echo "=" | string repeat 50
+
+          set total_size (du -sh $target_dir | cut -f1)
+          set total_bytes (du -sb $target_dir | cut -f1)
+
+          echo "🗂️  Total Size: $total_size"
+          echo ""
+
+          set js_files (find $target_dir -name "*.js" -type f 2>/dev/null)
+          if test (count $js_files) -gt 0
+              set js_size_bytes (du -cb $js_files | tail -1 | cut -f1)
+              set js_size_human (echo $js_size_bytes | numfmt --to=iec-i --suffix=B)
+              set js_percent (math "round($js_size_bytes * 100 / $total_bytes)")
+              echo "🟨 JavaScript: $js_size_human ($js_percent%)"
+          else
+              echo "🟨 JavaScript: 0B (0%)"
+              set js_size_bytes 0
+          end
+
+          set css_files (find $target_dir -name "*.css" -type f 2>/dev/null)
+          if test (count $css_files) -gt 0
+              set css_size_bytes (du -cb $css_files | tail -1 | cut -f1)
+              set css_size_human (echo $css_size_bytes | numfmt --to=iec-i --suffix=B)
+              set css_percent (math "round($css_size_bytes * 100 / $total_bytes)")
+              echo "🎨 CSS: $css_size_human ($css_percent%)"
+          else
+              echo "🎨 CSS: 0B (0%)"
+              set css_size_bytes 0
+          end
+
+          set image_files (find $target_dir \( -name "*.jpg" -o -name "*.jpeg" -o -name "*.png" -o -name "*.gif" -o -name "*.webp" -o -name "*.svg" -o -name "*.avif" \) -type f 2>/dev/null)
+          if test (count $image_files) -gt 0
+              set img_size_bytes (du -cb $image_files | tail -1 | cut -f1)
+              set img_size_human (echo $img_size_bytes | numfmt --to=iec-i --suffix=B)
+              set img_percent (math "round($img_size_bytes * 100 / $total_bytes)")
+              echo "🖼️  Images: $img_size_human ($img_percent%)"
+
+              echo "   📸 Largest images:"
+              find $target_dir \( -name "*.jpg" -o -name "*.jpeg" -o -name "*.png" -o -name "*.gif" -o -name "*.webp" -o -name "*.svg" -o -name "*.avif" \) -type f -exec du -h {} \; | sort -hr | head -3 | while read size file
+                  set filename (basename $file)
+                  echo "      • $filename: $size"
+              end
+          else
+              echo "🖼️  Images: 0B (0%)"
+              set img_size_bytes 0
+          end
+
+          set other_bytes (math "$total_bytes - $js_size_bytes - $css_size_bytes - $img_size_bytes")
+          set other_human (echo $other_bytes | numfmt --to=iec-i --suffix=B)
+          set other_percent (math "round($other_bytes * 100 / $total_bytes)")
+          echo "📦 Other: $other_human ($other_percent%)"
+
+          echo ""
+          echo "🔍 File count breakdown:"
+          echo "   JS files: "(count $js_files)
+          echo "   CSS files: "(count $css_files)
+          echo "   Images: "(count $image_files)
+          echo "   Total files: "(find $target_dir -type f | wc -l)
+        '';
+      };
     };
 
     interactiveShellInit = ''

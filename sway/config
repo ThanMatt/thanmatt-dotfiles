@@ -28,7 +28,7 @@ for_window [app_id="qalculate-gtk"] floating enable
 ### Output configuration
 #
 # Default wallpaper (more resolutions are available in /usr/share/backgrounds/sway/)
-output * bg /home/thanmatt/.config/sway/wallpapers/3840x2160-dark-windows.png fill
+output * bg ~/.config/sway/wallpapers/3840x2160-dark-windows.png fill
 
 output * adaptive_sync on
 
@@ -36,9 +36,10 @@ output * adaptive_sync on
 
 output * enable
 
-# :: Display layout — ultrawide primary left, laptop right
-output DP-2 position 0,0
-output eDP-1 position 3440,0
+# :: Display layout — DP-1 left, ultrawide DP-2 right, laptop stacked with DP-2
+output DP-1 mode 2560x1440@59.951Hz position 0,0
+output DP-2 position 2560,0
+output eDP-1 position 2560,0
 #
 # Example configuration:
 #

@@ -251,11 +251,11 @@ end
 # end
 
 # # :: Start Sway on TTY1 login
-if status is-login
-    if test -z "$DISPLAY"; and test -z "$WAYLAND_DISPLAY"; and test "$XDG_VTNR" = 1
-        exec sway
-    end
-end
+# if status is-login
+#     if test -z "$DISPLAY"; and test -z "$WAYLAND_DISPLAY"; and test "$XDG_VTNR" = 1
+#         exec sway
+#     end
+# end
 
 # # Flutter
 # set -gx PATH $HOME/Applications/flutter/bin $PATH;
@@ -321,6 +321,10 @@ if set -q TMUX
     if tmux show-environment -g DISPLAY 2>/dev/null | grep -q "^DISPLAY="
         set -gx DISPLAY (tmux show-environment -g DISPLAY | cut -d= -f2)
     end
+end
+
+function history
+    builtin history --show-time='%F %T ' $argv
 end
 
 # source "$HOME/.cargo/env.fish"
