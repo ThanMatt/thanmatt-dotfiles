@@ -6,20 +6,15 @@
     ../../modules/fonts.nix
   ];
 
-  # :: Bootloader — Limine on BIOS (VirtualBox VM)
+  # :: Bootloader — GRUB on BIOS (VirtualBox VM)
   # ::
-  # :: For UEFI, use this instead:
-  # ::   boot.loader = {
-  # ::     efi.canTouchEfiVariables = true;
-  # ::     limine = {
-  # ::       enable = true;
-  # ::       efiSupport = true;
-  # ::       efiInstallAsRemovable = true;
-  # ::     };
-  # ::   };
-  boot.loader.limine = {
+  # :: For UEFI systemd-boot:
+  # ::   boot.loader.systemd-boot.enable = true;
+  # ::   boot.loader.efi.canTouchEfiVariables = true;
+  boot.loader.grub = {
     enable = true;
-    biosDevice = "/dev/sda";
+    device = "/dev/sda";
+    useOSProber = false;
   };
 
   networking.hostName = "nixos-dev";
