@@ -1,21 +1,11 @@
-{ pkgs, ... }:
+{ pkgs, lib, isVM ? false, isUEFI ? true, ... }:
 
 {
   imports = [
     ./hardware-configuration.nix
     ../../modules/fonts.nix
-  ];
-
-  # :: Bootloader — GRUB on BIOS (VirtualBox VM)
-  # ::
-  # :: For UEFI systemd-boot:
-  # ::   boot.loader.systemd-boot.enable = true;
-  # ::   boot.loader.efi.canTouchEfiVariables = true;
-  boot.loader.grub = {
-    enable = true;
-    device = "/dev/sda";
-    useOSProber = false;
-  };
+    (if isUEFI then ../../modules/boot/uefi.nix else ../../modules/boot/bios.nix)
+  ] ++ lib.optional isVM ../../modules/vm/virtualbox.nix;
 
   networking.hostName = "nixos-dev";
   networking.networkmanager.enable = true;

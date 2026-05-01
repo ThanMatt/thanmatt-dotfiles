@@ -11,11 +11,14 @@
 
   outputs = { self, nixpkgs, home-manager, ... }@inputs:
   let
-    # :: Helper to reduce boilerplate per host
-    mkSystem = { hostname, system ? "x86_64-linux" }:
+    # :: Helper to reduce boilerplate per host.
+    # :: Flags:
+    # ::   isVM    — toggles VM-specific modules (e.g. VirtualBox guest additions)
+    # ::   isUEFI  — picks bootloader: true=systemd-boot/UEFI, false=GRUB/BIOS
+    mkSystem = { hostname, isVM ? false, isUEFI ? true, system ? "x86_64-linux" }:
       nixpkgs.lib.nixosSystem {
         inherit system;
-        specialArgs = { inherit inputs; };
+        specialArgs = { inherit inputs isVM isUEFI; };
         modules = [
           ./hosts/${hostname}/configuration.nix
           home-manager.nixosModules.home-manager
@@ -29,8 +32,8 @@
   in
   {
     nixosConfigurations = {
-      nixos-dev     = mkSystem { hostname = "nixos-dev"; };
-      x11-dev = mkSystem { hostname = "x11-dev"; };
+      nixos-dev = mkSystem { hostname = "nixos-dev"; isVM = true; isUEFI = false; };
+      x11-dev   = mkSystem { hostname = "x11-dev"; };
     };
   };
 }
