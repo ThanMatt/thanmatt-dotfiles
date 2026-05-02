@@ -59,7 +59,7 @@ cursor-style-blink = true
 
 
 # :: Enable cursor trail shader
-custom-shader = /home/thanmatt/.config/ghostty/shaders/cursor_tail.glsl
+custom-shader = /home/thanmatt/.config/ghostty/shaders/cursor_warp.glsl
 
 # :: Keep animations running (important for cursor trails)
 custom-shader-animation = always
