@@ -33,6 +33,25 @@
     alsa.support32Bit = true;
   };
   security.rtkit.enable = true;
+  security.pam.services.gtklock = {};
+
+  # :: keyd — kernel-level key remapping, works on Wayland and TTY.
+  # :: Caps hold → nav layer (hjkl as arrows), tap → noop.
+  services.keyd = {
+    enable = true;
+    keyboards.default = {
+      ids = [ "*" ];
+      settings = {
+        main.capslock = "overload(nav, noop)";
+        nav = {
+          h = "left";
+          j = "down";
+          k = "up";
+          l = "right";
+        };
+      };
+    };
+  };
 
   users.users.dubi = {
     isNormalUser = true;
