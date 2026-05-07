@@ -74,6 +74,7 @@
     vscode
     signal-desktop
     qbittorrent
+    claude-code
 
     # :: Build deps for asdf-python (compiles from source)
     gcc
