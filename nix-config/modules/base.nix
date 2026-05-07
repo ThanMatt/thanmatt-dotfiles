@@ -29,25 +29,18 @@
     enableFishIntegration = true;
   };
 
-  # :: Neovim — binary via Nix, config symlinked from dotfiles
-  programs.neovim = {
-    enable = true;
-    defaultEditor = true;
-    viAlias = true;
-    vimAlias = true;
-  };
 
   # :: SSH
   programs.ssh = {
-      enable = true;
-      extraConfig = ''
-        Host github.com
-          HostName github.com
-          User git
-          IdentityFile ~/.ssh/id_ed25519
-          IdentitiesOnly yes
-      '';
+    enable = true;
+    enableDefaultConfig = false;
+    matchBlocks."github.com" = {
+      hostname = "github.com";
+      user = "git";
+      identityFile = "~/.ssh/id_ed25519";
+      identitiesOnly = true;
     };
+  };
 
   xdg.configFile."nvim".source = config.lib.file.mkOutOfStoreSymlink
     "${config.home.homeDirectory}/thanmatt-dotfiles/lazyvim";
@@ -165,6 +158,7 @@
       pls = "sudo";
       pip = "pip3";
       vi  = "nvim";
+      vim = "nvim";
 
       Fish      = "vi ~/.config/fish/config.fish";
       "Fish!"   = "source ~/.config/fish/config.fish";
@@ -448,6 +442,7 @@
   };
 
   home.packages = with pkgs; [
+    neovim
     kitty
     lazygit
     ripgrep
