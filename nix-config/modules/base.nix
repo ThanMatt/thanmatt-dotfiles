@@ -130,6 +130,12 @@
 
       # :: Tmuxline statusbar theme
       source ${config.home.homeDirectory}/thanmatt-dotfiles/tmux/tmuxline
+
+      # Set the foreground/background color for the active window
+      setw -g window-active-style fg=colour15,bg=colour235
+      
+      # Set the foreground/background color for all other windows
+      setw -g window-style fg=colour245,bg=colour236
     '';
   };
 
