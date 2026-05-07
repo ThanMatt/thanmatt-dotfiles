@@ -81,6 +81,11 @@
     obs-studio
 
 
+    # :: vterm native module deps (Doom Emacs :term vterm)
+    cmake
+    libtool
+    libvterm
+
     # :: Build deps for asdf-python (compiles from source)
     gcc
     gnumake

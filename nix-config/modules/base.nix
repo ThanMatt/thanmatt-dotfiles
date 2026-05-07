@@ -1,4 +1,4 @@
-{ pkgs, config, ... }:
+{ pkgs, lib, config, ... }:
 
 {
   # :: Native path management
@@ -21,6 +21,7 @@
     PNPM_HOME = "$HOME/.local/share/pnpm";
     COLORTERM = "truecolor";
     ANDROID_HOME = "$HOME/Android/Sdk";
+    DOOMDIR = "$HOME/thanmatt-dotfiles/doom";
   };
 
   # :: zoxide — smarter cd, integrates with fish via init below
@@ -45,10 +46,20 @@
   xdg.configFile."nvim".source = config.lib.file.mkOutOfStoreSymlink
     "${config.home.homeDirectory}/thanmatt-dotfiles/lazyvim";
 
+  xdg.configFile."fastfetch".source = config.lib.file.mkOutOfStoreSymlink
+    "${config.home.homeDirectory}/thanmatt-dotfiles/fastfetch";
+
   programs.emacs = {
     enable = true;
     package = pkgs.emacs;
   };
+
+  home.activation.installDoom = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    if [ ! -d "$HOME/.config/emacs" ]; then
+      ${pkgs.git}/bin/git clone --depth 1 https://github.com/doomemacs/doomemacs "$HOME/.config/emacs"
+      "$HOME/.config/emacs/bin/doom" install --no-config --no-env --no-fonts
+    fi
+  '';
 
   programs.tmux = {
     enable = true;

@@ -1,5 +1,6 @@
 function fish_greeting
-    fastfetch -s title:separator:os:cpu:kernel:uptime:shell:display:theme:memory:disk:separator:colors
+    # fastfetch -s title:separator:os:cpu:kernel:uptime:shell:display:theme:memory:disk:separator:colors
+    fastfetch --logo-type small
 end
 
 alias l="ls -aslh"
