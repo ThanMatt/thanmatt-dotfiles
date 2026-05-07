@@ -53,6 +53,17 @@
     };
   };
 
+  # :: nix-ld — lets generic Linux binaries (asdf, etc.) run on NixOS
+  # :: by providing the expected dynamic linker path.
+  programs.nix-ld = {
+    enable = true;
+    libraries = with pkgs; [
+      stdenv.cc.cc
+      zlib
+      openssl
+    ];
+  };
+
   virtualisation.docker.enable = true;
 
   services.syncthing = {
