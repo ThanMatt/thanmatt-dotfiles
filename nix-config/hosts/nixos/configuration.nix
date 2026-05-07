@@ -53,9 +53,11 @@
     };
   };
 
+  virtualisation.docker.enable = true;
+
   users.users.dubi = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "networkmanager" "video" ];
+    extraGroups = [ "wheel" "networkmanager" "video" "docker" ];
   };
 
   environment.systemPackages = with pkgs; [
