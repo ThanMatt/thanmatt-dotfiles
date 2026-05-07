@@ -458,5 +458,6 @@
     wl-clipboard
     firefox
     chromium
+    proton-vpn-cli
   ];
 }

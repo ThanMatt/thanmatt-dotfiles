@@ -80,6 +80,7 @@ alias gp='git push'
 #compdef _git gp=git-push
 alias gd='git diff'
 alias gundo='git reset --soft HEAD^'
+alias gconfig="git config user.email & git config user.name"
 
 function gdv
     git diff -w $argv | view -
