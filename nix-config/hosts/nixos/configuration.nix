@@ -64,6 +64,7 @@
     git
     curl
     wget
+    vscode
 
     # :: Build deps for asdf-python (compiles from source)
     gcc
