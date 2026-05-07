@@ -55,6 +55,13 @@
 
   virtualisation.docker.enable = true;
 
+  services.syncthing = {
+    enable = true;
+    user = "dubi";
+    dataDir = "/home/dubi";
+    configDir = "/home/dubi/.config/syncthing";
+  };
+
   users.users.dubi = {
     isNormalUser = true;
     extraGroups = [ "wheel" "networkmanager" "video" "docker" ];
@@ -65,6 +72,8 @@
     curl
     wget
     vscode
+    signal-desktop
+    qbittorrent
 
     # :: Build deps for asdf-python (compiles from source)
     gcc
