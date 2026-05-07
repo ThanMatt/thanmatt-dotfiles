@@ -75,6 +75,11 @@
     signal-desktop
     qbittorrent
     claude-code
+    bruno
+    calibre
+    dbeaver-bin
+    obs-studio
+
 
     # :: Build deps for asdf-python (compiles from source)
     gcc
