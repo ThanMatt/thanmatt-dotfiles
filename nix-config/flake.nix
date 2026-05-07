@@ -20,6 +20,7 @@
         inherit system;
         specialArgs = { inherit inputs isVM isUEFI; };
         modules = [
+          { nixpkgs.config.allowUnfree = true; }
           ./hosts/${hostname}/configuration.nix
           home-manager.nixosModules.home-manager
           {
