@@ -62,6 +62,19 @@
     git
     curl
     wget
+
+    # :: Build deps for asdf-python (compiles from source)
+    gcc
+    gnumake
+    openssl
+    zlib
+    bzip2
+    readline
+    sqlite
+    libffi
+    xz
+    ncurses
+    pkg-config
   ];
 
   system.stateVersion = "24.11";

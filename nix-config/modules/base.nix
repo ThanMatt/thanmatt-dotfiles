@@ -63,7 +63,13 @@
       sidebar
       battery
       resurrect
-      continuum
+      {
+        plugin = continuum;
+        extraConfig = ''
+          set -g @continuum-save-interval '15'
+          set -g @continuum-restore 'on'
+        '';
+      }
       vim-tmux-navigator
     ];
     extraConfig = ''
@@ -102,10 +108,6 @@
       bind -n M-l resize-pane -R 10
 
       set -g display-panes-time 10000
-
-      set -g @continuum-save-interval '15'
-      set -g @continuum-boot 'on'
-      set -g @continuum-restore 'on'
 
       # :: Tmuxline statusbar theme
       source ${config.home.homeDirectory}/thanmatt-dotfiles/tmux/tmuxline
@@ -444,6 +446,8 @@
   home.packages = with pkgs; [
     neovim
     kitty
+    btop
+    asdf-vm
     lazygit
     ripgrep
     fd
