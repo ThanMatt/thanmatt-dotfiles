@@ -33,6 +33,7 @@
   {
     nixosConfigurations = {
       nixos-dev = mkSystem { hostname = "nixos-dev"; isVM = true; isUEFI = false; };
+      nixos     = mkSystem { hostname = "nixos"; };
       x11-dev   = mkSystem { hostname = "x11-dev"; };
     };
   };
