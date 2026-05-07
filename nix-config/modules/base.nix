@@ -56,8 +56,16 @@
 
   home.activation.installDoom = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     if [ ! -d "$HOME/.config/emacs" ]; then
-      ${pkgs.git}/bin/git clone --depth 1 https://github.com/doomemacs/doomemacs "$HOME/.config/emacs"
-      "$HOME/.config/emacs/bin/doom" install --no-config --no-env --no-fonts
+      echo "Installing Doom Emacs..."
+      ${pkgs.git}/bin/git clone --depth 1 https://github.com/doomemacs/doomemacs "$HOME/.config/emacs" \
+        || { echo "ERROR: Doom clone failed"; exit 1; }
+    fi
+    if [ ! -f "$HOME/.config/emacs/.installed" ]; then
+      echo "Running doom install..."
+      DOOMDIR="${config.home.homeDirectory}/thanmatt-dotfiles/doom" \
+        "$HOME/.config/emacs/bin/doom" install --no-config --no-env --no-fonts --force \
+        && touch "$HOME/.config/emacs/.installed" \
+        || echo "WARNING: doom install failed — run 'doom install' manually"
     fi
   '';
 
@@ -270,7 +278,7 @@
     };
 
     functions = {
-      fish_greeting      = "fastfetch -s title:separator:os:cpu:kernel:uptime:shell:display:theme:memory:disk:separator:colors";
+      fish_greeting      = "fastfetch --logo-type small";
       gdv                = "git diff -w $argv | view -";
       mock_merge         = "git merge --no-commit --no-ff $argv";
       current_branch     = "git rev-parse --abbrev-ref HEAD";
