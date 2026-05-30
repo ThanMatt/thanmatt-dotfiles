@@ -210,15 +210,32 @@
       :n "C-k" #'evil-window-up
       :n "C-l" #'evil-window-right)
 
-(defun +org/insert-file-link ()
-  ":: Insert org link to file with filesystem completion"
-  (interactive)
-  (let ((file (read-file-name "Select file: ")))
-    (org-insert-link nil (concat "file:" file) (file-name-nondirectory file))))
+(defun +org/sanitize-link-description (desc)
+  ":: Escape square brackets in an org link description.
+Org link descriptions cannot contain unescaped ] characters."
+  (replace-regexp-in-string "\\]" "\\\\]"
+                            (replace-regexp-in-string "\\[" "\\\\[" desc)))
+
+(defun link-file (file)
+  ":: Interactively select a file and insert it as an org hyperlink.
+The link target uses a path relative to the current buffer when possible,
+and the description is the file's basename with [ and ] escaped."
+  (interactive
+   (list (read-file-name "Link to file: " nil nil t)))
+  (unless (derived-mode-p 'org-mode)
+    (user-error "link-file only works in org-mode buffers"))
+  (let* ((target (if buffer-file-name
+                     (file-relative-name file (file-name-directory buffer-file-name))
+                   (expand-file-name file)))
+         (desc (+org/sanitize-link-description (file-name-nondirectory file))))
+    (insert (format "[[file:%s][%s]]" target desc))))
+
+;; :: Keep the old binding working and add a top-level one
+(defalias '+org/insert-file-link #'link-file)
 
 (map! :map org-mode-map
       :localleader
-      "il" #'+org/insert-file-link)
+      "il" #'link-file)
 
 ;; :: Load finance module
 (load! "finance")

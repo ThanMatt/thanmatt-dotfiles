@@ -1,3 +1,6 @@
 [submodule "lazyvim"]
 	path = lazyvim
 	url = git@github.com:ThanMatt/lazyvim.git
+[submodule "kickstart"]
+	path = kickstart
+	url = git@github.com:ThanMatt/kickstart.git

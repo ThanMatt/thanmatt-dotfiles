@@ -29,6 +29,7 @@ alias Polybar="vi ~/.config/polybar/config.ini"
 alias Sway="vi ~/.config/sway/config"
 alias Doom!="doom sync"
 alias Niri="vi ~/.config/niri/config.kdl"
+alias Timestamp="date -u +\"%Y%m%d%H%M%S\""
 
 # :: Arch
 alias update='yay -Sy'

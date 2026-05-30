@@ -16,7 +16,6 @@ set $right l
 # Your preferred terminal emulator
 set $term kitty
 # Your preferred application launcher
-set $menu wofi --show drun
 
 
 font pango:FiraCode Nerd Font Mono 8
@@ -28,7 +27,8 @@ for_window [app_id="qalculate-gtk"] floating enable
 ### Output configuration
 #
 # Default wallpaper (more resolutions are available in /usr/share/backgrounds/sway/)
-output * bg ~/.config/sway/wallpapers/3840x2160-dark-windows.png fill
+# :: Disabled — Noctalia manages wallpaper (wallpaper.enabled: true)
+# output * bg ~/.config/sway/wallpapers/3840x2160-dark-windows.png fill
 
 output * adaptive_sync on
 
@@ -55,16 +55,20 @@ bindsym $mod+backslash split toggle
 
 bindsym $mod+period exec bemoji -t
 
-exec wlsunset -l 14.5995 -L 120.9842 -t 2700 -T 6500
+# :: Disabled — Noctalia handles night light (nightLight.enabled: true)
+# exec wlsunset -l 14.5995 -L 120.9842 -t 2700 -T 6500
+exec qs -c noctalia-shell
 
 
-exec swayidle -w \
-    timeout 300 'gtklock' \
-    timeout 300 'swaymsg "output * power off"' resume 'swaymsg "output * power on"' \
-    before-sleep 'gtklock'
+# :: Disabled — Noctalia handles idle/lock/screen-off/suspend (idle.enabled: true)
+# exec swayidle -w \
+#     timeout 300 'gtklock' \
+#     timeout 300 'swaymsg "output * power off"' resume 'swaymsg "output * power on"' \
+#     before-sleep 'gtklock'
 
 
-exec mako
+# exec mako
+# set $menu wofi --show drun
 
 # Audio routing configuration
 exec ~/.config/sway/scripts/audio-routing.sh
@@ -113,8 +117,11 @@ input "type:touch" {
 
 
 # :: Clipboard stuff
-exec ~/.config/sway/scripts/start-cliphist.sh
-bindsym $mod+alt+v exec cliphist list | wofi --dmenu | cliphist decode | wl-copy
+# :: Disabled — Noctalia runs the cliphist watchers (appLauncher.enableClipboardHistory: true)
+# exec ~/.config/sway/scripts/start-cliphist.sh
+# :: Noctalia clipboard history (replaces wofi dmenu)
+bindsym $mod+alt+v exec qs -c noctalia-shell ipc call launcher clipboard
+# bindsym $mod+alt+v exec cliphist list | wofi --dmenu | cliphist decode | wl-copy
 bindsym Print exec grim -g "$(slurp)" - | wl-copy
 
 # bindsym $mod+alt+v exec ~/.config/sway/scripts/cliphist-rofi-img.sh | rofi -dmenu -display-columns 2 -show-icons | ~/.config/sway/scripts/cliphist-rofi-img.sh
@@ -138,7 +145,9 @@ bindsym Ctrl+$mod+l workspace next_on_output
 bindsym Ctrl+$mod+h workspace prev_on_output
 
 
-bindsym $mod+alt+space exec wlogout
+# :: Noctalia session menu (replaces wlogout)
+bindsym $mod+alt+space exec qs -c noctalia-shell ipc call sessionMenu toggle
+# bindsym $mod+alt+space exec wlogout
 
 
 gaps inner 8px
@@ -159,8 +168,9 @@ bindsym $mod+t exec kitty
     # Kill focused window
     bindsym $mod+q kill
 
-    # Start your launcher
-    bindsym $mod+space exec $menu
+    # Start your launcher (Noctalia, replaces wofi)
+    bindsym $mod+space exec qs -c noctalia-shell ipc call launcher toggle
+    # bindsym $mod+space exec $menu
     bindsym $mod+c exec ~/.config/sway/scripts/calc.sh
 
     # Drag floating windows by holding down $mod and left mouse button.
@@ -304,13 +314,13 @@ bindsym $mod+r mode "resize"
     # bindsym --locked XF86AudioMicMute exec pactl set-source-mute \@DEFAULT_SOURCE@ toggle
     # :: Volume control with notifications (Wayland)
     # Start wob (volume/brightness bar)
-    # Start wob for volume/brightness overlay
-    exec mkfifo /tmp/wob_volume && tail -f /tmp/wob_volume | wob
-    
-    # Volume controls with wob feedback
-    bindsym XF86AudioRaiseVolume exec pamixer --sink @DEFAULT_SINK@ -i 5 && pamixer --sink @DEFAULT_SINK@ --get-volume > /tmp/wob_volume
-    bindsym XF86AudioLowerVolume exec pamixer --sink @DEFAULT_SINK@ -d 5 && pamixer --sink @DEFAULT_SINK@ --get-volume > /tmp/wob_volume
-    bindsym XF86AudioMute exec pamixer --sink @DEFAULT_SINK@ --toggle-mute && (pamixer --sink @DEFAULT_SINK@ --get-mute && echo 0 > /tmp/wob_volume) || pamixer --sink @DEFAULT_SINK@ --get-volume > /tmp/wob_volume
+    # :: Disabled — Noctalia OSD shows volume/brightness (osd.enabled: true)
+    # exec mkfifo /tmp/wob_volume && tail -f /tmp/wob_volume | wob
+
+    # :: Volume controls — Noctalia OSD pops automatically on PipeWire changes
+    bindsym XF86AudioRaiseVolume exec pamixer --sink @DEFAULT_SINK@ -i 5
+    bindsym XF86AudioLowerVolume exec pamixer --sink @DEFAULT_SINK@ -d 5
+    bindsym XF86AudioMute exec pamixer --sink @DEFAULT_SINK@ --toggle-mute
     # Special keys to adjust brightness via brightnessctl
     
     bindsym --locked XF86MonBrightnessDown exec brightnessctl set 5%-
@@ -321,22 +331,22 @@ bindsym $mod+r mode "resize"
 # Status Bar:
 #
 # Read `man 5 sway-bar` for more information about this section.
-bar {
-    position top
+# :: Disabled — Noctalia provides the bar (bar.displayMode: always_visible)
+# bar {
+#     position top
+#
+#     # When the status_command prints a new line to stdout, swaybar updates.
+#     # The default just shows the current date and time.
+#     status_command while date +'%Y-%m-%d %X'; do sleep 1; done
+#     swaybar_command waybar
+#
+#     colors {
+#         statusline #ffffff
+#         background #323232
+#         inactive_workspace #32323200 #32323200 #5c5c5c
+#     }
+# }
 
-    # When the status_command prints a new line to stdout, swaybar updates.
-    # The default just shows the current date and time.
-    status_command while date +'%Y-%m-%d %X'; do sleep 1; done
-    swaybar_command waybar
-
-
-
-    colors {
-        statusline #ffffff
-        background #323232
-        inactive_workspace #32323200 #32323200 #5c5c5c
-    }
-}
 
 
 include /etc/sway/config.d/*
