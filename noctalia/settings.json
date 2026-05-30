@@ -47,7 +47,7 @@
         "capsuleColorKey": "none",
         "capsuleOpacity": 1,
         "contentPadding": 2,
-        "density": "compact",
+        "density": "mini",
         "displayMode": "always_visible",
         "enableExclusionZoneInset": true,
         "fontScale": 1,
@@ -71,7 +71,7 @@
         "rightClickFollowMouse": true,
         "screenOverrides": [
         ],
-        "showCapsule": true,
+        "showCapsule": false,
         "showOnWorkspaceSwitch": true,
         "showOutline": false,
         "useSeparateOpacity": true,
@@ -86,18 +86,21 @@
                     "id": "Clock",
                     "tooltipFormat": "dddd, MMMM dd, yyyy",
                     "useCustomFont": false
+                },
+                {
+                    "id": "plugin:privacy-indicator"
                 }
             ],
             "left": [
                 {
-                    "colorizeSystemIcon": "none",
+                    "colorizeSystemIcon": "tertiary",
                     "colorizeSystemText": "none",
                     "customIconPath": "",
-                    "enableColorization": false,
+                    "enableColorization": true,
                     "icon": "rocket",
                     "iconColor": "none",
                     "id": "Launcher",
-                    "useDistroLogo": false
+                    "useDistroLogo": true
                 },
                 {
                     "characterCount": 2,
@@ -119,22 +122,6 @@
                     "showBadge": true,
                     "showLabelsOnlyWhenOccupied": true,
                     "unfocusedIconsOpacity": 1
-                },
-                {
-                    "compactMode": false,
-                    "hideMode": "hidden",
-                    "hideWhenIdle": false,
-                    "id": "MediaMini",
-                    "maxWidth": 145,
-                    "panelShowAlbumArt": true,
-                    "scrollingMode": "hover",
-                    "showAlbumArt": true,
-                    "showArtistFirst": true,
-                    "showProgressRing": true,
-                    "showVisualizer": false,
-                    "textColor": "none",
-                    "useFixedWidth": false,
-                    "visualizerType": "linear"
                 }
             ],
             "right": [
@@ -149,6 +136,9 @@
                     "iconColor": "none",
                     "id": "VPN",
                     "textColor": "tertiary"
+                },
+                {
+                    "id": "plugin:model-usage"
                 },
                 {
                     "displayMode": "onhover",
@@ -187,13 +177,6 @@
                     "id": "Battery",
                     "showNoctaliaPerformance": false,
                     "showPowerProfiles": false
-                },
-                {
-                    "applyToAllMonitors": false,
-                    "displayMode": "onhover",
-                    "iconColor": "none",
-                    "id": "Brightness",
-                    "textColor": "none"
                 },
                 {
                     "blacklist": [
@@ -370,12 +353,12 @@
         "autoStartAuth": false,
         "avatarImage": "",
         "boxRadiusRatio": 1,
-        "clockFormat": "hh\\nmmHH:mm:ss ",
+        "clockFormat": "HH:mm:ss ",
         "clockStyle": "custom",
         "compactLockScreen": true,
         "dimmerOpacity": 0.29,
         "enableBlurBehind": false,
-        "enableLockScreenCountdown": true,
+        "enableLockScreenCountdown": false,
         "enableLockScreenMediaControls": false,
         "enableShadows": false,
         "forceBlackScreenCorners": false,
@@ -406,7 +389,7 @@
         },
         "language": "",
         "lockOnSuspend": true,
-        "lockScreenAnimations": false,
+        "lockScreenAnimations": true,
         "lockScreenBlur": 0.68,
         "lockScreenCountdownDuration": 1000,
         "lockScreenMonitors": [
@@ -496,7 +479,7 @@
         "backgroundOpacity": 1,
         "clearDismissed": true,
         "criticalUrgencyDuration": 15,
-        "density": "default",
+        "density": "compact",
         "enableBatteryToast": true,
         "enableKeyboardLayoutToast": true,
         "enableMarkdown": false,
