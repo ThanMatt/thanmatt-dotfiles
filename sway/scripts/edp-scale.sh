@@ -21,6 +21,12 @@ apply_scale() {
 
 # :: set initial state, then react to every output hotplug/change
 apply_scale
-swaymsg -t subscribe -t output | while read -r _event; do
-  apply_scale
+
+pending=""
+swaymsg -m -t subscribe '["output"]' | while read -r _event; do
+  # :: coalesce bursts, then re-check at a few intervals: unplug settles fast,
+  # :: but replug needs EDID/mode negotiation and can land after the first check
+  [ -n "$pending" ] && kill "$pending" 2>/dev/null
+  ( sleep 0.3; apply_scale; sleep 0.7; apply_scale; sleep 1.0; apply_scale ) &
+  pending=$!
 done
