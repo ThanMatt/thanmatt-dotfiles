@@ -43,7 +43,7 @@ output eDP-1 mode 1920x1080 position 6000,180
 
 # :: Scale eDP-1 up only while an external display is connected (it's on a stand,
 # :: farther away). Daemon watches output hotplug events and toggles the scale.
-exec ~/.config/sway/scripts/edp-scale.sh
+# exec ~/.config/sway/scripts/edp-scale.sh
 #
 # Example configuration:
 #
@@ -59,7 +59,9 @@ bindswitch --reload --locked lid:off output eDP-1 enable
 
 bindsym $mod+backslash split toggle
 
-bindsym $mod+period exec bemoji -t
+# bindsym $mod+period exec bemoji -t
+
+bindsym $mod+period exec qs -c noctalia-shell ipc call launcher emoji
 
 # :: Disabled — Noctalia handles night light (nightLight.enabled: true)
 # exec wlsunset -l 14.5995 -L 120.9842 -t 2700 -T 6500
@@ -96,9 +98,10 @@ exec ~/.config/sway/scripts/audio-routing.sh
 # Example configuration:
 #
   input type:touchpad {
-      # dwt enabled
+      dwt enabled
       tap enabled
       natural_scroll enabled
+      accel_profile adaptive
       # middle_emulation enabled
   }
 #
@@ -205,16 +208,16 @@ bindsym $mod+t exec kitty
     bindsym $mod+Up focus up
     bindsym $mod+Right focus right
 
-    # Move the focused window with the same, but add Shift
-    bindsym $mod+Shift+$left move left
-    bindsym $mod+Shift+$down move down
-    bindsym $mod+Shift+$up move up
-    bindsym $mod+Shift+$right move right
-    # Ditto, with arrow keys
-    bindsym $mod+Shift+Left move left
-    bindsym $mod+Shift+Down move down
-    bindsym $mod+Shift+Up move up
-    bindsym $mod+Shift+Right move right
+    # Move the focused window with the same, but add Shift (big steps for floating)
+    bindsym $mod+Shift+$left move left 30px
+    bindsym $mod+Shift+$down move down 30px
+    bindsym $mod+Shift+$up move up 30px
+    bindsym $mod+Shift+$right move right 30px
+    # Ditto, with arrow keys (finer steps)
+    bindsym $mod+Shift+Left move left 10px
+    bindsym $mod+Shift+Down move down 10px
+    bindsym $mod+Shift+Up move up 10px
+    bindsym $mod+Shift+Right move right 10px
 #
 # Workspaces:
 #
@@ -277,12 +280,12 @@ bindsym $mod+t exec kitty
     # Sway has a "scratchpad", which is a bag of holding for windows.
     # You can send windows there and get them back later.
 
-    # Move the currently focused window to the scratchpad
-    bindsym $mod+Shift+minus move scratchpad
+    # :: Send the focused window to the grouped (floating) scratchpad
+    bindsym $mod+Shift+minus exec ~/.config/sway/scripts/scratch-send.sh
 
-    # Show the next scratchpad window or hide the focused scratchpad window.
-    # If there are multiple scratchpad windows, this command cycles through them.
-    bindsym $mod+alt+minus scratchpad show
+    # :: Toggle the WHOLE scratch group at once (show all / hide all),
+    # :: instead of Sway's default one-window-at-a-time cycling.
+    bindsym $mod+alt+minus exec ~/.config/sway/scripts/scratch-show.sh
 #
 # Resizing containers:
 #
@@ -293,16 +296,16 @@ mode "resize" {
         # Pressing right will grow the window’s width.
         # Pressing up will shrink the window’s height.
         # Pressing down will grow the window’s height.
-        bindsym h resize shrink width 5 px or 5 ppt
-        bindsym j resize grow height 5 px or 5 ppt
-        bindsym k resize shrink height 5 px or 5 ppt
-        bindsym l resize grow width 5 px or 5 ppt
+        bindsym h resize shrink width 30 px or 5 ppt
+        bindsym j resize grow height 30 px or 5 ppt
+        bindsym k resize shrink height 30 px or 5 ppt
+        bindsym l resize grow width 30 px or 5 ppt
 
-        # same bindings, but for the arrow keys
-        bindsym Left resize shrink width 10 px or 10 ppt
-        bindsym Down resize grow height 10 px or 10 ppt
-        bindsym Up resize shrink height 10 px or 10 ppt
-        bindsym Right resize grow width 10 px or 10 ppt
+        # same bindings, but for the arrow keys (finer steps)
+        bindsym Left resize shrink width 10 px or 2 ppt
+        bindsym Down resize grow height 10 px or 2 ppt
+        bindsym Up resize shrink height 10 px or 2 ppt
+        bindsym Right resize grow width 10 px or 2 ppt
 
         # back to normal: Enter or Escape or $mod+r
         bindsym Return mode "default"

@@ -9,14 +9,25 @@ SCALE_EXTERNAL=1.25
 SCALE_SOLO=1.0
 
 apply_scale() {
+  outputs=$(swaymsg -t get_outputs)
+
   # :: any active output other than the laptop panel?
-  external=$(swaymsg -t get_outputs | jq -r '.[] | select(.name != "eDP-1") | select(.active == true) | .name' | head -1)
+  external=$(echo "$outputs" | jq -r '.[] | select(.name != "eDP-1") | select(.active == true) | .name' | head -1)
 
   if [ -n "$external" ]; then
-    swaymsg output eDP-1 scale "$SCALE_EXTERNAL"
+    target=$SCALE_EXTERNAL
   else
-    swaymsg output eDP-1 scale "$SCALE_SOLO"
+    target=$SCALE_SOLO
   fi
+
+  current=$(echo "$outputs" | jq -r '.[] | select(.name == "eDP-1") | .scale')
+
+  # :: only touch the output when the scale actually needs to change — re-applying
+  # :: the same scale emits another output event and feeds back into our loop,
+  # :: spinning swaymsg/jq forever (pegs a core). awk handles float compare.
+  [ "$(awk -v a="$current" -v b="$target" 'BEGIN { print (a == b) }')" = "1" ] && return
+
+  swaymsg output eDP-1 scale "$target"
 }
 
 # :: set initial state, then react to every output hotplug/change

@@ -238,10 +238,13 @@ and the description is the file's basename with [ and ] escaped."
       "il" #'link-file)
 
 ;; :: Load finance module
-(load! "finance")
+(load! "modules/finance")
 
 ;; :: Load inventory module
-(load! "inventory")
+(load! "modules/inventory")
+
+;; :: Load todo-agenda module
+(load! "modules/todo-agenda")
 
 ;; :: Open HEIC files with external viewer
 (defun my/open-heic-externally ()
