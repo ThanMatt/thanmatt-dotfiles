@@ -191,6 +191,14 @@ top/bottom. Distinct slots on the same side coexist instead of replacing."
   ":: Display BUF in the persistent right side window (interactive terminals)."
   (my/display-in-side buf 'right 0 0.40))
 
+(defun my/focus-window (window)
+  ":: Select WINDOW and, for vterm buffers, drop into insert state.
+WINDOW is whatever `display-buffer' returned; no-op if it isn't live."
+  (when (window-live-p window)
+    (select-window window)
+    (when (and (eq major-mode 'vterm-mode) (fboundp 'evil-insert-state))
+      (evil-insert-state))))
+
 (defun my/dev-log-slot (type)
   ":: Bottom-side slot for a dev-log TYPE, so logs sit side by side."
   (pcase type
@@ -204,10 +212,12 @@ top/bottom. Distinct slots on the same side coexist instead of replacing."
 
 (defun my/prepare-log-buffer (name)
   ":: Create or clear NAME as a read-only log buffer. Returns buffer."
+  (require 'ansi-color)
   (let ((buf (get-buffer-create name)))
     (with-current-buffer buf
-      (let ((inhibit-read-only t)) (erase-buffer))
-      (special-mode))   ; :: read-only; q closes the window
+      (special-mode)                       ; :: read-only; q closes the window
+      (setq-local ansi-color-context nil)  ; :: reset SGR state for ANSI decode
+      (let ((inhibit-read-only t)) (erase-buffer)))
     buf))
 
 (defun my/dev-process-filter (proc string)
@@ -217,7 +227,9 @@ top/bottom. Distinct slots on the same side coexist instead of replacing."
       (let ((inhibit-read-only t)
             (at-end (= (point) (point-max))))
         (goto-char (point-max))
-        (insert string)
+        ;; :: decode ANSI colors and strip cursor-control sequences; the
+        ;; :: buffer-local `ansi-color-context' carries SGR state across chunks
+        (insert (ansi-color-apply string))
         (when at-end (goto-char (point-max)))))))
 
 ;; ──────────────────────────────────────────────────────
@@ -366,8 +378,8 @@ Re-uses the buffer if it already exists."
   (let* ((root     (my/project-root))
          (buf-name (format "*Claude Code [%s]*" (my/project-name))))
     (if (buffer-live-p (get-buffer buf-name))
-        ;; :: already open, just surface it
-        (my/display-side-split (get-buffer buf-name))
+        ;; :: already open, just surface it and focus
+        (my/focus-window (my/display-side-split (get-buffer buf-name)))
       ;; :: create fresh vterm without hijacking window layout
       (let ((default-directory root))
         (save-window-excursion (vterm buf-name)))
@@ -377,7 +389,8 @@ Re-uses the buffer if it already exists."
                         (when-let ((buf (get-buffer buf-name)))
                           (with-current-buffer buf
                             (vterm-send-string "claude\n")))))
-      (my/display-side-split (get-buffer-create buf-name)))))
+      ;; :: show the buffer and move point into it so typing goes to Claude
+      (my/focus-window (my/display-side-split (get-buffer-create buf-name))))))
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Project vterm (general scratch terminal)

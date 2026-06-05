@@ -205,17 +205,47 @@
       :desc "Split window horizontally" "-" #'evil-window-split)
 
 ;; Window navigation (LazyVim style with Ctrl+hjkl)
-(map! :n "C-h" #'evil-window-left
-      :n "C-j" #'evil-window-down
-      :n "C-k" #'evil-window-up
-      :n "C-l" #'evil-window-right)
+;; :: :nvieomr binds in every evil state so navigation works regardless of mode
+;; :: (normal, visual, insert, emacs, operator, motion, replace).
+(map! :nvieomr "C-h" #'evil-window-left
+      :nvieomr "C-j" #'evil-window-down
+      :nvieomr "C-k" #'evil-window-up
+      :nvieomr "C-l" #'evil-window-right)
+
+;; :: vterm (Claude Code, project terminals) captures raw keys in insert state,
+;; :: so re-bind C-hjkl directly in its map to keep pane navigation working.
+(map! :after vterm
+      :map vterm-mode-map
+      :nvieomr "C-h" #'evil-window-left
+      :nvieomr "C-j" #'evil-window-down
+      :nvieomr "C-k" #'evil-window-up
+      :nvieomr "C-l" #'evil-window-right)
+
+;; :: evil-snipe: let f/F/t/T spill past the current line.
+;; :: Primary scope stays the line (so same-line jumps win first), but when the
+;; :: character isn't on the current line, the search expands to the visible
+;; :: window and jumps there instead of failing. Swap 'visible for 'buffer to
+;; :: also reach off-screen lines.
+(after! evil-snipe
+  (setq evil-snipe-scope 'line
+        evil-snipe-spillover-scope 'visible))
 
 ;; :: Directional pane resize (tmux-style Alt+hjkl, mirrors ~/.tmux.conf)
 ;; :: h/l = width (10 cols), j/k = height (5 rows) — same steps as tmux.
-(map! :nvm "M-h" (cmd! (evil-window-decrease-width 10))
-      :nvm "M-l" (cmd! (evil-window-increase-width 10))
-      :nvm "M-j" (cmd! (evil-window-increase-height 5))
-      :nvm "M-k" (cmd! (evil-window-decrease-height 5)))
+;; :: :nvieomr binds in every evil state so resizing works regardless of mode.
+(map! :nvieomr "M-h" (cmd! (evil-window-decrease-width 10))
+      :nvieomr "M-l" (cmd! (evil-window-increase-width 10))
+      :nvieomr "M-j" (cmd! (evil-window-increase-height 5))
+      :nvieomr "M-k" (cmd! (evil-window-decrease-height 5)))
+
+;; :: vterm captures raw keys in insert state, so re-bind the resize keys
+;; :: directly in its map to keep pane resizing working there too.
+(map! :after vterm
+      :map vterm-mode-map
+      :nvieomr "M-h" (cmd! (evil-window-decrease-width 10))
+      :nvieomr "M-l" (cmd! (evil-window-increase-width 10))
+      :nvieomr "M-j" (cmd! (evil-window-increase-height 5))
+      :nvieomr "M-k" (cmd! (evil-window-decrease-height 5)))
 
 (defun +org/sanitize-link-description (desc)
   ":: Escape square brackets in an org link description.
@@ -291,7 +321,15 @@ and the description is the file's basename with [ and ] escaped."
   (map! :map magit-mode-map
         :n "H" #'evil-window-top
         :n "M" #'evil-window-middle
-        :n "L" #'evil-window-bottom))
+        :n "L" #'evil-window-bottom)
+  ;; :: reclaim C-hjkl for pane navigation. Magit binds C-j/C-k to
+  ;; :: magit-section-forward/backward ("No next section"), which shadows the
+  ;; :: global window-nav, so re-bind them here where Magit's map wins.
+  (map! :map magit-mode-map
+        :nvieomr "C-h" #'evil-window-left
+        :nvieomr "C-j" #'evil-window-down
+        :nvieomr "C-k" #'evil-window-up
+        :nvieomr "C-l" #'evil-window-right))
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Workspaces — auto-restore last session on startup
