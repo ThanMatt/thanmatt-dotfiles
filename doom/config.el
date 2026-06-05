@@ -210,6 +210,13 @@
       :n "C-k" #'evil-window-up
       :n "C-l" #'evil-window-right)
 
+;; :: Directional pane resize (tmux-style Alt+hjkl, mirrors ~/.tmux.conf)
+;; :: h/l = width (10 cols), j/k = height (5 rows) — same steps as tmux.
+(map! :nvm "M-h" (cmd! (evil-window-decrease-width 10))
+      :nvm "M-l" (cmd! (evil-window-increase-width 10))
+      :nvm "M-j" (cmd! (evil-window-increase-height 5))
+      :nvm "M-k" (cmd! (evil-window-decrease-height 5)))
+
 (defun +org/sanitize-link-description (desc)
   ":: Escape square brackets in an org link description.
 Org link descriptions cannot contain unescaped ] characters."
@@ -285,6 +292,14 @@ and the description is the file's basename with [ and ] escaped."
         :n "H" #'evil-window-top
         :n "M" #'evil-window-middle
         :n "L" #'evil-window-bottom))
+
+;; ──────────────────────────────────────────────────────
+;; :: Workspaces — auto-restore last session on startup
+;; ──────────────────────────────────────────────────────
+;; :: Reloads whatever `doom/quicksave-session' last wrote (Doom auto-saves
+;; :: the session on a normal quit via `SPC q q'). Save/load named workspaces
+;; :: with `SPC TAB s' / `SPC TAB l'; full session via M-x doom/quicksave-session.
+(add-hook 'window-setup-hook #'doom/quickload-session)
 
 (load! "modules/web")
 (load! "modules/keybindings") ; :: keep this last

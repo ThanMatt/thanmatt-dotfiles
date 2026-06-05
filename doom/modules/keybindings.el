@@ -22,6 +22,10 @@
         :desc "Frontend workspace" "f" #'my/workspace-frontend
         :desc "Backend workspace"  "b" #'my/workspace-backend)
 
+       ;; :: Window zoom (tmux-ish: enlargen focus / re-balance)
+       :desc "Enlargen window"    "Z" #'doom/window-enlargen
+       :desc "Balance windows"    "z" #'balance-windows
+
        ;; :: Tools
        :desc "Claude Code"        "c" #'my/claude-code
        :desc "Project vterm"      "t" #'my/project-vterm
