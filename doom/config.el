@@ -262,3 +262,29 @@ and the description is the file's basename with [ and ] escaped."
               (my/open-heic-externally))))
 
 
+;; ──────────────────────────────────────────────────────
+;; :: Flycheck — don't self-disable on transient startup bursts
+;; ──────────────────────────────────────────────────────
+;; :: eglot/tsserver floods unresolved-symbol diagnostics during the first few
+;; :: seconds of project indexing, then clears them. The default threshold (400)
+;; :: trips on that burst and permanently disables the checker for the buffer.
+;; :: nil = no cap; set a number (e.g. 2000) instead if you want a ceiling.
+(after! flycheck
+  (setq flycheck-checker-error-threshold nil))
+
+;; ──────────────────────────────────────────────────────
+;; :: Magit — relative line numbers + vim H/M/L navigation
+;; ──────────────────────────────────────────────────────
+(after! magit
+  ;; :: relative line numbers in Magit buffers (off by default there)
+  (add-hook 'magit-mode-hook
+            (lambda () (setq-local display-line-numbers 'relative)))
+  ;; :: reclaim H/M/L for evil screen motions. Overrides Magit's own bindings
+  ;; :: on these keys (notably M = remote menu); reach those via the menu (?).
+  (map! :map magit-mode-map
+        :n "H" #'evil-window-top
+        :n "M" #'evil-window-middle
+        :n "L" #'evil-window-bottom))
+
+(load! "modules/web")
+(load! "modules/keybindings") ; :: keep this last
