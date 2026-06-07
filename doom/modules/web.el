@@ -393,6 +393,39 @@ Re-uses the buffer if it already exists."
       (my/focus-window (my/display-side-split (get-buffer-create buf-name))))))
 
 ;; ──────────────────────────────────────────────────────
+;; :: ncspot (Spotify TUI)
+;; ──────────────────────────────────────────────────────
+
+(defun my/ncspot ()
+  ":: Toggle ncspot in a persistent vterm side split (global, not per-project).
+First call spawns ncspot; later calls show/hide the same session so playback
+keeps running while the window is hidden."
+  (interactive)
+  (unless (fboundp 'vterm)
+    (user-error "vterm not loaded -- enable ':term vterm' in init.el"))
+  (let* ((buf-name "*ncspot*")
+         (buf      (get-buffer buf-name))
+         (win      (and buf (get-buffer-window buf))))
+    (cond
+     ;; :: visible -> hide the window; ncspot keeps playing in the background
+     (win (if (one-window-p)
+              (bury-buffer buf)
+            (let ((ignore-window-parameters t)) (delete-window win))))
+     ;; :: exists but hidden -> surface and focus it
+     (buf (my/focus-window (my/vterm-display buf)))
+     ;; :: doesn't exist -> create from $HOME, launch ncspot, then show + focus
+     (t
+      (let ((default-directory (expand-file-name "~/"))
+            display-buffer-alist)          ; :: bypass popup :ttl 0 so hide ≠ kill
+        (save-window-excursion (vterm buf-name)))
+      (run-with-timer 0.4 nil
+                      (lambda ()
+                        (when-let ((b (get-buffer buf-name)))
+                          (with-current-buffer b
+                            (vterm-send-string "ncspot\n")))))
+      (my/focus-window (my/vterm-display buf-name))))))
+
+;; ──────────────────────────────────────────────────────
 ;; :: Project vterm (general scratch terminal)
 ;; ──────────────────────────────────────────────────────
 

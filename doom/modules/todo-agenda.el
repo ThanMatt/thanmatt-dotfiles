@@ -38,13 +38,11 @@ placeholder todos are skipped."
             (forward-line 1)))
         (nreverse todos)))))
 
-(defun todo-agenda ()
-  "Open or create today's agenda file.
-The file is named after the current date (YYYY-MM-DD.org). If today's
-agenda already exists it is opened instead of being recreated.  When a
-new file is created, unfinished todos from the most recent previous
-agenda are carried over."
-  (interactive)
+(defun todo-agenda--ensure-file ()
+  ":: Ensure today's agenda file exists and return its path.
+The file is named after the current date (YYYY-MM-DD.org). When a new
+file is created, unfinished todos from the most recent previous agenda
+are carried over.  Emits a status message and returns the filepath."
   (let* ((date (format-time-string "%Y-%m-%d"))
          (title (format-time-string "%A, %B %d, %Y"))
          (filename (format "%s.org" date))
@@ -65,9 +63,6 @@ agenda are carried over."
           (insert "- [ ] \n\n")
           (insert "* Notes\n\n"))))
 
-    ;; :: Open the file
-    (find-file filepath)
-
     ;; :: Display message
     (if file-exists
         (message "Opened today's agenda (%s)" date)
@@ -76,7 +71,22 @@ agenda are carried over."
         (if carried
             (message "Created new agenda for %s (carried over %d todo%s)"
                      date (length carried) (if (= (length carried) 1) "" "s"))
-          (message "Created new agenda for %s" date))))))
+          (message "Created new agenda for %s" date))))
+    filepath))
+
+(defun todo-agenda ()
+  ":: Open or create today's agenda file in the current window."
+  (interactive)
+  (find-file (todo-agenda--ensure-file)))
+
+(defun todo-agenda-side ()
+  ":: Open or create today's agenda in an editable right side window.
+Reuses the same file logic as `todo-agenda', but displays it in a
+persistent side split (like Claude Code) and focuses it for editing."
+  (interactive)
+  (let* ((filepath (todo-agenda--ensure-file))
+         (buf (find-file-noselect filepath)))
+    (my/focus-window (my/display-in-side buf 'right 0 0.40))))
 
 ;; :: Key binding: SPC o a
 (map! :leader

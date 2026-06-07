@@ -3,6 +3,88 @@
 ;; Place your private configuration here! Remember, you do not need to run 'doom
 ;; sync' after modifying this file!
 
+;; :: GUI Emacs (launched from sway) never sources Fish, so asdf shims aren't on
+;; :: PATH -- this breaks npx-based tools like apheleia formatters (exit 127).
+;; :: Prepend the shims dir to both exec-path and the PATH env var.
+(let ((asdf-shims (expand-file-name "~/.asdf/shims")))
+  (when (file-directory-p asdf-shims)
+    (add-to-list 'exec-path asdf-shims)
+    (setenv "PATH" (concat asdf-shims path-separator (getenv "PATH")))))
+
+;; ──────────────────────────────────────────────────────
+;; :: TypeScript / TSX without tree-sitter
+;; ──────────────────────────────────────────────────────
+;; :: Doom's :lang javascript maps .tsx -> tsx-ts-mode (tree-sitter), but the
+;; :: Arch libtree-sitter 0.26 / Emacs 30.2 predicate-query incompat makes that
+;; :: grammar unreliable -- files intermittently fall back to a non-JSX mode, so
+;; :: the LSP parses them as plain .ts and reports "cannot find name 'div'".
+;; :: Route .tsx/.jsx to a web-mode-based major mode instead (no grammar dep).
+;; :: A dedicated derived mode keeps it distinct from HTML web-mode, so eglot
+;; :: only sends the "typescriptreact" language-id for actual TSX buffers.
+(define-derived-mode typescript-tsx-mode web-mode "TSX"
+  ":: web-mode-based major mode for .tsx/.jsx -- no tree-sitter.")
+
+;; :: Win over Doom's tsx-ts-mode/typescript-ts-mode entries (add-to-list
+;; :: prepends, and auto-mode-alist is searched in order).
+(add-to-list 'auto-mode-alist '("\\.[tj]sx\\'" . typescript-tsx-mode))
+(add-to-list 'auto-mode-alist '("\\.ts\\'"     . typescript-mode))
+
+;; :: Use vtsls (not typescript-language-server): it wraps VS Code's TS engine
+;; :: and correctly resolves Vite "solution-style" tsconfigs (root tsconfig.json
+;; :: with `files: []` + `references`), which plain typescript-language-server
+;; :: does not -- that fallback turns jsx off + implicit-any on and floods every
+;; :: <div> with bogus diagnostics. Install: npm i -g @vtsls/language-server
+;; :: The per-mode :language-id is what tells vtsls whether a buffer is TSX.
+(after! eglot
+  (add-to-list 'eglot-server-programs
+               '(((typescript-tsx-mode :language-id "typescriptreact")
+                  (typescript-mode     :language-id "typescript")
+                  (js-mode             :language-id "javascript")
+                  (js2-mode            :language-id "javascript"))
+                 . ("vtsls" "--stdio"))))
+
+;; :: Doom only attaches the LSP client to the modes its javascript module
+;; :: manages; our web-mode-based TSX mode needs the hook added explicitly.
+(add-hook 'typescript-tsx-mode-local-vars-hook #'lsp!)
+(add-hook 'typescript-mode-local-vars-hook     #'lsp!)
+
+;; ──────────────────────────────────────────────────────
+;; :: TSX typing performance (web-mode + eglot)
+;; ──────────────────────────────────────────────────────
+;; :: In a .tsx buffer every keystroke triggers web-mode's after-change scan,
+;; :: an eglot didChange, a corfu completion query and an eldoc hover. web-mode
+;; :: also runs per-keystroke transformers we don't need (smartparens already
+;; :: pairs/quotes). Turning these off is what removes the typing lag.
+(after! web-mode
+  (setq web-mode-enable-auto-quoting nil        ; :: no "" insertion after = (re-scans)
+        web-mode-enable-auto-pairing nil        ; :: smartparens handles pairs already
+        web-mode-enable-auto-indentation nil    ; :: reindent-on-type is expensive
+        web-mode-enable-auto-expanding nil
+        web-mode-enable-css-colorization nil    ; :: stop scanning for color literals
+        web-mode-enable-current-element-highlight nil
+        web-mode-enable-current-column-highlight nil))
+
+;; :: web-mode re-scans + refontifies the *enclosing JSX block* on every edit, so
+;; :: the cost grows with how deeply nested the JSX at point is -- which is why a
+;; :: big Dialog/Tabs tree lags while the flat JSX above it stays fast. web-mode
+;; :: has no incremental parser (that's tree-sitter, which is broken here), so we
+;; :: take fontification off the keystroke's critical path instead: the char is
+;; :: inserted immediately and colors catch up ~50ms later when typing pauses.
+(defun my/tsx-typing-perf ()
+  ":: Buffer-local latency tweaks for deeply-nested JSX in web-mode TSX buffers."
+  (setq-local jit-lock-defer-time 0.05      ; :: defer font-lock; don't run per-key
+              jit-lock-stealth-time nil      ; :: no background full-buffer fontify
+              web-mode-jsx-depth-faces nil)) ; :: skip per-depth JSX bg shading (costly)
+(add-hook 'typescript-tsx-mode-hook #'my/tsx-typing-perf)
+
+;; :: eglot logs every LSP JSON message into a hidden events buffer by default;
+;; :: that's real overhead on each didChange (one per keystroke). Size 0 = off.
+;; :: send-changes-idle-time batches edits so vtsls isn't notified mid-burst.
+(after! eglot
+  (setq eglot-events-buffer-config '(:size 0 :format full)
+        eglot-sync-connect nil                  ; :: never block the UI on the server
+        eglot-send-changes-idle-time 0.5))
+
 
 ;; Some functionality uses this to identify you, e.g. GPG configuration, email
 ;; clients, file templates and snippets. It is optional.

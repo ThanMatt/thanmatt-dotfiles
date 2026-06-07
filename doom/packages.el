@@ -1,6 +1,10 @@
 ;; -*- no-byte-compile: t; -*-
 ;;; $DOOMDIR/packages.el
 
+;; :: web-mode for .tsx/.jsx without tree-sitter (libtree-sitter 0.26 vs Emacs
+;; :: 30.2 breaks the tsx grammar's predicate queries). See config.el.
+(package! web-mode)
+
 ;; To install a package with Doom you must declare them here and run 'doom sync'
 ;; on the command line, then restart Emacs for the changes to take effect -- or
 
