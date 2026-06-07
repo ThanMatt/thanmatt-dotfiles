@@ -27,6 +27,10 @@
        :desc "Balance windows"    "z" #'balance-windows
 
        ;; :: Tools
+       :desc "Magit status"       "g" #'magit-status
        :desc "Claude Code"        "c" #'my/claude-code
        :desc "Project vterm"      "t" #'my/project-vterm
+       :desc "New vterm"          "T" #'my/project-vterm-new
+       :desc "Switch vterm"       "v" #'my/vterm-switch
+       :desc "Kill vterm"         "k" #'my/vterm-kill
        :desc "Status"             "?" #'my/dev-status))

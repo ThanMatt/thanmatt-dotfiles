@@ -199,6 +199,13 @@
 ;; Toggle vterm in a popup window
 (map! "C-c t" #'+vterm/toggle)
 
+;; :: Keep vterm buffers (and their processes) alive when the window closes.
+;; :: Doom's default rule uses :ttl 0, which KILLS the buffer the instant the
+;; :: popup is dismissed (`:q`, q, escape) — that SIGHUPs any running server.
+;; :: :ttl nil makes closing merely bury it; `C-c t' brings it back, server
+;; :: still running. To actually stop it: `exit' in the shell, or kill-buffer.
+(set-popup-rule! "^\\*vterm" :size 0.30 :vslot -4 :select t :quit nil :ttl nil)
+
 ;; Window splitting keybindings (LazyVim style)
 (map! :leader
       :desc "Split window vertically" "|" #'evil-window-vsplit
@@ -229,6 +236,11 @@
 (after! evil-snipe
   (setq evil-snipe-scope 'line
         evil-snipe-spillover-scope 'visible))
+
+;; :: Free C-u for Emacs's universal argument (Doom binds it to evil-scroll-up).
+;; :: Lets `C-u M-x ...' work. Trade-off: lose vim half-page scroll-up on C-u —
+;; :: use C-b (full page) or remap it below if you miss it.
+(map! :nvm "C-u" #'universal-argument)
 
 ;; :: Directional pane resize (tmux-style Alt+hjkl, mirrors ~/.tmux.conf)
 ;; :: h/l = width (10 cols), j/k = height (5 rows) — same steps as tmux.

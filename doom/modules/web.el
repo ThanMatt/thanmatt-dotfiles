@@ -396,15 +396,118 @@ Re-uses the buffer if it already exists."
 ;; :: Project vterm (general scratch terminal)
 ;; ──────────────────────────────────────────────────────
 
+(defun my/vterm-display (buffer-or-name)
+  ":: Show a vterm in a right-side window, BYPASSING Doom's popup system.
+Binding `display-buffer-alist' to nil is the key: it stops the `^*vterm'
+popup rule (and its :ttl 0) from attaching to the window, so hiding the
+vterm with `delete-window' never kills the buffer/process — exactly why
+the Claude Code buffer persists. Returns the displayed window."
+  (let (display-buffer-alist)
+    (display-buffer
+     (get-buffer buffer-or-name)
+     '((display-buffer-reuse-window display-buffer-in-side-window)
+       (side . right) (slot . 1) (window-width . 0.40)))))
+
+(defun my/vterm-create (buf-name root)
+  ":: Create vterm BUF-NAME at ROOT without the popup system hijacking it."
+  (let ((default-directory root)
+        display-buffer-alist)            ; :: keep creation out of popups too
+    (save-window-excursion (vterm buf-name))))
+
 (defun my/project-vterm ()
-  ":: Open a named vterm at the current project root."
+  ":: Toggle the project's primary vterm (show / hide; never kills it).
+Reuses a single buffer per project — use `my/project-vterm-new' (SPC d T)
+for extra terminals.
+
+NOTE: `vterm' with a string arg always `generate-new-buffer's, so we look
+the buffer up by name ourselves to avoid spawning duplicates."
   (interactive)
   (unless (fboundp 'vterm)
     (user-error "vterm not loaded -- enable ':term vterm' in init.el"))
   (let* ((root     (my/project-root))
          (buf-name (format "*vterm [%s]*" (my/project-name)))
-         (default-directory root))
-    (vterm buf-name)))
+         (buf      (get-buffer buf-name))
+         (win      (and buf (get-buffer-window buf))))
+    (cond
+     ;; :: visible -> hide it (window only; the shell keeps running)
+     (win (if (one-window-p)
+              (bury-buffer buf)
+            (let ((ignore-window-parameters t)) (delete-window win))))
+     ;; :: exists but hidden -> show + focus
+     (buf (my/focus-window (my/vterm-display buf)))
+     ;; :: doesn't exist -> create at project root, then show + focus
+     (t
+      (my/vterm-create buf-name root)
+      (my/focus-window (my/vterm-display buf-name))))))
+
+(defun my/project-vterm-new ()
+  ":: Spawn a fresh, uniquely-named vterm at the project root.
+Unlike `my/project-vterm' (which reuses one buffer), each call creates a
+new session — *vterm [proj]*, *vterm [proj]*<2>, etc."
+  (interactive)
+  (unless (fboundp 'vterm)
+    (user-error "vterm not loaded -- enable ':term vterm' in init.el"))
+  (let* ((root     (my/project-root))
+         (buf-name (generate-new-buffer-name
+                    (format "*vterm [%s]*" (my/project-name)))))
+    (my/vterm-create buf-name root)
+    (my/focus-window (my/vterm-display buf-name))))
+
+(defun my/vterm-buffers ()
+  ":: Live vterm-mode buffers scoped to the current Doom workspace.
+Falls back to all buffers when workspaces (persp-mode) aren't active."
+  (cl-remove-if-not
+   (lambda (buf) (eq (buffer-local-value 'major-mode buf) 'vterm-mode))
+   (if (fboundp '+workspace-buffer-list)
+       (+workspace-buffer-list)
+     (buffer-list))))
+
+(defun my/vterm-switch ()
+  ":: Pick a live vterm in the current workspace, with live preview.
+Since the vterms share a name, moving through candidates temporarily shows
+the highlighted one (via consult's `:state'); the original layout is
+restored on exit, then the final pick is displayed and focused. Falls back
+to plain `completing-read' if consult isn't available."
+  (interactive)
+  (let ((bufs (my/vterm-buffers)))
+    (if (null bufs)
+        (when (y-or-n-p "No vterm in this workspace. Create the project vterm? ")
+          (my/project-vterm))
+      (let* ((names  (mapcar #'buffer-name bufs))
+             (wconf  (current-window-configuration))
+             (choice
+              (if (require 'consult nil t)
+                  (unwind-protect
+                      (consult--read
+                       names
+                       :prompt        "Switch to vterm: "
+                       :category      'buffer
+                       :require-match t
+                       :sort          nil
+                       :state
+                       (lambda (action cand)
+                         ;; :: preview the highlighted vterm; restore happens
+                         ;; :: below regardless of selection or C-g abort
+                         (when (and (eq action 'preview) cand (get-buffer cand))
+                           (my/vterm-display cand))))
+                    (set-window-configuration wconf))
+                (completing-read "Switch to vterm: " names nil t))))
+        (when (and choice (get-buffer choice))
+          (my/focus-window (my/vterm-display choice)))))))
+
+(defun my/vterm-kill ()
+  ":: Pick a live vterm in the current workspace and kill it (close it).
+Skips the \"buffer has a running process\" prompt — the pick is explicit."
+  (interactive)
+  (let ((bufs (my/vterm-buffers)))
+    (if (null bufs)
+        (message "No vterm buffers to kill.")
+      (let* ((names  (mapcar #'buffer-name bufs))
+             (choice (completing-read "Kill vterm: " names nil t)))
+        (when (and choice (get-buffer choice))
+          (let ((kill-buffer-query-functions nil))
+            (kill-buffer choice))
+          (message "Killed %s" choice))))))
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Workspace shortcuts
