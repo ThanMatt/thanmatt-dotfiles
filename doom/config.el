@@ -377,6 +377,10 @@ and the description is the file's basename with [ and ] escaped."
 ;; :: Load todo-agenda module
 (load! "modules/todo-agenda")
 
+;; :: Load db modules (sql connections + templates, then the table browser)
+(load! "modules/db")
+(load! "modules/db-browser")
+
 ;; :: Open HEIC files with external viewer
 (defun my/open-heic-externally ()
   "Open HEIC file at point with external viewer."

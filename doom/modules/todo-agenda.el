@@ -19,24 +19,28 @@ DATE is a YYYY-MM-DD string; filenames sort lexicographically by date."
                              (string< (file-name-base f) date))
                            (sort files #'string<))))))
 
-(defun todo-agenda--unfinished-todos (file)
-  ":: Return a list of unfinished todo lines (\"- [ ] ...\") from FILE.
-Only lines under the \"* Todos\" heading are considered, and empty
-placeholder todos are skipped."
+(defun todo-agenda--previous-todos-block (file)
+  ":: Return the verbatim text under the \"* Todos\" heading of FILE.
+The content and formatting are preserved exactly as written
+(checklists, plain lines, indentation, sub-items, etc.); the block
+stops at the next top-level heading and trailing blank lines are
+trimmed.  Returns nil when FILE is missing or its Todos section is
+empty."
   (when (and file (file-readable-p file))
     (with-temp-buffer
       (insert-file-contents file)
       (goto-char (point-min))
-      (let ((todos '()))
-        ;; :: Jump to the Todos heading, stop at the next heading.
-        (when (re-search-forward "^\\* Todos[ \t]*$" nil t)
-          (forward-line 1)
-          (while (and (not (eobp))
-                      (not (looking-at "^\\* ")))
-            (when (looking-at "^[ \t]*- \\[ \\] \\(.+?\\)[ \t]*$")
-              (push (string-trim (match-string 1)) todos))
-            (forward-line 1)))
-        (nreverse todos)))))
+      ;; :: Jump past the Todos heading, capture up to the next heading.
+      (when (re-search-forward "^\\* Todos[ \t]*$" nil t)
+        (forward-line 1)
+        (let ((start (point)))
+          (if (re-search-forward "^\\* " nil t)
+              (goto-char (match-beginning 0))
+            (goto-char (point-max)))
+          (let ((block (string-trim-right
+                        (buffer-substring-no-properties start (point)))))
+            (unless (string-empty-p (string-trim block))
+              block)))))))
 
 (defun todo-agenda--ensure-file ()
   ":: Ensure today's agenda file exists and return its path.
@@ -47,31 +51,30 @@ are carried over.  Emits a status message and returns the filepath."
          (title (format-time-string "%A, %B %d, %Y"))
          (filename (format "%s.org" date))
          (filepath (expand-file-name filename todo-agenda-directory))
-         (file-exists (file-exists-p filepath)))
+         (file-exists (file-exists-p filepath))
+         ;; :: Verbatim Todos block from the most recent previous agenda.
+         (carried (unless file-exists
+                    (todo-agenda--previous-todos-block
+                     (todo-agenda--latest-previous-file date)))))
 
     ;; :: Create file if it doesn't exist
     (unless file-exists
-      (let ((carried (todo-agenda--unfinished-todos
-                      (todo-agenda--latest-previous-file date))))
-        (with-temp-file filepath
-          (insert (format "#+TITLE: %s\n" title))
-          (insert (format "#+DATE: %s\n\n" date))
-          (insert "* Todos\n")
-          ;; :: Carry over unfinished todos from the previous agenda.
-          (dolist (todo carried)
-            (insert (format "- [ ] %s\n" todo)))
-          (insert "- [ ] \n\n")
-          (insert "* Notes\n\n"))))
+      (with-temp-file filepath
+        (insert (format "#+TITLE: %s\n" title))
+        (insert (format "#+DATE: %s\n\n" date))
+        (insert "* Todos\n")
+        ;; :: Copy the previous agenda's Todos content as-is, or seed an empty one.
+        (if carried
+            (insert carried "\n")
+          (insert "- [ ] \n"))
+        (insert "\n* Notes\n\n")))
 
     ;; :: Display message
     (if file-exists
         (message "Opened today's agenda (%s)" date)
-      (let ((carried (todo-agenda--unfinished-todos
-                      (todo-agenda--latest-previous-file date))))
-        (if carried
-            (message "Created new agenda for %s (carried over %d todo%s)"
-                     date (length carried) (if (= (length carried) 1) "" "s"))
-          (message "Created new agenda for %s" date))))
+      (if carried
+          (message "Created new agenda for %s (carried over previous todos)" date)
+        (message "Created new agenda for %s" date)))
     filepath))
 
 (defun todo-agenda ()

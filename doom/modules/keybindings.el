@@ -22,6 +22,15 @@
         :desc "Frontend workspace" "f" #'my/workspace-frontend
         :desc "Backend workspace"  "b" #'my/workspace-backend)
 
+       ;; :: SQL / DB (read-only Postgres workflow)
+       (:prefix ("s" . "sql")
+        :desc "Browse DB tables"   "b" #'my/sql-browse
+        :desc "Connect to preset"  "c" #'sql-connect
+        :desc "Reload connections" "r" #'my/sql-reload-connections
+        :desc "SQL scratch buffer" "s" #'my/sql-scratch
+        :desc "Run template"       "t" #'my/sql-run-template
+        :desc "Preview template"   "T" #'my/sql-preview-template)
+
        ;; :: Window zoom (tmux-ish: enlargen focus / re-balance)
        :desc "Enlargen window"    "Z" #'doom/window-enlargen
        :desc "Balance windows"    "z" #'balance-windows
