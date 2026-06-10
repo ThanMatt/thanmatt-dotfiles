@@ -29,7 +29,10 @@
         :desc "Reload connections" "r" #'my/sql-reload-connections
         :desc "SQL scratch buffer" "s" #'my/sql-scratch
         :desc "Run template"       "t" #'my/sql-run-template
-        :desc "Preview template"   "T" #'my/sql-preview-template)
+        :desc "Preview template"   "T" #'my/sql-preview-template
+        :desc "Write/save query"   "w" #'my/sql-save-query
+        :desc "Saved queries"      "q" #'my/sql-run-saved
+        :desc "Delete saved query" "d" #'my/sql-delete-saved)
 
        ;; :: Window zoom (tmux-ish: enlargen focus / re-balance)
        :desc "Enlargen window"    "Z" #'doom/window-enlargen

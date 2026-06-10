@@ -43,9 +43,11 @@
     (nreverse alist)))
 
 (defun my/sql-reload-connections ()
-  ":: refresh presets from the wallet (run after editing ~/.authinfo.gpg)"
+  ":: refresh presets from the wallet AND flush the table cache -- a full reset,
+   so a stale (e.g. pre-tunnel) table list can't linger after editing the wallet"
   (interactive)
   (setq sql-connection-alist (my/sql--connections-from-authinfo))
+  (when (boundp 'my/sql--table-cache) (clrhash my/sql--table-cache))
   (message "Loaded %d db connection(s)" (length sql-connection-alist)))
 
 (defun my/sql--ensure-connections ()
