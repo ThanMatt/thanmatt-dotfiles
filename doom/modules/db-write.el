@@ -253,7 +253,7 @@
                      (format "DELETE FROM %s WHERE %s;"
                              my/sql--table (my/sql--row-predicate pk)))
       (my/sql--render)
-      (message "Deleted (uncommitted).  , c commit   , k rollback"))))
+      (message "Deleted (uncommitted).  , C commit   , K rollback"))))
 
 (defun my/sql-delete-rows (beg end)
   ":: delete every row in the visual selection (one DELETE, one confirm)"
@@ -275,7 +275,7 @@
                              my/sql--table
                              (mapconcat #'my/sql--row-predicate (nreverse pks) " OR ")))
       (my/sql--render)
-      (message "Deleted %d row(s) (uncommitted).  , c commit   , k rollback"
+      (message "Deleted %d row(s) (uncommitted).  , C commit   , K rollback"
                (length pks)))))
 
 ;; ──────────────────────────────────────────────────────
@@ -356,18 +356,7 @@
       (when (fboundp 'persp-add-buffer) (persp-add-buffer buf))
       (select-window (display-buffer buf)))))
 
-(defun my/sql--table-columns (conn table)
-  ":: ordered column names of TABLE (schema-qualified or bare) on CONN"
-  (let* ((parts  (split-string table "\\."))
-         (schema (if (cdr parts) (car parts) "public"))
-         (name   (or (cadr parts) (car parts)))
-         (sql    (format (concat "SELECT column_name FROM information_schema.columns "
-                                 "WHERE table_schema = '%s' AND table_name = '%s' "
-                                 "ORDER BY ordinal_position;")
-                         schema name))
-         (res    (my/sql--psql conn sql t)))
-    (and (zerop (car res))
-         (split-string (cdr res) "\n" t "[ \t\r]+"))))
+;; :: my/sql--table-columns lives in db-browser.el (shared with the column selector)
 
 (defun my/sql-insert-row ()
   ":: open a blank form to insert a new row (empty field = column default)"
@@ -402,7 +391,7 @@
   ;; :: kill the form AND restore the window layout (delete the popped window
   ;; :: rather than leaving a 2nd copy of the table in it)
   (quit-window t)
-  (message "%s (uncommitted).  , c commit   , k rollback" verb))
+  (message "%s (uncommitted).  , C commit   , K rollback" verb))
 
 (defun my/sql-edit-commit ()
   ":: apply the form -- UPDATE (changed fields) or INSERT (non-empty fields)"

@@ -44,14 +44,10 @@
   (cond
    ((use-region-p)
     (string-trim (buffer-substring-no-properties (region-beginning) (region-end))))
-   ((and (derived-mode-p 'my/sql-result-mode) my/sql--raw-sql)
-    (string-trim my/sql--raw-sql))
+   ;; :: the exact on-screen query -- selected columns, WHERE, ORDER BY, LIMIT
+   ;; :: (or the raw/saved SQL); built by my/sql--current-data-sql in db-browser.el
    ((derived-mode-p 'my/sql-result-mode)
-    (string-trim
-     (format "SELECT * FROM %s%s%s;" my/sql--table
-             (if (and my/sql--where (not (string-empty-p my/sql--where)))
-                 (concat " WHERE " my/sql--where) "")
-             (if my/sql--limit (format " LIMIT %d" my/sql--limit) ""))))
+    (string-trim (my/sql--current-data-sql)))
    ((derived-mode-p 'sql-mode)
     (string-trim (buffer-substring-no-properties (point-min) (point-max))))
    (t (read-string "Query: "))))

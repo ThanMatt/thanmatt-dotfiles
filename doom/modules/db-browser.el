@@ -100,6 +100,9 @@
   ":: column name to ORDER BY (nil = unsorted); set by my/sql-sort-column")
 (defvar-local my/sql--order-desc nil
   ":: when my/sql--order-by is set, sort descending instead of ascending")
+(defvar-local my/sql--select-cols nil
+  ":: columns to display (nil = all, i.e. SELECT *); set by my/sql-select-columns.
+   Identity (pk/ctid) columns are always fetched for edit/delete even if hidden.")
 
 (define-derived-mode my/sql-result-mode special-mode "DB-Result"
   ":: read-only db result viewer"
@@ -187,9 +190,26 @@
         (puthash key cols my/sql--pk-cache)
         cols))))
 
+(defun my/sql--table-columns (conn table)
+  ":: ordered column names of TABLE (schema-qualified or bare) on CONN"
+  (let* ((parts  (split-string table "\\."))
+         (schema (if (cdr parts) (car parts) "public"))
+         (name   (or (cadr parts) (car parts)))
+         (sql    (format (concat "SELECT column_name FROM information_schema.columns "
+                                 "WHERE table_schema = '%s' AND table_name = '%s' "
+                                 "ORDER BY ordinal_position;")
+                         schema name))
+         (res    (my/sql--psql conn sql t)))
+    (and (zerop (car res))
+         (split-string (cdr res) "\n" t "[ \t\r]+"))))
+
 (defun my/sql--quote-ident (name)
-  ":: SQL-quote an identifier (column name) for use in ORDER BY"
+  ":: SQL-quote an identifier (column name) for use in ORDER BY / column lists"
   (format "\"%s\"" (replace-regexp-in-string "\"" "\"\"" name)))
+
+(defun my/sql--col-expr (col)
+  ":: SELECT-list expression for COL -- the system `ctid' needs ::text + alias"
+  (if (equal col "ctid") "ctid::text AS ctid" (my/sql--quote-ident col)))
 
 (defun my/sql--order-clause ()
   ":: \" ORDER BY col DIR\" from buffer-local sort state, or \"\" when unsorted"
@@ -200,18 +220,31 @@
     ""))
 
 (defun my/sql--build-select ()
-  ":: (PK-COLS . SQL) for the current table buffer, always including a row
-   identifier: the primary key, or a synthetic `ctid' column when there is none."
+  ":: plist (:pk PK-COLS :hide HIDE-COLS :sql SQL) for the current table buffer.
+   Always fetches a row identifier (pk, or synthetic `ctid'); HIDE-COLS lists
+   fetched-but-not-displayed columns (the identity cols the user didn't pick)."
   (let* ((pk    (my/sql--table-pk my/sql--conn-name my/sql--table))
+         (ids   (or pk '("ctid")))
+         (sel   my/sql--select-cols)
          (where (if (and my/sql--where (not (string-empty-p my/sql--where)))
                     (concat " WHERE " my/sql--where) ""))
          (order (my/sql--order-clause))
          (limit (if my/sql--limit (format " LIMIT %d" my/sql--limit) "")))
-    (if pk
-        (cons pk (format "SELECT * FROM %s%s%s%s;" my/sql--table where order limit))
-      (cons '("ctid")
-            (format "SELECT ctid::text AS ctid, * FROM %s%s%s%s;"
-                    my/sql--table where order limit)))))
+    (if (null sel)
+        ;; :: no column selection -> SELECT * (+ ctid when pk-less)
+        (if pk
+            (list :pk pk :hide nil
+                  :sql (format "SELECT * FROM %s%s%s%s;" my/sql--table where order limit))
+          (list :pk '("ctid") :hide '("ctid")
+                :sql (format "SELECT ctid::text AS ctid, * FROM %s%s%s%s;"
+                             my/sql--table where order limit)))
+      ;; :: explicit columns -> fetch selected + any identity cols not picked (hidden)
+      (let* ((extra (cl-remove-if (lambda (c) (member c sel)) ids))
+             (fetch (append sel extra)))
+        (list :pk ids :hide extra
+              :sql (format "SELECT %s FROM %s%s%s%s;"
+                           (mapconcat #'my/sql--col-expr fetch ", ")
+                           my/sql--table where order limit))))))
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Grid render -- our own aligned table, with each row line carrying
@@ -226,15 +259,15 @@
   ":: S truncated-with-ellipsis / space-padded to WIDTH display columns"
   (truncate-string-to-width s width nil ?\s "…"))
 
-(defun my/sql--insert-grid (cols rows pk-cols)
+(defun my/sql--insert-grid (cols rows pk-cols &optional hide-cols)
   ":: render COLS/ROWS as an aligned grid; tag each data line with pk + row props.
-   A synthetic ctid identifier column (pk-cols = (\"ctid\")) is kept for identity
-   but hidden from display."
+   HIDE-COLS are fetched-for-identity-but-not-displayed columns (synthetic ctid,
+   or pk/identity columns the user deselected via my/sql-select-columns)."
   (when cols
-    (let* ((hide    (and (equal pk-cols '("ctid")) "ctid"))
+    (let* ((hide    hide-cols)
            (vis-idx (let ((acc '()) (i 0))
                       (dolist (c cols (nreverse acc))
-                        (unless (equal c hide) (push i acc))
+                        (unless (member c hide) (push i acc))
                         (setq i (1+ i)))))
            (widths  (mapcar
                      (lambda (i)
@@ -256,9 +289,9 @@
                           (mapcar (lambda (c)
                                     (cons c (nth (cl-position c cols :test #'equal) r)))
                                   pk-cols)))
-              ;; :: editable values exclude the synthetic ctid identifier column
+              ;; :: editable values exclude hidden identity columns
               (rowalist (cl-loop for c in cols for v in r
-                                 unless (equal c hide) collect (cons c v))))
+                                 unless (member c hide) collect (cons c v))))
           ;; :: insert cell-by-cell so each cell carries `my/sql-col' -- lets RET
           ;; :: know which column the cursor is on (follow-foreign-key).
           (cl-loop for (idx . w) in pairs
@@ -274,10 +307,11 @@
 (defun my/sql--render ()
   ":: rebuild the query from buffer-local state and redraw the grid in place"
   (let* ((spec    (if my/sql--raw-sql
-                      (cons nil my/sql--raw-sql)
+                      (list :pk nil :hide nil :sql my/sql--raw-sql)
                     (my/sql--build-select)))
-         (pk-cols (car spec))
-         (sql     (cdr spec))
+         (pk-cols (plist-get spec :pk))
+         (hide    (plist-get spec :hide))
+         (sql     (plist-get spec :sql))
          (csv     (my/sql--fetch-csv my/sql--conn-name sql))
          (parsed  (my/sql--parse-csv csv))
          (cols    (car parsed))
@@ -289,11 +323,11 @@
     (erase-buffer)
     (when txn-p
       (insert (propertize
-               (format "-- ⚠ TXN OPEN on %s —  , c commit   , k rollback\n" my/sql--conn-name)
+               (format "-- ⚠ TXN OPEN on %s —  , C commit   , K rollback\n" my/sql--conn-name)
                'face 'warning)))
     (insert (format "-- %s  @ %s\n-- %s\n\n"
                     (or my/sql--title my/sql--table) my/sql--conn-name sql))
-    (my/sql--insert-grid cols rows pk-cols)
+    (my/sql--insert-grid cols rows pk-cols hide)
     (goto-char (point-min))))
 
 ;; ──────────────────────────────────────────────────────
@@ -312,7 +346,8 @@
       (setq my/sql--conn-name conn my/sql--table table
             my/sql--where where my/sql--limit 100
             my/sql--raw-sql nil my/sql--title nil
-            my/sql--order-by nil my/sql--order-desc nil)
+            my/sql--order-by nil my/sql--order-desc nil
+            my/sql--select-cols nil)
       (my/sql--render))
     ;; :: register in the current Doom workspace so it shows in `SPC ,'
     (when (fboundp 'persp-add-buffer) (persp-add-buffer buf))
@@ -372,7 +407,8 @@
   (interactive)
   (let ((table (completing-read "Table: " (my/sql--tables my/sql--conn-name) nil t)))
     (setq my/sql--table table my/sql--where nil
-          my/sql--order-by nil my/sql--order-desc nil)
+          my/sql--order-by nil my/sql--order-desc nil
+          my/sql--select-cols nil)
     (my/sql--render)))  ;; :: render renames the buffer to match the new table
 
 ;; ──────────────────────────────────────────────────────
@@ -499,11 +535,14 @@
    ctid identifier that my/sql--build-select adds for pk-less tables)"
   (if my/sql--raw-sql
       my/sql--raw-sql
-    (let ((where (if (and my/sql--where (not (string-empty-p my/sql--where)))
+    (let ((cols  (if my/sql--select-cols
+                     (mapconcat #'my/sql--quote-ident my/sql--select-cols ", ")
+                   "*"))
+          (where (if (and my/sql--where (not (string-empty-p my/sql--where)))
                      (concat " WHERE " my/sql--where) ""))
           (order (my/sql--order-clause))
           (limit (if my/sql--limit (format " LIMIT %d" my/sql--limit) "")))
-      (format "SELECT * FROM %s%s%s%s;" my/sql--table where order limit))))
+      (format "SELECT %s FROM %s%s%s%s;" cols my/sql--table where order limit))))
 
 (defun my/sql-json-view ()
   ":: show the current view as pretty-printed JSON in a side buffer (read-only)"
@@ -551,6 +590,108 @@
     (message "Exported %d row(s) to %s" rows (abbreviate-file-name file))))
 
 ;; ──────────────────────────────────────────────────────
+;; :: Column selector -- a checklist buffer to pick which columns to display.
+;; :: Starts with the current set checked; apply re-runs with only those columns
+;; :: (identity columns are still fetched behind the scenes for edit/delete).
+;; ──────────────────────────────────────────────────────
+(defvar-local my/sql--colsel-source nil)
+(defvar-local my/sql--colsel-cols nil)
+(defvar-local my/sql--colsel-checked nil)
+
+(define-derived-mode my/sql-colsel-mode special-mode "DB-Columns"
+  ":: checklist to choose which table columns to display")
+
+(when (fboundp 'evil-set-initial-state)        ;; :: normal state so :n keys work
+  (evil-set-initial-state 'my/sql-colsel-mode 'normal))
+
+(defun my/sql--colsel-render ()
+  ":: redraw the checklist, keeping point on its line"
+  (let ((inhibit-read-only t) (ln (line-number-at-pos)))
+    (erase-buffer)
+    (insert (propertize
+             "# columns to show   TAB/RET toggle   a all   n none   C-c C-c apply   q cancel\n\n"
+             'face 'font-lock-comment-face))
+    (dolist (c my/sql--colsel-cols)
+      (insert (propertize
+               (format "[%s] %s\n" (if (member c my/sql--colsel-checked) "x" " ") c)
+               'my/sql-colsel-col c)))
+    (goto-char (point-min))
+    (forward-line (1- ln))))
+
+(defun my/sql-colsel-toggle ()
+  ":: toggle the column on the current line"
+  (interactive)
+  (let ((c (get-text-property (point) 'my/sql-colsel-col)))
+    (when c
+      (setq my/sql--colsel-checked
+            (if (member c my/sql--colsel-checked)
+                (remove c my/sql--colsel-checked)   ;; :: non-destructive (no shared-list mutation)
+              (cons c my/sql--colsel-checked)))
+      (my/sql--colsel-render))))
+
+(defun my/sql-colsel-all ()
+  ":: check every column"
+  (interactive)
+  (setq my/sql--colsel-checked (copy-sequence my/sql--colsel-cols))
+  (my/sql--colsel-render))
+
+(defun my/sql-colsel-none ()
+  ":: uncheck every column"
+  (interactive)
+  (setq my/sql--colsel-checked nil)
+  (my/sql--colsel-render))
+
+(defun my/sql-colsel-apply ()
+  ":: apply the checked columns to the source table buffer and re-run"
+  (interactive)
+  (let* ((src     my/sql--colsel-source)
+         ;; :: keep natural column order; all-checked means SELECT * (nil)
+         (checked (cl-remove-if-not (lambda (c) (member c my/sql--colsel-checked))
+                                    my/sql--colsel-cols))
+         (all     my/sql--colsel-cols))
+    (unless checked (user-error "Select at least one column"))
+    (when (buffer-live-p src)
+      (with-current-buffer src
+        (setq my/sql--select-cols (unless (equal checked all) checked))
+        (my/sql--render)))
+    (quit-window t)
+    (message "Showing %s"
+             (if (equal checked all) "all columns"
+               (format "%d of %d columns" (length checked) (length all))))))
+
+(defun my/sql-select-columns ()
+  ":: open a checklist to choose which columns the current table shows"
+  (interactive)
+  (unless (and (derived-mode-p 'my/sql-result-mode) my/sql--table (not my/sql--raw-sql))
+    (user-error "Column selection only works in a table browse buffer"))
+  (let* ((cols    (my/sql--table-columns my/sql--conn-name my/sql--table))
+         (current (or my/sql--select-cols cols))   ;; :: nil means all shown
+         (src     (current-buffer))
+         (buf     (get-buffer-create (format "*DB columns: %s*" (my/sql--data-table-name)))))
+    (unless cols (user-error "Could not read columns for %s" my/sql--table))
+    (with-current-buffer buf
+      (my/sql-colsel-mode)
+      (setq my/sql--colsel-source  src
+            my/sql--colsel-cols    cols
+            ;; :: own copy -- cl-remove-if-not can alias `cols' when nothing is removed
+            my/sql--colsel-checked (copy-sequence
+                                    (cl-remove-if-not (lambda (c) (member c current)) cols)))
+      (my/sql--colsel-render))
+    (when (fboundp 'persp-add-buffer) (persp-add-buffer buf))
+    (pop-to-buffer buf)))
+
+(map! :map my/sql-colsel-mode-map
+      :n "TAB"     #'my/sql-colsel-toggle
+      :n [tab]     #'my/sql-colsel-toggle
+      :n "RET"     #'my/sql-colsel-toggle
+      :n [return]  #'my/sql-colsel-toggle
+      :n "a"       #'my/sql-colsel-all
+      :n "n"       #'my/sql-colsel-none
+      :n "q"       #'quit-window
+      "C-c C-c"    #'my/sql-colsel-apply
+      "C-c C-k"    #'quit-window)
+
+;; ──────────────────────────────────────────────────────
 ;; :: In-buffer keys via localleader -- leaves hjkl/search motions untouched
 ;; ──────────────────────────────────────────────────────
 (map! :map my/sql-result-mode-map
@@ -571,12 +712,15 @@
       :desc "Save query"     "s" #'my/sql-save-query
       ;; :: sort by the column under point (repeat = toggle dir, C-u = clear)
       :desc "Sort column"    "S" #'my/sql-sort-column
+      ;; :: choose which columns to display (checklist)
+      :desc "Select columns" "c" #'my/sql-select-columns
       ;; :: view / export the current result set
       :desc "JSON view"      "j" #'my/sql-json-view
       :desc "Export CSV"     "E" #'my/sql-export-csv
-      ;; :: write mode -- edit a row + transaction control (db-write.el)
+      ;; :: write mode -- edit a row + transaction control (db-write.el).
+      ;; :: commit/rollback are capitalised (C/K) to flag them as weighty actions.
       :desc "Edit row"       "e" #'my/sql-edit-row
       :desc "Insert row"     "i" #'my/sql-insert-row
-      :desc "Commit txn"     "c" #'my/sql-txn-commit-here
-      :desc "Rollback txn"   "k" #'my/sql-txn-rollback-here
+      :desc "Commit txn"     "C" #'my/sql-txn-commit-here
+      :desc "Rollback txn"   "K" #'my/sql-txn-rollback-here
       :desc "Begin txn"      "x" #'my/sql-txn-begin-here)
