@@ -97,11 +97,66 @@
     (message "Copied: %s" query)))
 
 ;; ──────────────────────────────────────────────────────
-;; :: Free-form scratch buffer
+;; :: Free-form scratch buffer -- type SQL, run it (`, r') into a read-only result
+;; :: buffer (same grid as the browser: sort / JSON / CSV / follow-fk, txn-aware),
+;; :: then keep it with `, w' / SPC d s w only if it's worth saving.
+;; ::
+;; :: The scratch's connection is stored buffer-locally in `my/sql--conn-name'
+;; :: (defined in db-browser.el) so the save command reuses it without re-asking.
 ;; ──────────────────────────────────────────────────────
 (defun my/sql-scratch ()
   ":: open a free-form sql-mode scratch buffer in another window"
   (interactive)
   (let ((buf (get-buffer-create "*sql-scratch*")))
-    (with-current-buffer buf (sql-mode))
+    (with-current-buffer buf
+      (unless (derived-mode-p 'sql-mode) (sql-mode))  ;; :: don't reset on reopen
+      (when (zerop (buffer-size))
+        (insert "-- SQL scratch.  , r run (region or statement at point)"
+                "   , c connection   , w save\n\n")))
     (switch-to-buffer-other-window buf)))
+
+(defun my/sql--scratch-conn ()
+  ":: the scratch buffer's connection, prompting + remembering on first use"
+  (or my/sql--conn-name
+      (progn
+        (my/sql--ensure-connections)
+        (setq my/sql--conn-name
+              (completing-read "Run on connection: "
+                               (mapcar (lambda (c) (symbol-name (car c))) sql-connection-alist)
+                               nil t)))))
+
+(defun my/sql-scratch-set-conn ()
+  ":: choose (or change) the connection the scratch buffer runs against"
+  (interactive)
+  (my/sql--ensure-connections)
+  (setq my/sql--conn-name
+        (completing-read "Run on connection: "
+                         (mapcar (lambda (c) (symbol-name (car c))) sql-connection-alist)
+                         nil t))
+  (message "Scratch connection: %s" my/sql--conn-name))
+
+(defun my/sql--scratch-statement ()
+  ":: SQL to run: the active region, else the statement around point (; delimited)"
+  (if (use-region-p)
+      (string-trim (buffer-substring-no-properties (region-beginning) (region-end)))
+    (let ((p (point)) beg end)
+      (save-excursion (goto-char p)
+                      (setq beg (if (re-search-backward ";" nil t) (match-end 0) (point-min))))
+      (save-excursion (goto-char p)
+                      (setq end (if (re-search-forward ";" nil t) (point) (point-max))))
+      (string-trim (buffer-substring-no-properties beg end)))))
+
+(defun my/sql-scratch-run ()
+  ":: run the SQL under point (or the region) and show results in a side window"
+  (interactive)
+  (let ((sql  (my/sql--scratch-statement))
+        (conn (my/sql--scratch-conn)))
+    (when (string-empty-p sql) (user-error "No SQL to run"))
+    (my/sql--open-raw conn sql (format "SQL scratch @ %s" conn) t)))
+
+;; :: localleader for any sql-mode buffer (the scratch, or a .sql file)
+(map! :map sql-mode-map
+      :localleader
+      :desc "Run SQL (region/stmt)" "r" #'my/sql-scratch-run
+      :desc "Set connection"        "c" #'my/sql-scratch-set-conn
+      :desc "Save query"            "w" #'my/sql-save-query)

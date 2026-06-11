@@ -560,7 +560,7 @@
             "lowSoundFile": "",
             "normalSoundFile": "",
             "separateSounds": false,
-            "volume": 0.58
+            "volume": 0.5
         }
     },
     "osd": {

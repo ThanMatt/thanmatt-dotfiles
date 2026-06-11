@@ -377,10 +377,14 @@ and the description is the file's basename with [ and ] escaped."
 ;; :: Load todo-agenda module
 (load! "modules/todo-agenda")
 
+;; :: Load uuid module (SPC i u — insert a v4 UUID)
+(load! "modules/uuid")
+
 ;; :: Load db modules (sql connections + templates, the table browser, saved queries)
 (load! "modules/db")
 (load! "modules/db-browser")
 (load! "modules/db-saved")
+(load! "modules/db-write")      ; :: edit/delete rows + transactions (after db-browser)
 
 ;; :: Open HEIC files with external viewer
 (defun my/open-heic-externally ()
