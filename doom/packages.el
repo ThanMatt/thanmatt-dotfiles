@@ -5,6 +5,17 @@
 ;; :: 30.2 breaks the tsx grammar's predicate queries). See config.el.
 (package! web-mode)
 
+;; :: vtsls under lsp-mode -- wraps VS Code's TS engine; handles Vite solution-
+;; :: style tsconfigs that the built-in ts-ls (typescript-language-server) gets
+;; :: wrong. Registers at :priority -1, beating ts-ls (-2), so it's auto-chosen.
+(package! lsp-vtsls :recipe (:host github :repo "sdvcrx/lsp-vtsls"))
+
+;; :: tailwindcss-language-server client for lsp-mode. (Upstream lsp-mode merged
+;; :: a built-in client on master, but Doom pins lsp-mode 9.0.1, which predates
+;; :: it -- so the external package is still required here.) Run as an add-on so
+;; :: it coexists with vtsls; see config.el.
+(package! lsp-tailwindcss :recipe (:host github :repo "merrickluo/lsp-tailwindcss"))
+
 ;; To install a package with Doom you must declare them here and run 'doom sync'
 ;; on the command line, then restart Emacs for the changes to take effect -- or
 

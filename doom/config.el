@@ -3,13 +3,17 @@
 ;; Place your private configuration here! Remember, you do not need to run 'doom
 ;; sync' after modifying this file!
 
-;; :: GUI Emacs (launched from sway) never sources Fish, so asdf shims aren't on
-;; :: PATH -- this breaks npx-based tools like apheleia formatters (exit 127).
-;; :: Prepend the shims dir to both exec-path and the PATH env var.
-(let ((asdf-shims (expand-file-name "~/.asdf/shims")))
-  (when (file-directory-p asdf-shims)
-    (add-to-list 'exec-path asdf-shims)
-    (setenv "PATH" (concat asdf-shims path-separator (getenv "PATH")))))
+;; :: GUI Emacs (launched from sway) never sources Fish, so asdf isn't on PATH.
+;; :: Shims call `asdf exec', which needs ASDF_DIR set and ~/.asdf/bin on PATH.
+;; :: Without both, apheleia-npx (and other asdf-managed tools) fail with 127.
+(let ((asdf-dir    (expand-file-name "~/.asdf"))
+      (asdf-bin    (expand-file-name "~/.asdf/bin"))
+      (asdf-shims  (expand-file-name "~/.asdf/shims")))
+  (when (file-directory-p asdf-dir)
+    (setenv "ASDF_DIR" asdf-dir)
+    (dolist (dir (list asdf-bin asdf-shims))
+      (add-to-list 'exec-path dir)
+      (setenv "PATH" (concat dir path-separator (getenv "PATH"))))))
 
 ;; ──────────────────────────────────────────────────────
 ;; :: TypeScript / TSX without tree-sitter
@@ -19,8 +23,9 @@
 ;; :: grammar unreliable -- files intermittently fall back to a non-JSX mode, so
 ;; :: the LSP parses them as plain .ts and reports "cannot find name 'div'".
 ;; :: Route .tsx/.jsx to a web-mode-based major mode instead (no grammar dep).
-;; :: A dedicated derived mode keeps it distinct from HTML web-mode, so eglot
-;; :: only sends the "typescriptreact" language-id for actual TSX buffers.
+;; :: A dedicated derived mode keeps it distinct from HTML web-mode, so we can
+;; :: map it to the "typescriptreact" language-id (below) without touching the
+;; :: language-id of actual HTML web-mode buffers.
 (define-derived-mode typescript-tsx-mode web-mode "TSX"
   ":: web-mode-based major mode for .tsx/.jsx -- no tree-sitter.")
 
@@ -29,19 +34,24 @@
 (add-to-list 'auto-mode-alist '("\\.[tj]sx\\'" . typescript-tsx-mode))
 (add-to-list 'auto-mode-alist '("\\.ts\\'"     . typescript-mode))
 
-;; :: Use vtsls (not typescript-language-server): it wraps VS Code's TS engine
-;; :: and correctly resolves Vite "solution-style" tsconfigs (root tsconfig.json
-;; :: with `files: []` + `references`), which plain typescript-language-server
-;; :: does not -- that fallback turns jsx off + implicit-any on and floods every
-;; :: <div> with bogus diagnostics. Install: npm i -g @vtsls/language-server
-;; :: The per-mode :language-id is what tells vtsls whether a buffer is TSX.
-(after! eglot
-  (add-to-list 'eglot-server-programs
-               '(((typescript-tsx-mode :language-id "typescriptreact")
-                  (typescript-mode     :language-id "typescript")
-                  (js-mode             :language-id "javascript")
-                  (js2-mode            :language-id "javascript"))
-                 . ("vtsls" "--stdio"))))
+;; :: vtsls (not the default ts-ls / typescript-language-server): it wraps VS
+;; :: Code's TS engine and correctly resolves Vite "solution-style" tsconfigs
+;; :: (root tsconfig.json with `files: []` + `references`), which ts-ls does not
+;; :: -- that fallback turns jsx off + implicit-any on and floods every <div>
+;; :: with bogus diagnostics. lsp-vtsls (packages.el) registers at :priority -1,
+;; :: beating ts-ls (-2), so lsp-mode auto-selects it; the binary is found on
+;; :: PATH (asdf shim, added to exec-path above) via its :system dependency.
+;; :: Install the server if it's missing: M-x lsp-install-server RET vtsls.
+(use-package! lsp-vtsls :after lsp-mode)
+
+;; :: lsp-mode keys client activation + the language-id it sends off
+;; :: `lsp-buffer-language', which it derives from `lsp-language-id-configuration'.
+;; :: Our web-mode-derived TSX mode isn't in that alist, so map it explicitly --
+;; :: without this lsp-buffer-language is nil and NEITHER vtsls nor tailwindcss
+;; :: activates. (.ts -> typescript-mode is already mapped by lsp-mode.)
+(after! lsp-mode
+  (add-to-list 'lsp-language-id-configuration
+               '(typescript-tsx-mode . "typescriptreact")))
 
 ;; :: Doom only attaches the LSP client to the modes its javascript module
 ;; :: manages; our web-mode-based TSX mode needs the hook added explicitly.
@@ -49,10 +59,10 @@
 (add-hook 'typescript-mode-local-vars-hook     #'lsp!)
 
 ;; ──────────────────────────────────────────────────────
-;; :: TSX typing performance (web-mode + eglot)
+;; :: TSX typing performance (web-mode + lsp-mode)
 ;; ──────────────────────────────────────────────────────
 ;; :: In a .tsx buffer every keystroke triggers web-mode's after-change scan,
-;; :: an eglot didChange, a corfu completion query and an eldoc hover. web-mode
+;; :: an lsp-mode didChange, a corfu completion query and an eldoc hover. web-mode
 ;; :: also runs per-keystroke transformers we don't need (smartparens already
 ;; :: pairs/quotes). Turning these off is what removes the typing lag.
 (after! web-mode
@@ -77,13 +87,30 @@
               web-mode-jsx-depth-faces nil)) ; :: skip per-depth JSX bg shading (costly)
 (add-hook 'typescript-tsx-mode-hook #'my/tsx-typing-perf)
 
-;; :: eglot logs every LSP JSON message into a hidden events buffer by default;
-;; :: that's real overhead on each didChange (one per keystroke). Size 0 = off.
-;; :: send-changes-idle-time batches edits so vtsls isn't notified mid-burst.
-(after! eglot
-  (setq eglot-events-buffer-config '(:size 0 :format full)
-        eglot-sync-connect nil                  ; :: never block the UI on the server
-        eglot-send-changes-idle-time 0.5))
+;; ──────────────────────────────────────────────────────
+;; :: tailwindcss-language-server (lsp-mode add-on)
+;; ──────────────────────────────────────────────────────
+;; :: `add-on-mode' runs tailwindcss ALONGSIDE the primary TS server (vtsls)
+;; :: instead of competing to be the buffer's single server -- which is the whole
+;; :: reason we're on lsp-mode here. (eglot is one-server-per-buffer: the old
+;; :: second-eglot-server hack returned "No Match" because tailwind never
+;; :: received didOpen/didChange and so had no document to complete against.)
+;; :: `add-on-mode' is read when the client registers, so it must be set in
+;; :: `:init' (runs at startup), not `:config' (too late). The client activates
+;; :: when `major-mode' is (derived from one) in `lsp-tailwindcss-major-modes' --
+;; :: default already covers web-mode + typescript-tsx-mode -- AND the project has
+;; :: a tailwind.config.* (anywhere in the tree) or a v4 tailwind dependency.
+;; :: Let lsp-mode MANAGE the server: the client runs `node <server-path> --stdio',
+;; :: so server-path MUST be a JS file. Do NOT set it to the asdf
+;; :: `tailwindcss-language-server' shim -- that's a bash script, and `node <bash>'
+;; :: dies instantly with "SyntaxError: Invalid or unexpected token" (exit 1, the
+;; :: endless "restart? y/n" loop). With server-path unset, lsp downloads
+;; :: bradlc.vscode-tailwindcss's tailwindServer.js into its own dir and runs that.
+;; :: Install once: `M-x lsp-install-server RET tailwindcss'. tailwind handles the
+;; :: "typescriptreact" language-id natively, so no includeLanguages remap.
+(use-package! lsp-tailwindcss
+  :after lsp-mode
+  :init (setq lsp-tailwindcss-add-on-mode t))
 
 
 ;; Some functionality uses this to identify you, e.g. GPG configuration, email
@@ -405,7 +432,7 @@ and the description is the file's basename with [ and ] escaped."
 ;; ──────────────────────────────────────────────────────
 ;; :: Flycheck — don't self-disable on transient startup bursts
 ;; ──────────────────────────────────────────────────────
-;; :: eglot/tsserver floods unresolved-symbol diagnostics during the first few
+;; :: vtsls floods unresolved-symbol diagnostics during the first few
 ;; :: seconds of project indexing, then clears them. The default threshold (400)
 ;; :: trips on that burst and permanently disables the checker for the buffer.
 ;; :: nil = no cap; set a number (e.g. 2000) instead if you want a ceiling.
