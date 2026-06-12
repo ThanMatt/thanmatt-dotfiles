@@ -35,6 +35,19 @@
   (load! "+linux"))
 
 ;; ──────────────────────────────────────────────────────
+;; :: Soft word wrap (:editor word-wrap)
+;; ──────────────────────────────────────────────────────
+;; :: Wrap long lines at word boundaries (with language-aware indent) in every
+;; :: buffer -- EXCEPT the db table viewers. Those render wide, column-aligned
+;; :: tables; wrapping shifts cells onto the next line and destroys the layout,
+;; :: so they keep `truncate-lines' (set in their own modes). `+word-wrap-mode'
+;; :: still toggles per-buffer if I want wrap somewhere it's excluded.
+(after! word-wrap
+  (dolist (mode '(my/sql-result-mode my/sql-colsel-mode))
+    (add-to-list '+word-wrap-disabled-modes mode))
+  (+global-word-wrap-mode +1))
+
+;; ──────────────────────────────────────────────────────
 ;; :: TypeScript / TSX engine  --  web-mode  <->  tree-sitter
 ;; ──────────────────────────────────────────────────────
 ;; :: Doom's :lang javascript maps .tsx -> tsx-ts-mode (tree-sitter), but the
@@ -569,6 +582,22 @@ Paste the result into any org file; following the link jumps to that exact line.
   (let ((prev (previous-window)))
     (unless (eq prev (selected-window))
       (window-swap-states (selected-window) prev))))
+
+;; :: ace-window -- tmux `C-a q` style: flash a floating number on each window,
+;; :: press it to jump, then the overlay vanishes.
+(use-package! ace-window
+  :config
+  ;; :: Label windows with digits instead of the default home-row letters.
+  (setq aw-keys '(?1 ?2 ?3 ?4 ?5 ?6 ?7 ?8 ?9)
+        ;; :: Only label windows in the current frame.
+        aw-scope 'frame)
+  ;; :: Make the floating number big and centered so it reads at a glance.
+  (setq aw-leading-char-style 'char)
+  (custom-set-faces!
+    '(aw-leading-char-face :height 5.0 :weight bold :foreground "#ff6c6b")))
+
+(map! :leader
+      :desc "Jump to window (ace)" "w SPC" #'ace-window)
 
 ;; :: Free C-u for Emacs's universal argument (Doom binds it to evil-scroll-up).
 ;; :: Use C-b for full-page scroll-up.

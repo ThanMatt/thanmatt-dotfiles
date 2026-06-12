@@ -37,6 +37,7 @@ output * adaptive_sync on
 output * enable
 
 # :: Display layout — DP-2 center, laptop eDP-1 right (vertically centered on DP-2)
+output DP-1 mode 2560x1440@120.000Hz position 0,0
 output DP-2 mode 2560x1440@120.000Hz position 0,0
 output eDP-1 mode 1920x1080 position 2560,180
 
