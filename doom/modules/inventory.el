@@ -1,7 +1,7 @@
 ;;; inventory.el --- Inventory Tracker for Doom Emacs -*- lexical-binding: t; -*-
 
 ;; :: Inventory file path
-(defvar inventory-file "~/org-notes/inventory.org"
+(defvar inventory-file (expand-file-name "inventory.org" my/notes-dir)
   "Path to the inventory org file.")
 
 (defun inventory/open-or-create ()

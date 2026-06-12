@@ -1,0 +1,22 @@
+# :: Local Claude Code settings (machine-specific, not for the repo)
+.claude/
+
+# :: Local environment files (secrets live in ~/.config/fish/conf.d/local.fish)
+.env
+.env.local
+env.fish
+
+# :: Backup / auto-generated files
+*.backup
+*~
+\#*\#
+*.elc
+auto-save-list/
+network-security.data
+
+# :: Sensitive data
+*.secret
+*.private
+
+# :: macOS
+.DS_Store

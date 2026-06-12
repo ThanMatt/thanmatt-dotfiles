@@ -429,17 +429,36 @@ keeps running while the window is hidden."
 ;; :: Project vterm (general scratch terminal)
 ;; ──────────────────────────────────────────────────────
 
+(defun my/vterm-resync-size (window)
+  ":: Force the vterm PTY to match WINDOW's actual dimensions.
+vterm sizes the PTY to whichever window is selected when the process is
+*created* (see `vterm.el' make-process). Because we create vterms inside a
+`save-window-excursion' (wrong-sized window) and then display them in a
+narrow side window, the shell keeps the stale, too-wide column count — so
+fish wraps/redraws at the wrong column (the \"seizure\" + garbled redraw
+that a manual resize fixes). Re-running vterm's own resize hook against the
+final window syncs `$COLUMNS'/`$LINES' to what's on screen."
+  (when (window-live-p window)
+    (let ((proc (get-buffer-process (window-buffer window))))
+      (when (and (fboundp 'vterm--window-adjust-process-window-size)
+                 (process-live-p proc))
+        (with-selected-window window
+          (vterm--window-adjust-process-window-size proc (list window)))))))
+
 (defun my/vterm-display (buffer-or-name)
   ":: Show a vterm in a right-side window, BYPASSING Doom's popup system.
 Binding `display-buffer-alist' to nil is the key: it stops the `^*vterm'
 popup rule (and its :ttl 0) from attaching to the window, so hiding the
 vterm with `delete-window' never kills the buffer/process — exactly why
 the Claude Code buffer persists. Returns the displayed window."
-  (let (display-buffer-alist)
-    (display-buffer
-     (get-buffer buffer-or-name)
-     '((display-buffer-reuse-window display-buffer-in-side-window)
-       (side . right) (slot . 1) (window-width . 0.40)))))
+  (let* (display-buffer-alist
+         (window
+          (display-buffer
+           (get-buffer buffer-or-name)
+           '((display-buffer-reuse-window display-buffer-in-side-window)
+             (side . right) (slot . 1) (window-width . 0.40)))))
+    (my/vterm-resync-size window)
+    window))
 
 (defun my/vterm-create (buf-name root)
   ":: Create vterm BUF-NAME at ROOT without the popup system hijacking it."

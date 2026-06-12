@@ -1,7 +1,7 @@
 ;;; finance.el --- Personal Finance Tracker for Doom Emacs -*- lexical-binding: t; -*-
 
 ;; :: Finance directory configuration
-(defvar finance-directory "~/org-notes/finance/"
+(defvar finance-directory (expand-file-name "finance/" my/notes-dir)
   "Directory where finance org files are stored.")
 
 ;; :: Ensure finance directory exists

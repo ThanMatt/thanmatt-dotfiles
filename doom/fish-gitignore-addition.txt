@@ -1,0 +1,5 @@
+# Add this to your Fish dotfiles .gitignore
+# (typically at ~/.config/fish/.gitignore or in your dotfiles repo)
+
+# Local machine-specific configuration (contains secrets)
+conf.d/local.fish
