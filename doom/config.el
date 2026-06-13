@@ -529,6 +529,55 @@ Paste the result into any org file; following the link jumps to that exact line.
 (add-hook 'window-setup-hook #'doom/quickload-session)
 
 ;; ──────────────────────────────────────────────────────
+;; :: Shadow workspaces -- live preview while switching (SPC TAB .)
+;; ──────────────────────────────────────────────────────
+;; :: While the switcher's minibuffer is open, switch to whichever candidate is
+;; :: highlighted so you see it live; keep navigating, RET confirms, C-g restores
+;; :: the workspace you started in. Driven off a buffer-local `post-command-hook'
+;; :: in the minibuffer that reads Vertico's current candidate.
+;; :: Infinite-loop guard (the backlog's worry): preview goes through
+;; :: `+workspace-switch', which is NON-interactive -- it can't spawn a nested
+;; :: minibuffer -- and we skip redundant switches by remembering the last name
+;; :: previewed. `save-selected-window' keeps focus in the minibuffer so the
+;; :: candidate list stays open and navigable across switches.
+(defvar my/ws-preview-origin nil
+  ":: Workspace active before the switcher opened; restored on abort.")
+(defvar my/ws-preview-last nil
+  ":: Last workspace name previewed, to skip redundant switches.")
+
+(defun my/ws-preview--update ()
+  ":: Switch to the highlighted candidate when it names a real workspace."
+  (when (and (fboundp 'vertico--candidate) (bound-and-true-p vertico--input))
+    (let ((cand (ignore-errors (vertico--candidate))))
+      (when (and cand
+                 (not (string= cand my/ws-preview-last))
+                 (member cand (+workspace-list-names)))
+        (setq my/ws-preview-last cand)
+        (save-selected-window
+          (+workspace-switch cand))))))
+
+(defun my/workspace-switch-preview ()
+  ":: `+workspace/switch-to' with live preview: each candidate is shown as you
+move; RET confirms, C-g restores the starting workspace."
+  (interactive)
+  (setq my/ws-preview-origin (+workspace-current-name)
+        my/ws-preview-last   my/ws-preview-origin)
+  (let (chosen)
+    (condition-case nil
+        (minibuffer-with-setup-hook
+            (lambda () (add-hook 'post-command-hook #'my/ws-preview--update nil t))
+          (setq chosen (completing-read "Switch to workspace: "
+                                        (+workspace-list-names) nil t)))
+      (quit nil))
+    (+workspace-switch (or chosen my/ws-preview-origin))))
+
+;; :: DISABLED for now -- `SPC TAB .' stays on Doom's default
+;; :: `+workspace/switch-to'. Uncomment to re-enable the live-preview switcher.
+;; (map! :leader
+;;       (:prefix "TAB"
+;;        :desc "Switch workspace (preview)" "." #'my/workspace-switch-preview))
+
+;; ──────────────────────────────────────────────────────
 ;; :: Window management -- splits, nav, swap, resize
 ;; ──────────────────────────────────────────────────────
 (map! :leader
@@ -541,6 +590,20 @@ Paste the result into any org file; following the link jumps to that exact line.
       :nvieomr "C-k" #'evil-window-up
       :nvieomr "C-l" #'evil-window-right)
 
+;; :: Auto copy-mode: suspends vterm's cursor-sync on normal state entry so Evil
+;; :: scroll keys and mouse work freely. Back to insert re-attaches the live cursor.
+(add-hook 'vterm-mode-hook
+          (lambda ()
+            (add-hook 'evil-normal-state-entry-hook
+                      (lambda () (when (eq major-mode 'vterm-mode)
+                                   (vterm-copy-mode 1)))
+                      nil t)
+            (add-hook 'evil-insert-state-entry-hook
+                      (lambda () (when (and (eq major-mode 'vterm-mode)
+                                            vterm-copy-mode)
+                                   (vterm-copy-mode -1)))
+                      nil t)))
+
 ;; :: vterm captures raw keys in insert state, so re-bind C-hjkl in its map.
 (map! :after vterm
       :map vterm-mode-map
@@ -550,17 +613,58 @@ Paste the result into any org file; following the link jumps to that exact line.
       :nvieomr "C-l" #'evil-window-right)
 
 ;; :: Directional pane resize (tmux-style Alt+hjkl, mirrors ~/.tmux.conf).
-(map! :nvieomr "M-h" (cmd! (evil-window-decrease-width 10))
-      :nvieomr "M-l" (cmd! (evil-window-increase-width 10))
-      :nvieomr "M-j" (cmd! (evil-window-increase-height 5))
-      :nvieomr "M-k" (cmd! (evil-window-decrease-height 5)))
+;; :: Buffer-aware: each key moves the shared divider in its own direction no
+;; :: matter which pane is focused -- M-h/M-l move the vertical divider left/
+;; :: right, M-j/M-k move the horizontal divider down/up. The naive "always
+;; :: decrease/increase the current window" felt backwards in the right/bottom
+;; :: pane (M-h shrank *you*, sliding the divider right). The fix: if there's a
+;; :: neighbor in the key's direction, grow the current window (pushing the
+;; :: divider that way); if we're already at that edge, shrink instead -- either
+;; :: way the divider travels the same direction regardless of focus.
+(defun my/resize-h (&optional delta)
+  ":: Move the vertical divider left: grow if a left neighbor exists, else
+shrink (DELTA columns, default 10)."
+  (interactive)
+  (let ((delta (or delta 10)))
+    (if (window-in-direction 'left)
+        (evil-window-increase-width delta)
+      (evil-window-decrease-width delta))))
+
+(defun my/resize-l (&optional delta)
+  ":: Move the vertical divider right (DELTA columns, default 10)."
+  (interactive)
+  (let ((delta (or delta 10)))
+    (if (window-in-direction 'right)
+        (evil-window-increase-width delta)
+      (evil-window-decrease-width delta))))
+
+(defun my/resize-j (&optional delta)
+  ":: Move the horizontal divider down (DELTA rows, default 5)."
+  (interactive)
+  (let ((delta (or delta 5)))
+    (if (window-in-direction 'below)
+        (evil-window-increase-height delta)
+      (evil-window-decrease-height delta))))
+
+(defun my/resize-k (&optional delta)
+  ":: Move the horizontal divider up (DELTA rows, default 5)."
+  (interactive)
+  (let ((delta (or delta 5)))
+    (if (window-in-direction 'above)
+        (evil-window-increase-height delta)
+      (evil-window-decrease-height delta))))
+
+(map! :nvieomr "M-h" #'my/resize-h
+      :nvieomr "M-l" #'my/resize-l
+      :nvieomr "M-j" #'my/resize-j
+      :nvieomr "M-k" #'my/resize-k)
 
 (map! :after vterm
       :map vterm-mode-map
-      :nvieomr "M-h" (cmd! (evil-window-decrease-width 10))
-      :nvieomr "M-l" (cmd! (evil-window-increase-width 10))
-      :nvieomr "M-j" (cmd! (evil-window-increase-height 5))
-      :nvieomr "M-k" (cmd! (evil-window-decrease-height 5)))
+      :nvieomr "M-h" #'my/resize-h
+      :nvieomr "M-l" #'my/resize-l
+      :nvieomr "M-j" #'my/resize-j
+      :nvieomr "M-k" #'my/resize-k)
 
 ;; :: Restore pane resize in markdown-mode (it grabs M-hjkl for heading promotion).
 (after! markdown-mode
