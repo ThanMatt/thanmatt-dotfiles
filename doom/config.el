@@ -759,6 +759,7 @@ shrink (DELTA columns, default 10)."
 (load! "modules/inventory")
 (load! "modules/todo-agenda")
 (load! "modules/uuid")          ; :: SPC i u -- insert a v4 UUID
+(load! "modules/reminders")     ; :: SPC d r -- reminders.org + appt notifications
 ;; :: db modules: sql connections + templates, table browser, saved queries
 (load! "modules/db")
 (load! "modules/db-browser")

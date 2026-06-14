@@ -82,6 +82,10 @@
          :icon (nerd-icons-octicon "nf-oct-calendar" :face 'doom-dashboard-menu-title)
          :when (fboundp 'org-agenda)
          :action org-agenda)
+        ("Reminders"
+         :icon (nerd-icons-octicon "nf-oct-bell" :face 'doom-dashboard-menu-title)
+         :when (fboundp 'my/reminders)
+         :action my/reminders)
         ("Show Org Directory"
          :icon (nerd-icons-faicon "nf-fa-folder_open" :face 'doom-dashboard-menu-title)
          :action my/open-org-directory)

@@ -42,6 +42,7 @@
                :desc "Toggle TSX engine"  "x" #'my/tsx-toggle-treesit
                :desc "Todo agenda (side)" "a" #'todo-agenda-side
                :desc "Todo agenda"        "A" #'todo-agenda
+               :desc "Reminders"          "r" #'my/reminders
                :desc "Magit status"       "g" #'magit-status
                :desc "Claude Code"        "c" #'my/claude-code
                :desc "ncspot (music)"     "m" #'my/ncspot
