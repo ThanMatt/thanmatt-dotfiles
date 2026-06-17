@@ -1,7 +1,9 @@
 { pkgs, config, ... }:
 
 {
-  imports = [ ./wayland-base.nix ];
+  # :: Pairs Sway with the Noctalia shell profile. Swap to ./wayland-base.nix to
+  # :: go vanilla (waybar/mako/wofi/wlogout).
+  imports = [ ./wayland-noctalia.nix ];
 
   home.packages = with pkgs; [
     # :: sway itself is installed system-wide via programs.sway.enable

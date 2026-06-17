@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # PipeWire Audio Routing Script
 # Automatically sets default audio devices based on availability

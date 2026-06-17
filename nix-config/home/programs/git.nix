@@ -1,39 +1,48 @@
 { ... }:
 
 {
-  # :: Git — native HM (no git user config existed in nix before this).
+  # :: Git — native HM. Uses the new `programs.git.settings` freeform schema
+  # :: (the old userName/userEmail/aliases/extraConfig options were deprecated
+  # :: when HM restructured the module).
   programs.git = {
     enable = true;
-    userName = "Aethan Matthew";
-    userEmail = "actives_forceps_0g@icloud.com";
-
-    # :: delta as the diff pager (also pulls the delta binary into the env,
-    # :: which lazygit reuses below).
-    delta = {
-      enable = true;
-      options = {
-        dark = true;
-        line-numbers = true;
-        navigate = true;
+    settings = {
+      user = {
+        name = "Aethan Matthew";
+        email = "me@thanmatt.me";
       };
-    };
 
-    aliases = {
-      co = "checkout";
-      br = "branch";
-      st = "status";
-      ci = "commit";
-      lg = "log --graph --decorate --oneline";
-    };
+      alias = {
+        co = "checkout";
+        br = "branch";
+        st = "status";
+        ci = "commit";
+        lg = "log --graph --decorate --oneline";
+      };
 
-    extraConfig = {
       init.defaultBranch = "master";
       pull.rebase = true;
       push.autoSetupRemote = true;
     };
   };
 
-  # :: Lazygit — mirrors the old lazygit/config.yml (delta paging).
+  # :: delta — now its own top-level module (was programs.git.delta). Wires
+  # :: itself into git via enableGitIntegration; also pulls the delta binary
+  # :: into the env, which lazygit reuses below.
+  programs.delta = {
+    enable = true;
+    enableGitIntegration = true;
+    options = {
+      dark = true;
+      line-numbers = true;
+      navigate = true;
+    };
+  };
+
+  # :: Lazygit — mirrors the old lazygit/config.yml (delta paging). Note the
+  # :: original config.yml used the invalid `git.pagers` (a list) key, so delta
+  # :: never actually applied there; `git.paging` (singular) is the correct
+  # :: lazygit schema, so delta now takes effect in lazygit too.
   programs.lazygit = {
     enable = true;
     settings = {

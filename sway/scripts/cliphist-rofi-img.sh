@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 tmp_dir="$HOME/.cache/cliphist/thumbs"
 mkdir -p "$tmp_dir"

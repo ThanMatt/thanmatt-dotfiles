@@ -33,29 +33,28 @@
 
   programs.ssh = {
     enable = true;
+    # :: Keep HM's old default-host block off — avoids the deprecated
+    # :: settings."*" defaults and their separate warning.
     enableDefaultConfig = false;
-    matchBlocks."github.com" = {
-      hostname = "github.com";
-      user = "git";
-      identityFile = "~/.ssh/id_ed25519";
-      identitiesOnly = true;
+    # :: New freeform schema (replaces the deprecated camelCase matchBlocks):
+    # :: attr name → `Host github.com`, OpenSSH directive names used verbatim.
+    settings."github.com" = {
+      HostName = "github.com";
+      User = "git";
+      IdentityFile = "~/.ssh/id_ed25519";
+      IdentitiesOnly = true;
     };
   };
 
-  # :: fastfetch config symlinked from dotfiles (used by fish_greeting).
-  xdg.configFile."fastfetch".source = config.lib.file.mkOutOfStoreSymlink
-    "${config.home.homeDirectory}/thanmatt-dotfiles/fastfetch";
-
   # :: Cross-platform CLI toolbelt. Tools enabled via programs.* (git, lazygit,
-  # :: bat, fzf, zoxide, tmux, alacritty, ghostty, emacs) bring their own binaries.
+  # :: bat, fzf, zoxide, tmux, alacritty, ghostty, kitty, fastfetch, emacs) bring
+  # :: their own binaries.
   home.packages = with pkgs; [
     neovim
-    kitty
     btop
     asdf-vm
     ripgrep
     fd
-    fastfetch
     curl
     wget
   ];

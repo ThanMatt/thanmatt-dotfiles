@@ -15,9 +15,14 @@
   };
 
   home.activation.installDoom = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    # :: `doom install` shells out to `emacs` (and uses git for package clones),
+    # :: but neither is on PATH during HM activation — put them there explicitly,
+    # :: otherwise the install silently fails ("failed to run Emacs with command
+    # :: 'emacs'") and Doom is left cloned-but-uninstalled.
+    export PATH="${config.programs.emacs.finalPackage}/bin:${pkgs.git}/bin:$PATH"
     if [ ! -d "$HOME/.config/emacs" ]; then
       echo "Installing Doom Emacs..."
-      ${pkgs.git}/bin/git clone --depth 1 https://github.com/doomemacs/doomemacs "$HOME/.config/emacs" \
+      git clone --depth 1 https://github.com/doomemacs/doomemacs "$HOME/.config/emacs" \
         || { echo "ERROR: Doom clone failed"; exit 1; }
     fi
     if [ ! -f "$HOME/.config/emacs/.installed" ]; then

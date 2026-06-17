@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Monitor PipeWire for device changes and re-run audio routing
 

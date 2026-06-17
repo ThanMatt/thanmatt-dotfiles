@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Path to emoji list (you can customize this)
 EMOJI_LIST="$HOME/.config/wofi/emojis.txt"

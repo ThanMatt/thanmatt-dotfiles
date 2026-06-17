@@ -64,7 +64,48 @@
     };
   };
 
-  # :: Kitty — binary via Nix, config symlinked from dotfiles (XDG path on both OSes).
-  xdg.configFile."kitty".source = config.lib.file.mkOutOfStoreSymlink
-    "${config.home.homeDirectory}/thanmatt-dotfiles/kitty";
+  # :: Kitty — native HM (was a raw kitty.conf symlink). Gruvbox Material.
+  programs.kitty = {
+    enable = true;
+    font = {
+      name = "FiraCode Nerd Font";
+      size = 9;
+    };
+    settings = {
+      disable_ligatures = "never";
+
+      foreground = "#d4be98";
+      background = "#282828";
+      selection_foreground = "none";
+      selection_background = "#504945";
+
+      color0 = "#282828";
+      color1 = "#ea6962";
+      color2 = "#a9b665";
+      color3 = "#d8a657";
+      color4 = "#7daea3";
+      color5 = "#d3869b";
+      color6 = "#89b482";
+      color7 = "#d4be98";
+
+      color8  = "#928374";
+      color9  = "#f2594b";
+      color10 = "#b8bb26";
+      color11 = "#fabd2f";
+      color12 = "#83a598";
+      color13 = "#d3869b";
+      color14 = "#8ec07c";
+      color15 = "#ebdbb2";
+
+      window_padding_width = 14;
+      hide_window_decorations = "yes";
+    };
+    keybindings = {
+      "alt+enter" = "toggle_fullscreen";
+    };
+    # :: Middle-click paste from primary selection (kitty's own default, kept explicit).
+    extraConfig = ''
+      mouse_map middle release ungrabbed paste_from_selection
+    '';
+  };
 }

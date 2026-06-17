@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 input=$(wofi --dmenu --prompt "=" --cache-file=/dev/null)
 
 if [ -n "$input" ]; then
