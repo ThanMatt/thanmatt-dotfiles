@@ -766,6 +766,7 @@ shrink (DELTA columns, default 10)."
 (load! "modules/db-saved")
 (load! "modules/db-write")      ; :: edit/delete rows + transactions (after db-browser)
 (load! "modules/web")
+(load! "modules/claude")        ; :: , c -- ask Claude about visual selection
 (load! "modules/keybindings")   ; :: keep this last
 
 ;; :: Terminal cursor shape in `emacs -nw' (no-op in GUI on either OS).

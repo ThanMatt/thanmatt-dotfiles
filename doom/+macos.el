@@ -90,6 +90,16 @@
     (add-to-list 'lsp-tailwindcss-major-modes m)))
 
 ;; ──────────────────────────────────────────────────────
+;; :: Fonts -- force text presentation for symbol ranges
+;; ──────────────────────────────────────────────────────
+;; :: macOS CoreText picks Apple Color Emoji for any Unicode symbol it has an
+;; :: emoji glyph for (checkmarks, arrows, boxes, etc.). Fix by prepending
+;; :: FiraCode to the unicode fontset so text symbols resolve there first.
+;; :: Actual emoji (U+1F000+) have no FiraCode glyph and fall through to
+;; :: Apple Color Emoji as normal.
+(set-fontset-font t 'unicode (font-spec :family "FiraCode Nerd Font") nil 'prepend)
+
+;; ──────────────────────────────────────────────────────
 ;; :: Clipboard -- clipetty (OSC52) for terminal Emacs over tmux/SSH
 ;; ──────────────────────────────────────────────────────
 (use-package! clipetty
