@@ -304,6 +304,29 @@
           (add-text-properties start (point)
                                (list 'my/sql-pk pk 'my/sql-row rowalist)))))))
 
+(defun my/sql--sort-rows (cols rows col desc)
+  ":: stably sort ROWS (lists of field strings) by column COL for raw-SQL buffers
+   that can't push an ORDER BY into the query. Numeric compare when every non-null
+   value parses as a number, else lexicographic. NULLs sort last in both directions."
+  (let ((idx (cl-position col cols :test #'equal)))
+    (if (not idx)
+        rows
+      (let* ((nullp   (lambda (r) (let ((v (nth idx r)))
+                                    (or (null v) (string= v my/sql--null-sentinel)))))
+             (vals    (cl-remove-if nullp rows))
+             (nulls   (cl-remove-if-not nullp rows))
+             (numeric (and vals
+                           (cl-every (lambda (r)
+                                       (string-match-p "\\`[+-]?[0-9]*\\.?[0-9]+\\'"
+                                                        (string-trim (nth idx r))))
+                                     vals)))
+             (less    (if numeric
+                          (lambda (a b) (< (string-to-number (nth idx a))
+                                           (string-to-number (nth idx b))))
+                        (lambda (a b) (string-lessp (nth idx a) (nth idx b)))))
+             (cmp     (if desc (lambda (a b) (funcall less b a)) less)))
+        (append (sort (copy-sequence vals) cmp) nulls)))))
+
 (defun my/sql--render ()
   ":: rebuild the query from buffer-local state and redraw the grid in place"
   (let* ((spec    (if my/sql--raw-sql
@@ -315,7 +338,12 @@
          (csv     (my/sql--fetch-csv my/sql--conn-name sql))
          (parsed  (my/sql--parse-csv csv))
          (cols    (car parsed))
-         (rows    (cdr parsed))
+         ;; :: table buffers sort server-side via ORDER BY (whole result); raw
+         ;; :: buffers can't, so sort the fetched page in memory instead.
+         (rows    (let ((rs (cdr parsed)))
+                    (if (and my/sql--raw-sql my/sql--order-by)
+                        (my/sql--sort-rows cols rs my/sql--order-by my/sql--order-desc)
+                      rs)))
          (txn-p   (and (fboundp 'my/sql--txn-active-p)
                        (my/sql--txn-active-p my/sql--conn-name)))
          (inhibit-read-only t))
@@ -373,6 +401,29 @@
       (my/sql--render))
     (when (fboundp 'persp-add-buffer) (persp-add-buffer buf))
     (if other-window (pop-to-buffer buf) (switch-to-buffer buf))
+    buf))
+
+(defun my/sql--open-table-state (conn state &optional title)
+  ":: open a full table browse buffer for CONN restoring STATE -- a plist with
+   :table :where :limit :select-cols :order-by :order-desc (as captured by a saved
+   query). Unlike `my/sql--open-raw' this is a real table buffer, so sort / edit /
+   delete / WHERE / LIMIT all work. TITLE (e.g. the saved-query name) names the buffer."
+  (let* ((table (plist-get state :table))
+         (buf   (get-buffer-create (or title (format "DB %s/%s" conn table)))))
+    (with-current-buffer buf
+      (my/sql-result-mode)
+      (setq my/sql--conn-name   conn
+            my/sql--table       table
+            my/sql--where       (plist-get state :where)
+            my/sql--limit       (plist-get state :limit)
+            my/sql--raw-sql     nil
+            my/sql--title       title
+            my/sql--order-by    (plist-get state :order-by)
+            my/sql--order-desc  (plist-get state :order-desc)
+            my/sql--select-cols (plist-get state :select-cols))
+      (my/sql--render))
+    (when (fboundp 'persp-add-buffer) (persp-add-buffer buf))
+    (switch-to-buffer buf)
     buf))
 
 (defun my/sql-where ()
@@ -510,8 +561,8 @@
   ":: sort the current table by the column under point (ASC; toggle to DESC by
    repeating on the same column). With prefix arg CLEAR, drop the sort."
   (interactive "P")
-  (unless (and (derived-mode-p 'my/sql-result-mode) my/sql--table (not my/sql--raw-sql))
-    (user-error "Sorting only works in a table browse buffer"))
+  (unless (derived-mode-p 'my/sql-result-mode)
+    (user-error "Sorting only works in a result buffer"))
   (if clear
       (progn (setq my/sql--order-by nil my/sql--order-desc nil)
              (my/sql--render)

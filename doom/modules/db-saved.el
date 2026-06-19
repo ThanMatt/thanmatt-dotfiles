@@ -52,6 +52,21 @@
     (string-trim (buffer-substring-no-properties (point-min) (point-max))))
    (t (read-string "Query: "))))
 
+(defun my/sql--current-table-state ()
+  ":: when the current buffer is a plain table browse (not raw SQL, no active
+   region), return a plist of its structured state so the saved query can reopen as
+   a full browse buffer (sort / edit / delete). nil for raw or free-form selections."
+  (when (and (derived-mode-p 'my/sql-result-mode)
+             (not (use-region-p))
+             (bound-and-true-p my/sql--table)
+             (not (bound-and-true-p my/sql--raw-sql)))
+    (list :table       my/sql--table
+          :where       my/sql--where
+          :limit       my/sql--limit
+          :select-cols my/sql--select-cols
+          :order-by    my/sql--order-by
+          :order-desc  my/sql--order-desc)))
+
 (defun my/sql--current-conn ()
   ":: connection name for the current buffer, else pick one"
   (or (and (boundp 'my/sql--conn-name) my/sql--conn-name)
@@ -69,16 +84,22 @@
    to a timestamp; re-saving an existing name overwrites silently."
   (interactive)
   (my/sql--saved-load)
-  (let* ((query   (my/sql--current-query))
+  (let* ((state   (my/sql--current-table-state))
+         (query   (my/sql--current-query))
          (conn    (my/sql--current-conn))
          (default (format-time-string "%Y-%m-%d %H:%M:%S"))
          (name    (let ((n (read-string (format "Save as (default %s): " default))))
                     (if (string-empty-p n) default n))))
+    ;; :: STATE (table/where/limit/sort/cols) is appended only for plain table
+    ;; :: views; free-form SQL keeps just :query and reopens read-only. :query is
+    ;; :: always stored for the picker preview + as a fallback.
     (setf (alist-get name my/sql-saved-queries nil nil #'equal)
-          (list :query query :conn conn
-                :saved (format-time-string "%Y-%m-%d %H:%M:%S")))
+          (append (list :query query :conn conn
+                        :saved (format-time-string "%Y-%m-%d %H:%M:%S"))
+                  state))
     (my/sql--saved-persist)
-    (message "Saved query %S (%s)" name conn)))
+    (message "Saved query %S (%s)%s" name conn
+             (if state " [table view: sortable/editable]" ""))))
 
 (defun my/sql--saved-annotation (name)
   ":: dimmed `shadow' suffix for a candidate: [conn] one-line query preview"
@@ -101,18 +122,24 @@
   ":: pick a saved query (shadow preview) and run it. With C-u, choose a different
    target connection (cross-host)."
   (interactive "P")
-  (let* ((name (my/sql--saved-pick "Run saved query: "))
-         (e    (alist-get name my/sql-saved-queries nil nil #'equal))
-         (sql  (plist-get e :query))
-         (conn (if arg
-                   (progn
-                     (my/sql--ensure-connections)
-                     (completing-read "Run on connection: "
-                                      (mapcar (lambda (c) (symbol-name (car c)))
-                                              sql-connection-alist)
-                                      nil t))
-                 (plist-get e :conn))))
-    (my/sql--open-raw conn sql (format "SQL %s @ %s" name conn))))
+  (let* ((name  (my/sql--saved-pick "Run saved query: "))
+         (e     (alist-get name my/sql-saved-queries nil nil #'equal))
+         (sql   (plist-get e :query))
+         (table (plist-get e :table))
+         (conn  (if arg
+                    (progn
+                      (my/sql--ensure-connections)
+                      (completing-read "Run on connection: "
+                                       (mapcar (lambda (c) (symbol-name (car c)))
+                                               sql-connection-alist)
+                                       nil t))
+                  (plist-get e :conn)))
+         (title (format "SQL %s @ %s" name conn)))
+    ;; :: a captured table view reopens as a real browse buffer (sortable/editable);
+    ;; :: free-form SQL stays a read-only raw buffer (client-side sort still works).
+    (if table
+        (my/sql--open-table-state conn e title)
+      (my/sql--open-raw conn sql title))))
 
 (defun my/sql-delete-saved ()
   ":: delete a saved query (no confirmation)"
