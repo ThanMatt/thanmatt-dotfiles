@@ -93,11 +93,16 @@
 ;; :: Fonts -- force text presentation for symbol ranges
 ;; ──────────────────────────────────────────────────────
 ;; :: macOS CoreText picks Apple Color Emoji for any Unicode symbol it has an
-;; :: emoji glyph for (checkmarks, arrows, boxes, etc.). Fix by prepending
-;; :: FiraCode to the unicode fontset so text symbols resolve there first.
-;; :: Actual emoji (U+1F000+) have no FiraCode glyph and fall through to
-;; :: Apple Color Emoji as normal.
-(set-fontset-font t 'unicode (font-spec :family "FiraCode Nerd Font") nil 'prepend)
+;; :: emoji glyph for (checkmarks ✔, asterisks ✳, arrows, boxes, etc.) -- so
+;; :: they render as color emoji in Emacs even though a terminal draws the plain
+;; :: mono glyph. Fix by prepending FiraCode so text symbols resolve there first.
+;; ::
+;; :: Emacs 28+ classifies emoji-presentation chars under a SEPARATE `emoji'
+;; :: script with its own fontset target, so prepending to `unicode' alone misses
+;; :: them -- cover `symbol' and `emoji' too. Real emoji (U+1F000+) have no
+;; :: FiraCode glyph and still fall through to Apple Color Emoji as normal.
+(dolist (script '(unicode symbol emoji))
+  (set-fontset-font t script (font-spec :family "FiraCode Nerd Font") nil 'prepend))
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Clipboard -- clipetty (OSC52) for terminal Emacs over tmux/SSH

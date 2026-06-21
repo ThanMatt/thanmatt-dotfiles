@@ -49,3 +49,7 @@
 ;; :: ace-window -- transient floating window-number overlay (tmux `C-a q'
 ;; :: style jump-to-pane). Config + keybind in config.el.
 (package! ace-window)
+
+;; :: org-modern -- clean, modern org-mode styling (bullets, tags, blocks,
+;; :: tables). Config in config.el.
+(package! org-modern)

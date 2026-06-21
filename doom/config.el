@@ -374,6 +374,29 @@ Paste the result into any org file; following the link jumps to that exact line.
     (gui-set-selection 'CLIPBOARD link)
     (message "Copied → %s" link)))
 
+;; :: Copy the current buffer's file name / directory to the clipboard.
+;; :: Same kill-ring + CLIPBOARD pairing as `my/copy-region-as-org-link' so the
+;; :: result is yankable in Emacs and pasteable in any external app.
+(defun my/copy-buffer-file-name ()
+  "Copy the current buffer's file name (basename) to the clipboard."
+  (interactive)
+  (let ((file (buffer-file-name)))
+    (unless file (user-error "Buffer is not visiting a file"))
+    (let ((name (file-name-nondirectory file)))
+      (kill-new name)
+      (gui-set-selection 'CLIPBOARD name)
+      (message "Copied → %s" name))))
+
+(defun my/copy-buffer-directory ()
+  "Copy the directory containing the current buffer's file to the clipboard."
+  (interactive)
+  (let ((file (buffer-file-name)))
+    (unless file (user-error "Buffer is not visiting a file"))
+    (let ((dir (directory-file-name (file-name-directory file))))
+      (kill-new dir)
+      (gui-set-selection 'CLIPBOARD dir)
+      (message "Copied → %s" dir))))
+
 ;; ──────────────────────────────────────────────────────
 ;; :: Projects / Projectile
 ;; ──────────────────────────────────────────────────────
@@ -445,6 +468,21 @@ Paste the result into any org file; following the link jumps to that exact line.
   (add-to-list 'org-file-apps '("\\.ts\\'" . emacs))
   (add-to-list 'org-file-apps '("\\.d\\.ts\\'" . emacs)))
 (add-to-list 'auto-mode-alist '("\\.d\\.ts\\'" . typescript-ts-mode))
+
+;; ──────────────────────────────────────────────────────
+;; :: org-modern -- modern org-mode styling
+;; ──────────────────────────────────────────────────────
+;; :: Globally enable in org buffers + agenda. `org-modern-mode' restyles
+;; :: bullets/headings/tags/blocks; the agenda hook styles the agenda view.
+(use-package! org-modern
+  :hook ((org-mode . org-modern-mode)
+         (org-agenda-finalize . org-modern-agenda))
+  ;; :: Default `org-modern-star' is 'fold, whose triangle glyphs (e.g. ⯈
+  ;; :: U+2BC8) Fira Code lacks -- they render as tofu. Use 'replace with
+  ;; :: round bullets Fira Code covers cleanly.
+  :config
+  (setq org-modern-star 'replace
+        org-modern-replace-stars "◉○◈◇✳"))
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Editing niceties -- snipe, vertico, xref, flycheck
@@ -731,6 +769,11 @@ shrink (DELTA columns, default 10)."
       :desc "Reference project file" "l" #'my/reference-project-file
       :desc "Copy region as org link" "y" #'my/copy-region-as-org-link
       :desc "Search notes"           "/" #'my/search-notes)
+
+(map! :leader
+      :prefix "f"
+      :desc "Copy buffer file name" "n" #'my/copy-buffer-file-name
+      :desc "Copy buffer directory" "N" #'my/copy-buffer-directory)
 
 (map! :map org-mode-map
       :localleader
