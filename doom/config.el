@@ -481,7 +481,20 @@ Paste the result into any org file; following the link jumps to that exact line.
   ;; :: round bullets Fira Code covers cleanly.
   :config
   (setq org-modern-star 'replace
-        org-modern-replace-stars "◉○◈◇✳"))
+        org-modern-replace-stars "◉○◈◇✳"
+        ;; :: Per-priority badge colors in org buffers. Without this org-modern
+        ;; :: paints every [#x] cookie with the single `org-modern-priority' face
+        ;; :: (red). Keys are the priority chars; values are face plists.
+        org-modern-priority-faces
+        '((?A :foreground "white" :background "#ff6c6b" :weight bold)
+          (?B :foreground "black" :background "#ECBE7B" :weight bold)
+          (?C :foreground "black" :background "#98be65" :weight bold)))
+  ;; :: Same colors for the agenda (org-modern-agenda doesn't restyle priorities;
+  ;; :: the agenda reads the built-in `org-priority-faces').
+  (setq org-priority-faces
+        '((?A . (:foreground "#ff6c6b" :weight bold))
+          (?B . (:foreground "#ECBE7B" :weight bold))
+          (?C . (:foreground "#98be65" :weight bold)))))
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Editing niceties -- snipe, vertico, xref, flycheck
