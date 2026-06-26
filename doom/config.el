@@ -561,9 +561,9 @@ Paste the result into any org file; following the link jumps to that exact line.
        " ")))
   (add-to-list 'global-mode-string '(:eval (my/workspace-modeline-string)) t))
 
-;; :: Reload whatever `doom/quicksave-session' last wrote (Doom auto-saves the
-;; :: session on a normal quit). Save/load named workspaces with SPC TAB s / l.
-(add-hook 'window-setup-hook #'doom/quickload-session)
+;; :: Session is restored manually -- `SPC q l' (doom/quickload-session) or the
+;; :: dashboard "Reload last session" entry. Doom still auto-saves on quit; we
+;; :: just don't auto-load on startup. Save/load named workspaces: SPC TAB s / l.
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Shadow workspaces -- live preview while switching (SPC TAB .)
