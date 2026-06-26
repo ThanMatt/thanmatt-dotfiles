@@ -42,5 +42,6 @@ Runs: claude --model <model> --effort <effort> \"$(cat tmpfile)\""
                                    (shell-quote-argument tmp)))
                           (vterm-send-return)))))))
 
-(map! :localleader
-      :desc "Ask Claude about selection" "c" #'my/claude-ask-region)
+(map! :leader
+      :prefix "d"
+      :desc "Ask Claude about selection" "C" #'my/claude-ask-region)

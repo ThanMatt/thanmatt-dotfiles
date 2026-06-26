@@ -103,6 +103,9 @@
 (defvar-local my/sql--select-cols nil
   ":: columns to display (nil = all, i.e. SELECT *); set by my/sql-select-columns.
    Identity (pk/ctid) columns are always fetched for edit/delete even if hidden.")
+(defvar-local my/sql--raw-cols nil
+  ":: full result header of a raw/saved-query buffer, captured each render so the
+   column picker has the available columns (raw buffers have no table to introspect).")
 
 (define-derived-mode my/sql-result-mode special-mode "DB-Result"
   ":: read-only db result viewer"
@@ -347,6 +350,13 @@
          (txn-p   (and (fboundp 'my/sql--txn-active-p)
                        (my/sql--txn-active-p my/sql--conn-name)))
          (inhibit-read-only t))
+    ;; :: raw/saved-query buffers can't push a column projection into SQL (no
+    ;; :: table), so column selection is applied client-side: remember the full
+    ;; :: header for the picker, and hide deselected columns at render time.
+    (when my/sql--raw-sql
+      (setq my/sql--raw-cols cols)
+      (when my/sql--select-cols
+        (setq hide (cl-remove-if (lambda (c) (member c my/sql--select-cols)) cols))))
     (rename-buffer (my/sql--buffer-name) t)  ;; :: keep title in sync with the query
     (erase-buffer)
     (when txn-p
@@ -585,7 +595,12 @@
   ":: SQL for the current view's data -- user-facing columns only (no synthetic
    ctid identifier that my/sql--build-select adds for pk-less tables)"
   (if my/sql--raw-sql
-      my/sql--raw-sql
+      ;; :: project the chosen columns by wrapping the saved SQL as a subquery
+      (if my/sql--select-cols
+          (format "SELECT %s FROM (%s) _sub;"
+                  (mapconcat #'my/sql--quote-ident my/sql--select-cols ", ")
+                  (replace-regexp-in-string ";[ \t\n]*\\'" "" my/sql--raw-sql))
+        my/sql--raw-sql)
     (let ((cols  (if my/sql--select-cols
                      (mapconcat #'my/sql--quote-ident my/sql--select-cols ", ")
                    "*"))
@@ -713,13 +728,19 @@
 (defun my/sql-select-columns ()
   ":: open a checklist to choose which columns the current table shows"
   (interactive)
-  (unless (and (derived-mode-p 'my/sql-result-mode) my/sql--table (not my/sql--raw-sql))
-    (user-error "Column selection only works in a table browse buffer"))
-  (let* ((cols    (my/sql--table-columns my/sql--conn-name my/sql--table))
+  (unless (and (derived-mode-p 'my/sql-result-mode)
+               (or my/sql--table my/sql--raw-sql))
+    (user-error "Column selection only works in a result buffer"))
+  ;; :: table buffers introspect the catalog; raw/saved-query buffers use the
+  ;; :: result header captured on the last render (my/sql--raw-cols).
+  (let* ((cols    (if my/sql--raw-sql
+                      my/sql--raw-cols
+                    (my/sql--table-columns my/sql--conn-name my/sql--table)))
          (current (or my/sql--select-cols cols))   ;; :: nil means all shown
          (src     (current-buffer))
          (buf     (get-buffer-create (format "*DB columns: %s*" (my/sql--data-table-name)))))
-    (unless cols (user-error "Could not read columns for %s" my/sql--table))
+    (unless cols (user-error "Could not read columns for %s"
+                             (or my/sql--table my/sql--title "this query")))
     (with-current-buffer buf
       (my/sql-colsel-mode)
       (setq my/sql--colsel-source  src

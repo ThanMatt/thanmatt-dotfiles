@@ -774,6 +774,8 @@ Only works on files in GITLAB_ISSUES_DIR."
   "Whether the MR being composed in this buffer is a draft.")
 (defvar-local my/gitlab-mr--directory nil
   "Repository directory the MR should be created from.")
+(defvar-local my/gitlab-mr--iid nil
+  "IID of the existing MR being edited in this buffer.")
 
 (defun my/gitlab-mr--git (dir &rest args)
   "Run git with ARGS in DIR and return trimmed stdout, or nil on failure."
@@ -838,6 +840,114 @@ to create the MR or \\[my/gitlab-mr-cancel] to abort."
     (pop-to-buffer buf)
     (message "Edit the MR description, then C-c C-c to create (C-c C-k to cancel)")))
 
+(defun my/gitlab-copy-mr-link ()
+  "Copy the MR link for the current branch to the kill-ring.
+Uses glab to look up the merge request whose source branch matches
+the current branch. If none is found, reports that no MR exists yet."
+  (interactive)
+  (unless (executable-find "glab")
+    (error "glab CLI not found on PATH"))
+  (let* ((dir (or (vc-root-dir)
+                  (error "Not inside a version-controlled repository")))
+         (branch (or (my/gitlab-mr--current-branch dir)
+                     (error "Could not determine current branch")))
+         (default-directory dir))
+    (with-temp-buffer
+      (if (zerop (process-file "glab" nil t nil
+                               "mr" "list"
+                               "--source-branch" branch
+                               "--output" "json"))
+          (let* ((json-object-type 'hash-table)
+                 (json-array-type 'list)
+                 (json-key-type 'string)
+                 (mrs (progn (goto-char (point-min)) (json-read)))
+                 (mr (car mrs)))
+            (if mr
+                (let ((url (gethash "web_url" mr)))
+                  (kill-new url)
+                  (message "MR link copied: %s" url))
+              (message "No MR for this branch yet")))
+        (message "No MR for this branch yet")))))
+
+(defun my/gitlab-edit-mr ()
+  "Edit the description of the existing MR for the current branch.
+Errors if no MR exists. Otherwise opens an editable buffer pre-filled with
+the MR's current description (markdown). Press \\[my/gitlab-mr-edit-submit]
+to save or \\[my/gitlab-mr-cancel] to abort."
+  (interactive)
+  (unless (executable-find "glab")
+    (error "glab CLI not found on PATH"))
+  (let* ((dir (or (vc-root-dir)
+                  (error "Not inside a version-controlled repository")))
+         (source (or (my/gitlab-mr--current-branch dir)
+                     (error "Could not determine current branch")))
+         (default-directory dir)
+         (mr (with-temp-buffer
+               (unless (zerop (process-file "glab" nil t nil
+                                            "mr" "list"
+                                            "--source-branch" source
+                                            "--output" "json"))
+                 (error "No MR for this branch yet"))
+               (let* ((json-object-type 'hash-table)
+                      (json-array-type 'list)
+                      (json-key-type 'string))
+                 (goto-char (point-min))
+                 (car (json-read))))))
+    (unless mr
+      (error "No MR for this branch yet"))
+    (let* ((iid (gethash "iid" mr))
+           (title (gethash "title" mr))
+           (description (or (gethash "description" mr) ""))
+           (buf (get-buffer-create "*GitLab MR Edit*")))
+      (with-current-buffer buf
+        (erase-buffer)
+        (insert description)
+        (if (fboundp 'gfm-mode) (gfm-mode) (text-mode))
+        (setq my/gitlab-mr--iid iid
+              my/gitlab-mr--title title
+              my/gitlab-mr--source source
+              my/gitlab-mr--directory dir)
+        (use-local-map (copy-keymap (current-local-map)))
+        (local-set-key (kbd "C-c C-c") #'my/gitlab-mr-edit-submit)
+        (local-set-key (kbd "C-c C-k") #'my/gitlab-mr-cancel)
+        (setq header-line-format
+              (format " Edit MR !%s: %s   |   C-c C-c: save   C-c C-k: cancel"
+                      iid title))
+        (goto-char (point-min)))
+      (pop-to-buffer buf)
+      (message "Edit the MR description, then C-c C-c to save (C-c C-k to cancel)"))))
+
+(defun my/gitlab-mr-edit-submit ()
+  "Save the edited MR description in the current buffer via glab."
+  (interactive)
+  (let* ((iid my/gitlab-mr--iid)
+         (dir my/gitlab-mr--directory)
+         (description (buffer-substring-no-properties (point-min) (point-max)))
+         (default-directory dir)
+         (out-buf (get-buffer-create "*glab mr update*")))
+    (unless iid
+      (error "No MR associated with this buffer"))
+    (with-current-buffer out-buf
+      (let ((inhibit-read-only t)) (erase-buffer))
+      (setq default-directory dir))
+    (message "Updating merge request...")
+    (make-process
+     :name "glab-mr-update"
+     :buffer out-buf
+     :command (list "glab" "mr" "update" (number-to-string iid)
+                    "--description" description)
+     :sentinel
+     (lambda (proc _event)
+       (when (memq (process-status proc) '(exit signal))
+         (if (zerop (process-exit-status proc))
+             (progn
+               (when (buffer-live-p (get-buffer "*GitLab MR Edit*"))
+                 (kill-buffer "*GitLab MR Edit*"))
+               (message "MR !%s updated" iid))
+           (progn
+             (pop-to-buffer out-buf)
+             (message "glab mr update failed (see *glab mr update*)"))))))))
+
 (defun my/gitlab-mr-cancel ()
   "Cancel MR composition."
   (interactive)
@@ -895,7 +1005,9 @@ to create the MR or \\[my/gitlab-mr-cancel] to abort."
 ;; :: Keybinding for MR creation
 (map! :leader
       :prefix "o"
-      :desc "GitLab Create MR" "g M" #'my/gitlab-create-mr)
+      :desc "GitLab Create MR" "g M" #'my/gitlab-create-mr
+      :desc "GitLab Copy MR Link" "g y" #'my/gitlab-copy-mr-link
+      :desc "GitLab Edit MR" "g e" #'my/gitlab-edit-mr)
 
 (provide 'gitlab)
 ;;; gitlab.el ends here

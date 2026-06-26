@@ -131,18 +131,6 @@ agenda."
       (kbd "n") #'my/capture-meeting-note
       (kbd "TAB") #'org-agenda-goto)))
 
-;; :: Auto-refresh agenda view every 1 minute
-(after! org-agenda
-  (defun my/org-agenda-redo-in-other-window ()
-    "Refresh org-agenda if it's visible in any window."
-    (save-excursion
-      (dolist (buffer (buffer-list))
-        (with-current-buffer buffer
-          (when (derived-mode-p 'org-agenda-mode)
-            (org-agenda-redo t))))))
-
-  (run-at-time "00:00" 60 'my/org-agenda-redo-in-other-window))
-
 ;; :: Force window navigation in org-agenda
 (after! evil-org-agenda
   (evil-define-key 'motion org-agenda-mode-map
