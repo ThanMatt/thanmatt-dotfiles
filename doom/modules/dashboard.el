@@ -9,6 +9,11 @@
   (interactive)
   (dired org-directory))
 
+(defun my/open-meetings ()
+  "Open meetings.org -- create meeting events here (active timestamp via C-c .)."
+  (interactive)
+  (find-file (expand-file-name "meetings.org" my/notes-dir)))
+
 ;; :: Saved GitLab issue files. Set GITLAB_ISSUES_DIR to your real path (the
 ;; :: same var gitlab.el reads); defaults to issues/ in the notes dir.
 (defun my/open-gitlab-issues-directory ()
@@ -60,6 +65,7 @@
       :prefix "o"
       :desc "Open Org Directory" "d" #'my/open-org-directory
       :desc "Open GitLab Issues" "I" #'my/open-gitlab-issues-directory
+      :desc "Open Meetings" "m" #'my/open-meetings
       :desc "Open Cheatsheet" "C" #'my/open-cheatsheet)
 
 (map! :after org

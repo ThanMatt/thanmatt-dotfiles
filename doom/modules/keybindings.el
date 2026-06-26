@@ -40,8 +40,8 @@
 
                ;; :: Tools
                :desc "Toggle TSX engine"  "x" #'my/tsx-toggle-treesit
-               :desc "Todo agenda (side)" "a" #'todo-agenda-side
-               :desc "Todo agenda"        "A" #'todo-agenda
+               ;; :: carry-over daily agenda retired -> denote journal (see backlog.md)
+               :desc "Journal (today)"    "a" #'denote-journal-new-or-existing-entry
                :desc "Reminders"          "r" #'my/reminders
                :desc "Magit status"       "g" #'magit-status
                :desc "Claude Code"        "c" #'my/claude-code

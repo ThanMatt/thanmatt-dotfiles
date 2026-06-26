@@ -239,8 +239,7 @@ buffer impossible while the engine is web-mode."
 
 (menu-bar-mode -1)
 (setq org-image-actual-width '(400))
-(setq org-agenda-files (list (expand-file-name "notes.org" my/notes-dir)
-                             (expand-file-name "projects/" my/notes-dir)))
+;; :: org-agenda-files is set in modules/org-agenda.el (single source of truth).
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Shell / vterm
@@ -768,7 +767,16 @@ shrink (DELTA columns, default 10)."
       :prefix "n"
       :desc "Reference project file" "l" #'my/reference-project-file
       :desc "Copy region as org link" "y" #'my/copy-region-as-org-link
+      :desc "Find file in notes"     "d" #'my/find-file-in-notes
       :desc "Search notes"           "/" #'my/search-notes)
+
+;; :: denote: reference notes + journal (see modules/denote.el)
+(map! :leader
+      :prefix "n"
+      :desc "New/open denote note" "n" #'denote-open-or-create
+      :desc "Find note (consult)"  "f" #'consult-denote-find
+      :desc "Grep notes (consult)" "g" #'consult-denote-grep
+      :desc "Journal (today)"      "j" #'denote-journal-new-or-existing-entry)
 
 (map! :leader
       :prefix "f"
@@ -783,6 +791,7 @@ shrink (DELTA columns, default 10)."
 ;; :: Load feature modules (cross-platform)
 ;; ──────────────────────────────────────────────────────
 (load! "modules/org-agenda")
+(load! "modules/denote")        ; :: reference notes + journal (denote)
 (load! "modules/gitlab")
 (load! "modules/dashboard")     ; :: after gitlab -- it references gitlab functions
 (load! "modules/snippet")

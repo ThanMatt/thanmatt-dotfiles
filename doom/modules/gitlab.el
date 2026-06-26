@@ -761,7 +761,7 @@ Only works on files in GITLAB_ISSUES_DIR."
 ;; :: ============================================================
 
 (defvar my/gitlab-mr-template-file
-  (expand-file-name "~/notes/templates/merge_request_template.md")
+  (expand-file-name "templates/merge_request_template.md" my/notes-dir)
   "Path to the merge request description template.")
 
 (defvar-local my/gitlab-mr--title nil

@@ -53,3 +53,9 @@
 ;; :: org-modern -- clean, modern org-mode styling (bullets, tags, blocks,
 ;; :: tables). Config in config.el.
 (package! org-modern)
+
+;; :: denote -- filename-as-metadata reference notes, decoupled from the agenda.
+;; :: Config in modules/denote.el.
+(package! denote)
+(package! denote-journal)   ;; :: journaling split out of denote core since v4.0.0
+(package! consult-denote)   ;; :: consult find + live grep over notes
