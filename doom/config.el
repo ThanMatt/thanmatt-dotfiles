@@ -789,7 +789,9 @@ shrink (DELTA columns, default 10)."
       :desc "New/open denote note" "n" #'denote-open-or-create
       :desc "Find note (consult)"  "f" #'consult-denote-find
       :desc "Grep notes (consult)" "g" #'consult-denote-grep
-      :desc "Journal (today)"      "j" #'denote-journal-new-or-existing-entry)
+      :desc "Journal (today)"      "j" #'denote-journal-new-or-existing-entry
+      :desc "Insert link to note"  "i" #'denote-link
+      :desc "Link or create note"  "I" #'denote-link-or-create)
 
 (map! :leader
       :prefix "f"
