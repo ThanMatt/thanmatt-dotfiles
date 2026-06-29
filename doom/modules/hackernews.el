@@ -28,11 +28,17 @@
 
 ;; :: Algolia's HN API hands back a story *with its whole comment tree* in a
 ;; :: single request -- far nicer than the Firebase API's one-call-per-item.
-;; :: Selectable listing feeds: (id label url-fmt). The url-fmt takes a
-;; :: 0-indexed page number. `front' uses HN's own front-page ranking ("hot");
+;; :: Selectable listing feeds: (id label url-fmt &optional deep-url-fmt). The
+;; :: url-fmt takes a 0-indexed page number. `front' uses HN's own front-page
+;; :: ranking ("hot") for page 0 -- but the `front_page' tag is a small fixed
+;; :: pool (~135 items, relevance-sorted), so paging deeper just dredges up the
+;; :: low-point tail and job posts. Hence page > 0 falls back to `deep-url-fmt'
+;; :: (a popularity-ranked `story' search), which paginates like HN's "More".
 ;; :: `new' is newest-first; `ask'/`show' are the Ask/Show HN tags.
 (defconst my/hn--feeds
-  '((front "Front Page" "https://hn.algolia.com/api/v1/search?tags=front_page&hitsPerPage=30&page=%d")
+  '((front "Front Page"
+     "https://hn.algolia.com/api/v1/search?tags=front_page&hitsPerPage=30&page=%d"
+     "https://hn.algolia.com/api/v1/search?tags=story&hitsPerPage=30&page=%d")
     (new   "Newest"     "https://hn.algolia.com/api/v1/search_by_date?tags=story&hitsPerPage=30&page=%d")
     (ask   "Ask HN"     "https://hn.algolia.com/api/v1/search?tags=ask_hn&hitsPerPage=30&page=%d")
     (show  "Show HN"    "https://hn.algolia.com/api/v1/search?tags=show_hn&hitsPerPage=30&page=%d"))
@@ -72,6 +78,11 @@
 (defun my/hn--get (key alist)
   ":: alist-get with a symbol KEY, tolerating string-or-symbol confusion."
   (alist-get key alist))
+
+(defun my/hn--job-p (hit)
+  ":: Non-nil if HIT is a job posting (Algolia tags these `job', and returns
+them with no points or comment count)."
+  (member "job" (my/hn--get '_tags hit)))
 
 (defun my/hn--domain (url)
   ":: Bare host of URL, www. stripped, or nil."
@@ -167,9 +178,15 @@ Uses `shr' (keeps links clickable) and falls back to a tag strip."
     ('item  (format "item:%s" (plist-get page :id)))))
 
 (defun my/hn--page-api-url (page)
-  ":: API endpoint for PAGE."
+  ":: API endpoint for PAGE.
+For the front feed, page 0 uses the `front_page' snapshot while deeper pages
+fall back to the popularity-ranked `story' search (the 4th feed-entry slot),
+since the `front_page' tag is a small fixed pool that doesn't paginate."
   (pcase (plist-get page :type)
-    ('front (format (nth 2 (my/hn--feed-entry page)) (my/hn--page-num page)))
+    ('front (let* ((entry (my/hn--feed-entry page))
+                   (pg    (my/hn--page-num page))
+                   (fmt   (or (and (> pg 0) (nth 3 entry)) (nth 2 entry))))
+              (format fmt pg)))
     ('item  (format my/hn--item-url-fmt (plist-get page :id)))))
 
 ;;; :: Rendering -------------------------------------------------------------
@@ -184,8 +201,10 @@ Uses `shr' (keeps links clickable) and falls back to a tag strip."
                                 (if (> pg 0) (format " · p%d" (1+ pg)) ""))
                         'face 'my/hn-title))
     (insert (propertize (concat "  " (make-string 38 ?─) "\n\n") 'face 'my/hn-rule)))
-  (let ((i (* 30 (my/hn--page-num my/hn--current)))
-        (hits (my/hn--get 'hits data)))
+  (let* ((i    (* 30 (my/hn--page-num my/hn--current)))
+         ;; :: Drop YC "Is Hiring" job posts: Algolia returns them with no
+         ;; :: points/comments, so they'd render as misleading "0 points" noise.
+         (hits (seq-remove #'my/hn--job-p (my/hn--get 'hits data))))
     (unless hits
       (insert (propertize "  No more stories — press [ to go back.\n" 'face 'my/hn-meta)))
     (dolist (hit hits)

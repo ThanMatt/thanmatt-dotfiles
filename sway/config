@@ -80,6 +80,8 @@ exec qs -c noctalia-shell
 
 # Audio routing configuration
 exec ~/.config/sway/scripts/audio-routing.sh
+exec systemctl --user start app-org.kde.kdeconnect.daemon@autostart.service
+exec kdeconnect-indicator
 ### Idle configuration
 #
 # Example configuration:

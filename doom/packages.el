@@ -54,6 +54,22 @@
 ;; :: tables). Config in config.el.
 (package! org-modern)
 
+;; :: org-appear -- the editing half of org-modern: reveal emphasis markers,
+;; :: links and sub/superscript markup only while point is inside them, so the
+;; :: hidden glyphs come back exactly when you need to edit. Config in config.el.
+(package! org-appear)
+
+;; :: org-modern-indent -- restores org-modern's #+begin/#+end block brackets
+;; :: under `org-indent-mode' (org-modern alone draws them wrong when indented).
+;; :: Not on MELPA, so pull from GitHub. Config in config.el.
+(package! org-modern-indent
+  :recipe (:host github :repo "jdtsmith/org-modern-indent"))
+
+;; :: org-super-agenda -- group agenda items into labelled sections (Today,
+;; :: Overdue, by priority, ...) instead of one flat list. Config in
+;; :: modules/org-agenda.el.
+(package! org-super-agenda)
+
 ;; :: denote -- filename-as-metadata reference notes, decoupled from the agenda.
 ;; :: Config in modules/denote.el.
 (package! denote)

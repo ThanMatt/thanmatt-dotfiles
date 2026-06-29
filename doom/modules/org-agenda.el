@@ -17,6 +17,34 @@
   (setq org-agenda-timegrid-use-ampm t
         org-agenda-time-leading-zero nil))  ;; :: "9:00am" instead of "09:00am"
 
+;; :: org-super-agenda -- break the flat agenda list into labelled groups.
+;; :: Groups are matched top-down; the first matching group claims each item, so
+;; :: order matters (overdue before today, etc.). Anything unmatched falls to the
+;; :: bottom under its normal agenda heading.
+;; ::
+;; :: We must NOT load this with `:after org-agenda' / `after! org-agenda': THIS
+;; :: file does `(provide 'org-agenda)' at the bottom, which shadows the builtin
+;; :: org-agenda feature -- so `:after' would fire the moment this module loads,
+;; :: before the real org-agenda.el (and `org-agenda-mode-map') exists. That trips
+;; :: org-super-agenda's load-time `(defvar ... (copy-keymap org-agenda-mode-map))'
+;; :: with a void-variable, aborting the rest of config. Instead enable it from
+;; :: `org-agenda-mode-hook', which only runs once the real agenda is up.
+(use-package! org-super-agenda
+  :init
+  (setq org-super-agenda-groups
+        '((:name "Overdue"    :deadline past :scheduled past :order 0)
+          (:name "Today"      :time-grid t :scheduled today :deadline today :order 1)
+          (:name "Important"  :priority "A" :order 2)
+          (:name "Priority B" :priority "B" :order 3)
+          (:name "Priority C" :priority "C" :order 4)
+          (:name "Meetings"   :tag "meeting" :order 5)
+          (:name "Upcoming"   :deadline future :scheduled future :order 6)))
+  (add-hook 'org-agenda-mode-hook #'org-super-agenda-mode)
+  :config
+  ;; :: org-super-agenda binds the group headers to its own keymap, which shadows
+  ;; :: evil's `j'/`k' motion in the agenda. Blank it so navigation stays vanilla.
+  (setq org-super-agenda-header-map (make-sparse-keymap)))
+
 ;; :: Create or open today's agenda file
 (defun my/daily-agenda ()
   "Create or open today's agenda file with structured sections."

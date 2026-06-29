@@ -497,6 +497,29 @@ Paste the result into any org file; following the link jumps to that exact line.
           (?C . (:foreground "#98be65" :weight bold)))))
 
 ;; ──────────────────────────────────────────────────────
+;; :: org-appear -- reveal markup at point (pairs with org-modern)
+;; ──────────────────────────────────────────────────────
+;; :: org-modern hides emphasis markers/link brackets for a clean read; on its
+;; :: own that makes editing them guesswork. org-appear toggles the raw markup
+;; :: back on only while point is inside the element, then re-hides on exit.
+(use-package! org-appear
+  :hook (org-mode . org-appear-mode)
+  :config
+  (setq org-appear-autoemphasis t      ; :: */~_ emphasis markers
+        org-appear-autolinks t         ; :: [[link][desc]] brackets + target
+        org-appear-autosubmarkers t))  ; :: ^{} _{} sub/superscript markup
+
+;; ──────────────────────────────────────────────────────
+;; :: org-modern-indent -- block brackets under org-indent-mode
+;; ──────────────────────────────────────────────────────
+;; :: org-modern draws the #+begin_src/#+end_src bracket on the left fringe, but
+;; :: positions it wrong once `org-indent-mode' shifts text right (Doom enables
+;; :: org-indent by default). org-modern-indent recomputes the bracket against
+;; :: the indented text so blocks stay framed correctly.
+(use-package! org-modern-indent
+  :hook (org-mode . org-modern-indent-mode))
+
+;; ──────────────────────────────────────────────────────
 ;; :: Editing niceties -- snipe, vertico, xref, flycheck
 ;; ──────────────────────────────────────────────────────
 ;; :: evil-snipe: f/F/t/T jump on the current line first, then spill to the
