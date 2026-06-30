@@ -677,6 +677,25 @@ move; RET confirms, C-g restores the starting workspace."
                                    (vterm-copy-mode -1)))
                       nil t)))
 
+;; :: Free up ESC inside vterm so it reaches the underlying TUI (e.g. Claude
+;; :: Code) instead of dropping Evil into normal state. C-[ is byte-identical to
+;; :: ESC so it passes through too. A tmux-style `C-a' leader (mirrors the prefix
+;; :: in ~/.tmux.conf) takes over the old "pause" role: `C-a ['  enters normal
+;; :: state -> vterm-copy-mode for scrollback (like tmux's `prefix ['), and
+;; :: `C-a C-a' sends a literal C-a so beginning-of-line still works in the shell.
+(defvar my/vterm-prefix-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "[")   #'evil-normal-state)
+    (define-key map (kbd "C-a") (lambda () (interactive)
+                                  (vterm-send-key "a" nil nil t)))
+    map)
+  ":: tmux-style `C-a' leader for vterm buffers.")
+
+(map! :after vterm
+      :map vterm-mode-map
+      :i "<escape>" #'vterm-send-escape
+      :i "C-a"      my/vterm-prefix-map)
+
 ;; :: vterm captures raw keys in insert state, so re-bind C-hjkl in its map.
 (map! :after vterm
       :map vterm-mode-map
