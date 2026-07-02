@@ -42,10 +42,17 @@
 ;; :: tables; wrapping shifts cells onto the next line and destroys the layout,
 ;; :: so they keep `truncate-lines' (set in their own modes). `+word-wrap-mode'
 ;; :: still toggles per-buffer if I want wrap somewhere it's excluded.
-(after! word-wrap
-  (dolist (mode '(my/sql-result-mode my/sql-colsel-mode))
-    (add-to-list '+word-wrap-disabled-modes mode))
-  (+global-word-wrap-mode +1))
+;; ::
+;; :: NOT wrapped in `after! word-wrap' -- the word-wrap module never (provide)s a
+;; :: `word-wrap' feature, so that body never runs (which is why the global mode
+;; :: wasn't taking and only a manual `SPC t w' worked). This file loads after all
+;; :: module config.el, so the var + globalized mode already exist: call directly.
+;; :: `+global-word-wrap-mode' already skips `special-mode' buffers and the db
+;; :: result/colsel modes derive from special-mode, so listing them is belt-and-
+;; :: suspenders -- kept for clarity and in case a viewer stops being special.
+(dolist (mode '(my/sql-result-mode my/sql-colsel-mode))
+  (add-to-list '+word-wrap-disabled-modes mode))
+(+global-word-wrap-mode +1)
 
 ;; ──────────────────────────────────────────────────────
 ;; :: TypeScript / TSX engine  --  web-mode  <->  tree-sitter
@@ -764,6 +771,32 @@ shrink (DELTA columns, default 10)."
   (define-key markdown-mode-map (kbd "M-l") nil)
   (define-key markdown-mode-map (kbd "M-j") nil)
   (define-key markdown-mode-map (kbd "M-k") nil))
+
+;; ──────────────────────────────────────────────────────
+;; :: zoom -- auto-resize the focused window
+;; ──────────────────────────────────────────────────────
+;; :: `zoom-mode' is a global minor mode: while ON, every window-selection change
+;; :: grows the selected window and shrinks the rest, rebalancing as focus moves
+;; :: -- so with many vertical splits the pane you're in gets usable width and the
+;; :: others tuck away. It's OFF by default (no `:hook'); `SPC w z' toggles it,
+;; :: because while it's on your M-hjkl (`my/resize-*') hand-sizing gets reverted
+;; :: on the next window switch. `zoom-size' as a (w . h) pair < 1.0 is read as a
+;; :: fraction of the frame; 0.618 is the golden ratio.
+;; ::
+;; :: (This is the *continuous auto-resize* toggle -- distinct from `SPC d Z'
+;; :: `doom/window-enlargen', which one-shot zooms the current buffer.)
+(use-package! zoom
+  :init
+  (map! :leader :desc "Toggle auto-zoom (zoom-mode)" "w z" #'zoom-mode)
+  :config
+  (setq zoom-size '(0.618 . 0.618)
+        ;; :: Never resize these -- the db table viewers render fixed-width,
+        ;; :: column-aligned output (they keep `truncate-lines'), and the
+        ;; :: minibuffer/echo area must stay put.
+        zoom-ignored-major-modes '(my/sql-result-mode my/sql-colsel-mode)
+        zoom-ignored-buffer-name-regexps '("^ \\*")
+        ;; :: Don't zoom while a which-key/transient/minibuffer popup is up.
+        zoom-ignore-predicates (list (lambda () (> (minibuffer-depth) 0)))))
 
 (defun my/swap-window-forward ()
   "Swap current window buffer with the next window."

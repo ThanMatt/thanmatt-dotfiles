@@ -70,6 +70,10 @@
 ;; :: modules/org-agenda.el.
 (package! org-super-agenda)
 
+;; :: zoom -- auto-resize the focused window (grow it, shrink the rest) on every
+;; :: window-selection change; rebalances when focus leaves. Config in config.el.
+(package! zoom)
+
 ;; :: denote -- filename-as-metadata reference notes, decoupled from the agenda.
 ;; :: Config in modules/denote.el.
 (package! denote)
