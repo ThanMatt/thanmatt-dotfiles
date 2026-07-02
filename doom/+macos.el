@@ -101,8 +101,33 @@
 ;; :: script with its own fontset target, so prepending to `unicode' alone misses
 ;; :: them -- cover `symbol' and `emoji' too. Real emoji (U+1F000+) have no
 ;; :: FiraCode glyph and still fall through to Apple Color Emoji as normal.
+;; ::
+;; :: FiraCode itself has no glyphs for common dingbats (✔ U+2714, ✳ U+2733,
+;; :: ✖ U+2716, ⚠ U+26A0) -- prepending it is a no-op for those, so they still
+;; :: fall through to Apple Color Emoji. Menlo (macOS's system monospace font)
+;; :: does have monochrome glyphs for them, so stack it in as a second choice
+;; :: below FiraCode, ahead of the color-emoji fallback.
 (dolist (script '(unicode symbol emoji))
+  (set-fontset-font t script (font-spec :family "Menlo") nil 'prepend)
   (set-fontset-font t script (font-spec :family "FiraCode Nerd Font") nil 'prepend))
+
+;; :: Script-level targeting above still leaves gaps -- `symbol'/`emoji' don't
+;; :: cover every codepoint Apple Color Emoji is willing to draw. Menlo covers
+;; :: most of Misc Symbols (149/256) and Dingbats (144/192) directly, so map
+;; :: those two blocks explicitly too (this is what org-modern's replacement
+;; :: stars like "✳" U+2733 live in). Remaining gaps are true
+;; :: Emoji_Presentation=Yes characters with no monochrome glyph anywhere on
+;; :: the system, and will still render as color emoji.
+;; ::
+;; :: Miscellaneous Technical (U+2300-23FF, e.g. "⏺" U+23FA) has almost no
+;; :: Menlo coverage, but STIX Two Math -- bundled with macOS itself under
+;; :: Supplemental fonts -- has full 256/256 coverage of that block and of
+;; :: Misc Symbols, so stack it in below Menlo as a broader-coverage fallback.
+(dolist (range '((#x2300 . #x23FF)    ; Miscellaneous Technical
+                  (#x2600 . #x26FF)    ; Miscellaneous Symbols
+                  (#x2700 . #x27BF))) ; Dingbats
+  (set-fontset-font t range (font-spec :family "STIX Two Math") nil 'prepend)
+  (set-fontset-font t range (font-spec :family "Menlo") nil 'prepend))
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Clipboard -- clipetty (OSC52) for terminal Emacs over tmux/SSH

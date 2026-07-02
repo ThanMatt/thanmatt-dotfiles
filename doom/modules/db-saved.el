@@ -80,15 +80,20 @@
 ;; :: Commands
 ;; ──────────────────────────────────────────────────────
 (defun my/sql-save-query ()
-  ":: save the current query (region / result buffer / sql buffer). Name defaults
-   to a timestamp; re-saving an existing name overwrites silently."
+  ":: save the current query (region / result buffer / sql buffer). Pick an
+   existing name from the list to overwrite it, or type a new one to save
+   alongside the rest. Name defaults to a timestamp if left blank."
   (interactive)
   (my/sql--saved-load)
   (let* ((state   (my/sql--current-table-state))
          (query   (my/sql--current-query))
          (conn    (my/sql--current-conn))
          (default (format-time-string "%Y-%m-%d %H:%M:%S"))
-         (name    (let ((n (read-string (format "Save as (default %s): " default))))
+         (completion-extra-properties
+          (list :annotation-function #'my/sql--saved-annotation))
+         (name    (let ((n (completing-read
+                            (format "Save as (default %s): " default)
+                            (mapcar #'car my/sql-saved-queries))))
                     (if (string-empty-p n) default n))))
     ;; :: STATE (table/where/limit/sort/cols) is appended only for plain table
     ;; :: views; free-form SQL keeps just :query and reopens read-only. :query is

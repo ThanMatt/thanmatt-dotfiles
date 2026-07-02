@@ -798,6 +798,12 @@ shrink (DELTA columns, default 10)."
         ;; :: Don't zoom while a which-key/transient/minibuffer popup is up.
         zoom-ignore-predicates (list (lambda () (> (minibuffer-depth) 0)))))
 
+;; ──────────────────────────────────────────────────────
+;; :: New frame -- moved off `C-x 5 2' onto `SPC w W'
+;; ──────────────────────────────────────────────────────
+(map! :leader :desc "New frame" "w W" #'make-frame-command)
+(global-set-key (kbd "C-x 5 2") nil)
+
 (defun my/swap-window-forward ()
   "Swap current window buffer with the next window."
   (interactive)

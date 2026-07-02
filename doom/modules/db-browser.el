@@ -116,6 +116,29 @@
 (when (fboundp 'evil-set-initial-state)
   (evil-set-initial-state 'my/sql-result-mode 'normal))
 
+;; :: dock result buffers at the bottom, full frame width, instead of wherever
+;; :: point happens to be -- wide tables are readable without SPC d Z to zoom.
+;; :: Still an ordinary window: resize with the usual window commands, and
+;; :: localleader keys work unchanged. Only affects `pop-to-buffer' callers
+;; :: below (display-buffer-alist doesn't see `switch-to-buffer').
+(when (fboundp 'set-popup-rule!)
+  (set-popup-rule! '(derived-mode . my/sql-result-mode)
+    :side 'bottom :size 0.4 :select t :modeline t :quit nil :ttl nil))
+
+;; :: The popup rule above only fires for `pop-to-buffer'/`display-buffer'
+;; :: callers -- `switch-to-buffer' ignores display-buffer-alist entirely, so
+;; :: anything that reaches a result buffer that way (`SPC b b', persp-mode
+;; :: restoring a workspace after a side window failed to survive the round
+;; :: trip) drops it wherever point happens to be. Force these buffers to
+;; :: always land back in their assigned popup slot no matter how they're
+;; :: reached, by rerouting `switch-to-buffer' to `pop-to-buffer' for them.
+(defadvice! my/sql-result-buffer-obeys-popup-rule-a (fn buffer-or-name &rest args)
+  :around #'switch-to-buffer
+  (let ((buf (get-buffer buffer-or-name)))
+    (if (and buf (with-current-buffer buf (derived-mode-p 'my/sql-result-mode)))
+        (pop-to-buffer buf)
+      (apply fn buffer-or-name args))))
+
 (defun my/sql--buffer-name ()
   ":: buffer title from current state -- explicit title (raw/saved query), else
    table + active filter. No earmuffs, so it shows up as a first-class buffer in
@@ -389,7 +412,7 @@
       (my/sql--render))
     ;; :: register in the current Doom workspace so it shows in `SPC ,'
     (when (fboundp 'persp-add-buffer) (persp-add-buffer buf))
-    (switch-to-buffer buf)))
+    (pop-to-buffer buf)))
 
 (defun my/sql-browse (&optional refresh)
   ":: pick a db + table, open a read-only result buffer (C-u refreshes table cache)"
@@ -400,17 +423,16 @@
          (table (completing-read "Table: " (my/sql--tables conn refresh) nil t)))
     (my/sql--open-table conn table)))
 
-(defun my/sql--open-raw (conn sql title &optional other-window)
+(defun my/sql--open-raw (conn sql title)
   ":: open a read-only result buffer running raw SQL against CONN (used by saved
-   queries and the scratch runner). Like `my/sql-browse' but freeform. With
-   OTHER-WINDOW, pop it beside the current window instead of replacing it."
+   queries and the scratch runner). Like `my/sql-browse' but freeform."
   (let ((buf (get-buffer-create title)))
     (with-current-buffer buf
       (my/sql-result-mode)
       (setq my/sql--conn-name conn my/sql--raw-sql sql my/sql--title title)
       (my/sql--render))
     (when (fboundp 'persp-add-buffer) (persp-add-buffer buf))
-    (if other-window (pop-to-buffer buf) (switch-to-buffer buf))
+    (pop-to-buffer buf)
     buf))
 
 (defun my/sql--open-table-state (conn state &optional title)
@@ -433,7 +455,7 @@
             my/sql--select-cols (plist-get state :select-cols))
       (my/sql--render))
     (when (fboundp 'persp-add-buffer) (persp-add-buffer buf))
-    (switch-to-buffer buf)
+    (pop-to-buffer buf)
     buf))
 
 (defun my/sql-where ()
@@ -548,7 +570,7 @@
     (while (and buf (not (buffer-live-p buf)))   ;; :: skip buffers since killed
       (setq buf (pop my/sql--nav-stack)))
     (if buf
-        (switch-to-buffer buf)
+        (pop-to-buffer buf)
       (user-error "No table to go back to"))))
 
 ;; ──────────────────────────────────────────────────────

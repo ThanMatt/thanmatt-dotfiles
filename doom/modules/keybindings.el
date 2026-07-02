@@ -34,7 +34,7 @@
                 :desc "SQL scratch buffer" "s" #'my/sql-scratch
                 :desc "Run template"       "t" #'my/sql-run-template
                 :desc "Preview template"   "T" #'my/sql-preview-template
-                :desc "Write/save query"   "w" #'my/sql-save-query
+                :desc "Save query"         "w" #'my/sql-save-query
                 :desc "Saved queries"      "q" #'my/sql-run-saved
                 :desc "Delete saved query" "d" #'my/sql-delete-saved)
 

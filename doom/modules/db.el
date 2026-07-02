@@ -152,7 +152,7 @@
   (let ((sql  (my/sql--scratch-statement))
         (conn (my/sql--scratch-conn)))
     (when (string-empty-p sql) (user-error "No SQL to run"))
-    (my/sql--open-raw conn sql (format "SQL scratch @ %s" conn) t)))
+    (my/sql--open-raw conn sql (format "SQL scratch @ %s" conn))))
 
 ;; :: localleader for any sql-mode buffer (the scratch, or a .sql file)
 (map! :map sql-mode-map
