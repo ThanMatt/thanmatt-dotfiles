@@ -703,6 +703,14 @@ move; RET confirms, C-g restores the starting workspace."
       :i "<escape>" #'vterm-send-escape
       :i "C-a"      my/vterm-prefix-map)
 
+;; :: `C-;' single-press toggle between normal (copy-mode) and insert. Emacs
+;; :: swallows it in vterm-mode-map before it hits the pty, and no terminal can
+;; :: encode C-; so it never clashes with Claude Code's own vim mode.
+(map! :after vterm
+      :map vterm-mode-map
+      :i "C-;" #'evil-normal-state
+      :n "C-;" #'evil-insert)
+
 ;; :: vterm captures raw keys in insert state, so re-bind C-hjkl in its map.
 (map! :after vterm
       :map vterm-mode-map
