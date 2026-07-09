@@ -16,6 +16,25 @@
 (setq sql-password-wallet '("~/.authinfo.gpg"))
 
 ;; ──────────────────────────────────────────────────────
+;; :: Timeouts -- keep an unreachable server from freezing Emacs.
+;; :: Every query runs psql via a synchronous `call-process', which blocks all of
+;; :: Emacs until psql returns. libpq has NO connect timeout by default, so an
+;; :: unreachable host (VPN/tunnel down, firewall dropping packets) hangs on the
+;; :: OS TCP timeout -- minutes, or forever. `with-timeout'/C-g can't interrupt a
+;; :: C-level call-process, so the bound MUST come from psql itself:
+;; ::   PGCONNECT_TIMEOUT  -- caps the connection attempt (seconds)
+;; ::   statement_timeout  -- caps query execution once connected (milliseconds)
+;; :: Together they bound the worst-case freeze to connect + statement.
+;; ──────────────────────────────────────────────────────
+(defvar my/sql-connect-timeout 10
+  ":: seconds psql waits for a connection before giving up (libpq PGCONNECT_TIMEOUT).
+   0 disables the timeout (libpq default -- can hang indefinitely).")
+
+(defvar my/sql-statement-timeout 30000
+  ":: milliseconds a query may run before Postgres aborts it (statement_timeout).
+   0 disables the timeout.")
+
+;; ──────────────────────────────────────────────────────
 ;; :: Connection presets -- derived from the wallet (one source of truth).
 ;; :: Add a DB by editing only ~/.authinfo.gpg; no preset list to maintain.
 ;; ──────────────────────────────────────────────────────

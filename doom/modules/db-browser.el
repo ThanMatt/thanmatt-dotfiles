@@ -47,7 +47,13 @@
          (user  (my/sql--field entry 'sql-user))
          (pass  (my/sql--password host port db user))
          (process-environment
-          (append (list "PGOPTIONS=-c default_transaction_read_only=on")
+          (append (list (concat "PGOPTIONS=-c default_transaction_read_only=on"
+                                (when (> my/sql-statement-timeout 0)
+                                  (format " -c statement_timeout=%d"
+                                          my/sql-statement-timeout))))
+                  ;; :: cap the connect attempt so an unreachable host can't hang Emacs
+                  (when (> my/sql-connect-timeout 0)
+                    (list (format "PGCONNECT_TIMEOUT=%d" my/sql-connect-timeout)))
                   (when pass (list (concat "PGPASSWORD=" pass)))
                   process-environment))
          (args  (append (list "-h" host "-p" (number-to-string port)
@@ -773,6 +779,35 @@
       (my/sql--colsel-render))
     (when (fboundp 'persp-add-buffer) (persp-add-buffer buf))
     (pop-to-buffer buf)))
+
+;; ──────────────────────────────────────────────────────
+;; :: Bulk cleanup -- the browse buffers are first-class (no earmuffs) so they
+;; :: pile up in `SPC ,'. This nukes every transient DB buffer at once; any open
+;; :: transaction is rolled back by the kill-buffer hook (db-write.el).
+;; ──────────────────────────────────────────────────────
+(defun my/sql-kill-all-buffers (&optional include-scratch)
+  ":: Kill every transient DB buffer at once -- result/browse views, the column
+   selector, edit forms, and the `*DB …*' / `*insert …*' popups. Any open
+   transaction on a killed connection is rolled back automatically. With a prefix
+   arg INCLUDE-SCRATCH, also kill the reusable `*sql-scratch*' pad. `SPC d s K'."
+  (interactive "P")
+  (let ((bufs (cl-remove-if-not
+               (lambda (buf)
+                 (with-current-buffer buf
+                   (or (derived-mode-p 'my/sql-result-mode
+                                       'my/sql-colsel-mode
+                                       'my/sql-edit-mode)
+                       (string-match-p "\\`\\*\\(DB \\|insert \\)" (buffer-name))
+                       (and include-scratch
+                            (equal (buffer-name) "*sql-scratch*")))))
+               (buffer-list))))
+    (if (null bufs)
+        (message "No DB buffers to kill")
+      (when (yes-or-no-p (format "Kill %d DB buffer%s? "
+                                 (length bufs) (if (cdr bufs) "s" "")))
+        (mapc #'kill-buffer bufs)
+        (message "Killed %d DB buffer%s"
+                 (length bufs) (if (cdr bufs) "s" ""))))))
 
 (map! :map my/sql-colsel-mode-map
       :n "TAB"     #'my/sql-colsel-toggle

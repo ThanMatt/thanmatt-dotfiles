@@ -78,6 +78,9 @@
          (pbuf  (get-buffer-create (format " *sql-txn:%s*" conn)))
          (process-environment
           (append (when pass (list (concat "PGPASSWORD=" pass)))
+                  ;; :: cap the connect attempt so an unreachable host can't hang Emacs
+                  (when (> my/sql-connect-timeout 0)
+                    (list (format "PGCONNECT_TIMEOUT=%d" my/sql-connect-timeout)))
                   (list "PAGER=cat")
                   process-environment))
          (proc  (make-process
@@ -96,6 +99,9 @@
                   (format "\\pset null '%s'\n" my/sql--null-sentinel)
                   "\\pset footer off\n"
                   "\\pset pager off\n"
+                  ;; :: cap query execution so a slow write can't wedge the session
+                  (when (> my/sql-statement-timeout 0)
+                    (format "SET statement_timeout = %d;\n" my/sql-statement-timeout))
                   "BEGIN;\n"))
       (error (my/sql--txn-teardown conn) (signal (car err) (cdr err))))
     (when (called-interactively-p 'interactive)
