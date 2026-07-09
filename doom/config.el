@@ -270,6 +270,18 @@ buffer impossible while the engine is web-mode."
 ;; :: display (the side split in web.el) and closing only hides the buffer.
 (set-popup-rule! "^\\*\\(?:Claude Code\\|Docker\\|vterm\\) " :ignore t)
 
+;; :: Scrub inherited Claude Code session vars. If `doom env' is ever run from a
+;; :: shell inside a Claude Code session, it freezes CLAUDE_CODE_* into
+;; :: ~/.config/emacs/.local/env, which Doom loads at startup. vterm then hands
+;; :: them to every shell, so `claude' launches see CLAUDE_CODE_CHILD_SESSION=1
+;; :: and run as a nested child session -- no resumable transcript is written to
+;; :: ~/.claude/projects. Unsetting them here makes every terminal start a clean,
+;; :: top-level session regardless of what the env snapshot captured.
+(dolist (v '("CLAUDECODE" "CLAUDE_CODE_CHILD_SESSION" "CLAUDE_CODE_SESSION_ID"
+             "CLAUDE_CODE_ENTRYPOINT" "CLAUDE_CODE_EXECPATH" "CLAUDE_EFFORT"
+             "AI_AGENT"))
+  (setenv v nil))
+
 ;; ──────────────────────────────────────────────────────
 ;; :: Org -- export, babel, project scaffolding
 ;; ──────────────────────────────────────────────────────
