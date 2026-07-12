@@ -230,9 +230,12 @@ buffer impossible while the engine is web-mode."
 ;; ──────────────────────────────────────────────────────
 ;; :: Appearance -- font, theme, line numbers
 ;; ──────────────────────────────────────────────────────
-(setq doom-font (font-spec :family "FiraCode Nerd Font" :size 12)
-      doom-variable-pitch-font (font-spec :family "FiraCode Nerd Font" :size 14)
-      doom-big-font (font-spec :family "FiraCode Nerd Font" :size 18))
+;; (setq doom-font (font-spec :family "FiraCode Nerd Font" :size 12)
+;;       doom-variable-pitch-font (font-spec :family "FiraCode Nerd Font" :size 14)
+;;       doom-big-font (font-spec :family "FiraCode Nerd Font" :size 18))
+(setq doom-font (font-spec :family "Cascadia Code" :size 12)
+      doom-variable-pitch-font (font-spec :family "Cascadia Code" :size 14)
+      doom-big-font (font-spec :family "Cascadia Code" :size 18))
 
 (setq doom-gruvbox-dark-variant "medium")
 (setq doom-theme 'doom-gruvbox)

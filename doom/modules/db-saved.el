@@ -95,6 +95,11 @@
                             (format "Save as (default %s): " default)
                             (mapcar #'car my/sql-saved-queries))))
                     (if (string-empty-p n) default n))))
+    ;; :: guard an accidental overwrite -- names already in the store show up in
+    ;; :: the completion list, so picking one is easy to do unintentionally
+    (when (and (assoc name my/sql-saved-queries #'equal)
+               (not (y-or-n-p (format "Query %S exists -- overwrite? " name))))
+      (user-error "Aborted"))
     ;; :: STATE (table/where/limit/sort/cols) is appended only for plain table
     ;; :: views; free-form SQL keeps just :query and reopens read-only. :query is
     ;; :: always stored for the picker preview + as a fallback.
