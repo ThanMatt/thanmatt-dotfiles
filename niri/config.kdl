@@ -25,24 +25,40 @@ input {
 }
 
 
+// :: Display layout (mirrors sway/config; DP mode capped at 60Hz - the LG UltraGear
+// :: on DP-1 can't do 1440p@120 over this connection, only 1440p@60 / 4K@30 / 1080p@120):
+// ::   DP-1 / DP-2 -> 2560x1440@60 at 0,0    (external, center/primary; one connected at a time)
+// ::   eDP-1       -> 1920x1080 at 2560,180  (laptop, right, vertically centered on the external)
+// :: sway `output * adaptive_sync on` -> variable-refresh-rate on each output
+output "DP-1" {
+    // :: resolution-only: niri picks the highest refresh at 1440p (59.951 on the LG UltraGear).
+    // :: Avoid pinning @60 - it won't match the panel's 59.951 mode and niri falls back to 4K.
+    mode "2560x1440"
+    scale 1.0
+    position x=0 y=0
+    variable-refresh-rate
+}
+
+output "DP-2" {
+    // :: resolution-only: niri picks the highest refresh at 1440p (59.951 on the LG UltraGear).
+    // :: Avoid pinning @60 - it won't match the panel's 59.951 mode and niri falls back to 4K.
+    mode "2560x1440"
+    scale 1.0
+    position x=0 y=0
+    variable-refresh-rate
+}
+
 output "eDP-1" {
     // :: Lid switch handling is done via systemd/logind in niri, not natively
     // :: Add to /etc/systemd/logind.conf: HandleLidSwitch=suspend
+    mode "1920x1080"
+    scale 1.0
+    position x=2560 y=180
     variable-refresh-rate
-    scale 1.0
-}
-
-output "DP-1" {
-    mode "3440x1440@59.999"
-    scale 1.0
 }
 
 
-// :: Set wallpaper per output - niri doesn't handle wallpapers natively
-// :: Use swaybg or hyprpaper instead:
-// :: exec swaybg -i ~/.config/sway/wallpapers/3840x2160-dark-windows.png -m fill
-
-spawn-at-startup "sh" "-c" "swaybg -i ~/.config/sway/wallpapers/3840x2160-dark-windows.png -m fill"
+// :: Wallpaper managed by Noctalia (wallpaper.enabled: true, dir ~/Pictures/wallpapers) - swaybg removed
 
 spawn-at-startup "xwayland-satellite"
 
@@ -91,25 +107,28 @@ window-rule {
 
 
 // :: Autostart
-spawn-at-startup "mako"
-spawn-at-startup "wlsunset" "-l" "14.5995" "-L" "120.9842" "-t" "2700" "-T" "6500"
-spawn-at-startup "waybar"
+// :: Notifications handled by Noctalia (owns org.freedesktop.Notifications) - mako removed
+// :: Night light via gammastep (reads ~/.config/gammastep/config.ini: 6500K day / 2800K night).
+// :: -m wayland forces the wlr-gamma-control backend so it can't fall back to vidmode, which
+// :: is why the gammastep.service systemd unit fails (WAYLAND_DISPLAY unset when it starts).
+spawn-at-startup "gammastep" "-m" "wayland"
+// :: Noctalia (Quickshell) replaces waybar as the bar/shell
+spawn-at-startup "qs" "-c" "noctalia-shell"
 spawn-at-startup "sh" "-c" "~/.config/sway/scripts/audio-routing.sh"
 spawn-at-startup "sh" "-c" "~/.config/sway/scripts/start-cliphist.sh"
 
-// :: swayidle works with niri too
-spawn-at-startup "sh" "-c" "swayidle -w timeout 300 'gtklock' timeout 300 'niri msg action power-off-monitors' resume 'niri msg action power-on-monitors' before-sleep 'gtklock'"
+// :: Idle/lock/screen-off/suspend handled by Noctalia (idle.enabled: true, built-in lock
+// :: screen, lockTimeout 660s) - swayidle + gtklock removed. Same setup proven under sway.
 
-    
-// :: wob pipe for volume/brightness overlay
-spawn-at-startup "sh" "-c" "mkfifo /tmp/wob_volume && tail -f /tmp/wob_volume | wob"
+
+// :: Volume/brightness overlay handled by Noctalia OSD - wob removed
 
 binds {
     // :: Mod key = Super
     Mod+Return { spawn "kitty"; }
     Mod+T { spawn "kitty"; }
     Mod+Q { close-window; }
-    Mod+Space { spawn "wofi" "--show" "drun"; }
+    Mod+Space { spawn "qs" "-c" "noctalia-shell" "ipc" "call" "launcher" "toggle"; }
     Mod+C { spawn "sh" "-c" "~/.config/sway/scripts/calc.sh"; }
 
     Mod+E { spawn "emacsclient" "-c" "-a" "emacs"; }
@@ -117,19 +136,19 @@ binds {
     Mod+Comma { consume-window-into-column; }
     Mod+Period { expel-window-from-column; }
 
-    // :: Emoji picker
-    Mod+Alt+Period { spawn "bemoji" "-t"; }
+    // :: Emoji picker (Noctalia launcher)
+    Mod+Alt+Period { spawn "qs" "-c" "noctalia-shell" "ipc" "call" "launcher" "emoji"; }
 
-    // :: Clipboard
-    Mod+Alt+V { spawn "sh" "-c" "cliphist list | wofi --dmenu | cliphist decode | wl-copy"; }
+    // :: Clipboard (Noctalia launcher; reads cliphist history fed by start-cliphist.sh)
+    Mod+Alt+V { spawn "qs" "-c" "noctalia-shell" "ipc" "call" "launcher" "clipboard"; }
 
     // :: Screenshots
     Print { spawn "sh" "-c" "grim -g \"$(slurp)\" - | wl-copy"; }
     Ctrl+Print { spawn "sh" "-c" "grim - | wl-copy"; }
     Mod+Shift+S { spawn "sh" "-c" "grim -g \"$(slurp)\" - | swappy -f -"; }
 
-    // :: Session
-    Mod+Alt+Space { spawn "wlogout" "-C" "/home/thanmatt/.config/wlogout/layout-niri" "--css" "/home/thanmatt/.config/wlogout/style.css"; }
+    // :: Session (Noctalia session menu)
+    Mod+Alt+Space { spawn "qs" "-c" "noctalia-shell" "ipc" "call" "sessionMenu" "toggle"; }
     Mod+Shift+C { spawn "sh" "-c" "niri msg action reload-config"; }
 
     // :: Focus movement (vim keys)
@@ -195,13 +214,13 @@ binds {
     Mod+Minus { set-column-width "-5%"; }
     Mod+Equal { set-column-width "+5%"; }
 
-    // :: Volume (with wob)
-    XF86AudioRaiseVolume { spawn "sh" "-c" "pamixer --sink @DEFAULT_SINK@ -i 5 && pamixer --sink @DEFAULT_SINK@ --get-volume > /tmp/wob_volume"; }
-    XF86AudioLowerVolume { spawn "sh" "-c" "pamixer --sink @DEFAULT_SINK@ -d 5 && pamixer --sink @DEFAULT_SINK@ --get-volume > /tmp/wob_volume"; }
-    XF86AudioMute { spawn "sh" "-c" "pamixer --sink @DEFAULT_SINK@ --toggle-mute && (pamixer --sink @DEFAULT_SINK@ --get-mute && echo 0 > /tmp/wob_volume) || pamixer --sink @DEFAULT_SINK@ --get-volume > /tmp/wob_volume"; }
+    // :: Volume (Noctalia OSD; step from audio.volumeStep)
+    XF86AudioRaiseVolume { spawn "qs" "-c" "noctalia-shell" "ipc" "call" "volume" "increase"; }
+    XF86AudioLowerVolume { spawn "qs" "-c" "noctalia-shell" "ipc" "call" "volume" "decrease"; }
+    XF86AudioMute { spawn "qs" "-c" "noctalia-shell" "ipc" "call" "volume" "muteOutput"; }
 
-    // :: Brightness
-    XF86MonBrightnessDown { spawn "brightnessctl" "set" "5%-"; }
-    XF86MonBrightnessUp { spawn "brightnessctl" "set" "5%+"; }
+    // :: Brightness (Noctalia OSD; step from brightness.brightnessStep)
+    XF86MonBrightnessDown { spawn "qs" "-c" "noctalia-shell" "ipc" "call" "brightness" "decrease"; }
+    XF86MonBrightnessUp { spawn "qs" "-c" "noctalia-shell" "ipc" "call" "brightness" "increase"; }
 }
 
