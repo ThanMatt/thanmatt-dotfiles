@@ -90,6 +90,19 @@
     (add-to-list 'lsp-tailwindcss-major-modes m)))
 
 ;; ──────────────────────────────────────────────────────
+;; :: Font family (this machine)
+;; ──────────────────────────────────────────────────────
+;; :: Cascadia Code on macOS; FiraCode Nerd Font kept commented as a fallback
+;; :: (uncomment if Cascadia is missing). Set here, not in config.el, because the
+;; :: platform `load!' runs before config.el's appearance block.
+(setq doom-font (font-spec :family "Cascadia Code" :size 12)
+      doom-variable-pitch-font (font-spec :family "Cascadia Code" :size 14)
+      doom-big-font (font-spec :family "Cascadia Code" :size 18))
+;; (setq doom-font (font-spec :family "FiraCode Nerd Font" :size 12)
+;;       doom-variable-pitch-font (font-spec :family "FiraCode Nerd Font" :size 14)
+;;       doom-big-font (font-spec :family "FiraCode Nerd Font" :size 18))
+
+;; ──────────────────────────────────────────────────────
 ;; :: Fonts -- force text presentation for symbol ranges
 ;; ──────────────────────────────────────────────────────
 ;; :: macOS CoreText picks Apple Color Emoji for any Unicode symbol it has an

@@ -9,6 +9,19 @@
 (setq my/notes-dir (expand-file-name "~/org-notes/"))
 
 ;; ──────────────────────────────────────────────────────
+;; :: Font family (this machine)
+;; ──────────────────────────────────────────────────────
+;; :: FiraCode Nerd Font on Arch; Cascadia Code kept commented for an easy switch
+;; :: to match macOS. Set here, not in config.el, because the platform `load!'
+;; :: runs before config.el's appearance block.
+(setq doom-font (font-spec :family "FiraCode Nerd Font" :size 12)
+      doom-variable-pitch-font (font-spec :family "FiraCode Nerd Font" :size 14)
+      doom-big-font (font-spec :family "FiraCode Nerd Font" :size 18))
+;; (setq doom-font (font-spec :family "Cascadia Code" :size 12)
+;;       doom-variable-pitch-font (font-spec :family "Cascadia Code" :size 14)
+;;       doom-big-font (font-spec :family "Cascadia Code" :size 18))
+
+;; ──────────────────────────────────────────────────────
 ;; :: Shell -- FHS Fish for terminal emulators inside Emacs
 ;; ──────────────────────────────────────────────────────
 (setq vterm-shell "/usr/bin/fish")

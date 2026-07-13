@@ -230,13 +230,10 @@ buffer impossible while the engine is web-mode."
 ;; ──────────────────────────────────────────────────────
 ;; :: Appearance -- font, theme, line numbers
 ;; ──────────────────────────────────────────────────────
-;; :: FiraCode Nerd Font kept as a fallback (uncomment if Cascadia is missing)
-(setq doom-font (font-spec :family "FiraCode Nerd Font" :size 12)
-      doom-variable-pitch-font (font-spec :family "FiraCode Nerd Font" :size 14)
-      doom-big-font (font-spec :family "FiraCode Nerd Font" :size 18))
-;; (setq doom-font (font-spec :family "Cascadia Code" :size 12)
-;;       doom-variable-pitch-font (font-spec :family "Cascadia Code" :size 14)
-;;       doom-big-font (font-spec :family "Cascadia Code" :size 18))
+;; :: `doom-font' is set per-machine in +macos.el / +linux.el (macOS defaults to
+;; :: Cascadia Code, Arch to FiraCode Nerd Font) -- both files keep the other
+;; :: family commented out for an easy switch. The `load!'s at the top of this
+;; :: file run before this block, so setting the font there (not here) wins.
 
 (setq doom-gruvbox-dark-variant "medium")
 (setq doom-theme 'doom-gruvbox)
@@ -685,6 +682,36 @@ move; RET confirms, C-g restores the starting workspace."
       :nvieomr "C-j" #'evil-window-down
       :nvieomr "C-k" #'evil-window-up
       :nvieomr "C-l" #'evil-window-right)
+
+;; ──────────────────────────────────────────────────────
+;; :: Send any buffer to a bottom popup, and raise one back to a normal window.
+;; :: Mirrors `+popup/buffer' but lets you pick the target buffer instead of only
+;; :: the current one. Popups are `no-other-window', so C-hjkl skips them -- use
+;; :: `my/popup-raise' (which focuses the popup first) to promote it to a real,
+;; :: navigable window.
+;; ──────────────────────────────────────────────────────
+(defun my/buffer-to-popup (buffer)
+  ":: display BUFFER (chosen interactively) in a Doom bottom popup window"
+  (interactive (list (read-buffer "Buffer to popup: " nil t)))
+  (let ((+popup--inhibit-transient t)
+        +popup-remember-last)
+    (+popup-buffer
+     (get-buffer buffer)
+     '((actions . (+popup-display-buffer-stacked-side-window-fn))))))
+
+(defun my/popup-raise ()
+  ":: raise the visible popup into a normal window -- focuses it first (via
+   `+popup/other') so it works from your main window, not only inside the popup"
+  (interactive)
+  (unless (+popup-window-p (selected-window))
+    (+popup/other))
+  (if (+popup-window-p (selected-window))
+      (+popup/raise (selected-window))
+    (user-error "No popup window to raise")))
+
+(map! :leader
+      :desc "Buffer → popup" "b ~" #'my/buffer-to-popup
+      :desc "Raise popup"    "b ^" #'my/popup-raise)
 
 ;; :: Auto copy-mode: suspends vterm's cursor-sync on normal state entry so Evil
 ;; :: scroll keys and mouse work freely. Back to insert re-attaches the live cursor.
