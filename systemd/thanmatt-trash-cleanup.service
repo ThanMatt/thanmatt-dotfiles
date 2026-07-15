@@ -1,0 +1,6 @@
+[Unit]
+Description=Purge trash-cli files older than 15 days
+
+[Service]
+Type=oneshot
+ExecStart=%h/thanmatt-dotfiles/scripts/trash-cleanup-linux.fish

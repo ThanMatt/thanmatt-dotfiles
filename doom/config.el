@@ -671,6 +671,85 @@ move; RET confirms, C-g restores the starting workspace."
 ;;        :desc "Switch workspace (preview)" "." #'my/workspace-switch-preview))
 
 ;; ──────────────────────────────────────────────────────
+;; :: Buffer switcher grouped by project (SPC ,)
+;; ──────────────────────────────────────────────────────
+;; :: Workflow: one workspace holds files from many projects (instead of one
+;; :: workspace per project). Doom's default `SPC ,' groups the picker by
+;; :: WORKSPACE, which is useless once everything lives in a single workspace.
+;; :: This rebinds `SPC ,' to the same consult--multi machinery keyed on the
+;; :: buffer's projectile root instead: one header section per project, all
+;; :: sections visible at once, narrow-keys per project. Scoped to the current
+;; :: workspace so the notes workspace stays separate. `SPC b B' is untouched
+;; :: (still every buffer, ungrouped). Modelled on Doom's
+;; :: `+vertico--workspace-generate-sources' (completion/vertico/autoload/workspaces.el).
+(after! consult
+  (defun my/buffer-project-root (buf)
+    ":: Projectile root for BUF's `default-directory', or nil if none.
+Result is cached per-directory by projectile, so this stays cheap even when
+called once per buffer per source."
+    (with-current-buffer buf
+      (and (fboundp 'projectile-project-root)
+           (projectile-project-root))))
+
+  (defun my/vertico--project-buffer-sources ()
+    ":: Build consult buffer sources for the current workspace, one per project.
+Real projects come first (alphabetical by root); buffers with no project land
+in a trailing \"other\" section."
+    (let* ((workspace (+workspace-current))
+           (key-range (append (cl-loop for i from ?1 to ?9 collect i)
+                              (cl-loop for i from ?a to ?z collect i)
+                              (cl-loop for i from ?A to ?Z collect i)))
+           (roots '())
+           (i 0))
+      ;; :: Collect the distinct project roots present among this workspace's buffers.
+      (dolist (buf (buffer-list))
+        (when (+workspace-contains-buffer-p buf workspace)
+          (let ((root (my/buffer-project-root buf)))
+            (unless (member root roots)
+              (push root roots)))))
+      ;; :: Real roots alphabetical, nil ("other") sorted to the end.
+      (setq roots (sort roots (lambda (a b)
+                                (cond ((null a) nil)
+                                      ((null b) t)
+                                      (t (string< a b))))))
+      (mapcar
+       (lambda (root)
+         (cl-incf i)
+         (let ((name (if root
+                         (file-name-nondirectory (directory-file-name root))
+                       "other")))
+           `(:name     ,name
+             :narrow   ,(nth (1- i) key-range)
+             :category buffer
+             :state    ,#'consult--buffer-state
+             :items    ,(lambda ()
+                          (consult--buffer-query
+                           :sort 'visibility
+                           :as #'buffer-name
+                           :predicate
+                           (lambda (buf)
+                             (and (+workspace-contains-buffer-p buf workspace)
+                                  (equal root (my/buffer-project-root buf)))))))))
+       roots)))
+
+  (defun my/switch-buffer-by-project ()
+    ":: Switch to a buffer in the current workspace, grouped by project.
+Like `+vertico/switch-workspace-buffer' but the header sections are projects
+rather than workspaces."
+    (interactive)
+    (when-let (buffer (consult--multi (my/vertico--project-buffer-sources)
+                                      :require-match
+                                      (confirm-nonexistent-file-or-buffer)
+                                      :prompt (format "Switch to buffer by project (%s): "
+                                                      (+workspace-current-name))
+                                      :history 'consult--buffer-history
+                                      :sort nil))
+      (funcall consult--buffer-display (car buffer)))))
+
+(map! :leader
+      :desc "Switch buffer (by project)" "," #'my/switch-buffer-by-project)
+
+;; ──────────────────────────────────────────────────────
 ;; :: Window management -- splits, nav, swap, resize
 ;; ──────────────────────────────────────────────────────
 (map! :leader
