@@ -15,46 +15,18 @@
   (file-name-nondirectory (directory-file-name (my/project-root))))
 
 ;; ──────────────────────────────────────────────────────
-;; :: Package manager detection (lockfile-based)
-;; ──────────────────────────────────────────────────────
-
-(defun my/detect-package-manager (&optional root)
-  ":: Detect frontend package manager from lockfile in ROOT."
-  (let ((root (or root (my/project-root))))
-    (cond
-     ((file-exists-p (expand-file-name "pnpm-lock.yaml" root))   "pnpm")
-     ((file-exists-p (expand-file-name "yarn.lock" root))        "yarn")
-     ((file-exists-p (expand-file-name "package-lock.json" root)) "npm")
-     (t "npm"))))
-
-;; ──────────────────────────────────────────────────────
-;; :: Django python resolver (venv > poetry > system)
-;; ──────────────────────────────────────────────────────
-
-(defun my/django-python (&optional root)
-  ":: Return python executable or command prefix for Django in ROOT.
-Prefers venv/bin/python, then poetry run python, then bare python."
-  (let* ((root        (or root (my/project-root)))
-         (venv-python (expand-file-name "venv/bin/python" root))
-         (poetry-lock (expand-file-name "poetry.lock" root)))
-    (cond
-     ((file-exists-p venv-python) venv-python)
-     ((file-exists-p poetry-lock) "poetry run python")
-     (t "python"))))
-
-;; ──────────────────────────────────────────────────────
-;; :: Per-project overrides (.dev.el) + command resolution
+;; :: Per-project command config (.dev.el)
 ;; ──────────────────────────────────────────────────────
 
 (defvar my/dev-config-file ".dev.el"
-  ":: Gitignored per-project file holding command overrides as an alist, e.g.
-((frontend-dev   . \"pnpm dev\")
- (frontend-build . \"pnpm build\")
- (backend        . \"uv run python manage.py runserver\")).")
+  ":: Gitignored per-project file listing dev commands as plists, e.g.
+((:name \"Frontend Dev\" :cmd \"pnpm dev\"     :type server)
+ (:name \"Build\"        :cmd \"pnpm build\"    :type compile)
+ (:name \"Shell\"        :cmd \"manage.py shell\" :type vterm)).")
 
 (defun my/project-config (&optional root)
-  ":: Read per-project command overrides from `my/dev-config-file' at ROOT.
-Returns an alist, or nil if the file is absent or unreadable."
+  ":: Read the raw command list from `my/dev-config-file' at ROOT.
+Returns a list of plists, or nil if the file is absent or unreadable."
   (let* ((root (or root (my/project-root)))
          (file (expand-file-name my/dev-config-file root)))
     (when (file-readable-p file)
@@ -63,116 +35,86 @@ Returns an alist, or nil if the file is absent or unreadable."
           (insert-file-contents file)
           (car (read-from-string (buffer-string))))))))
 
-(defun my/project-config-get (key &optional root)
-  ":: Look up KEY in the project's overrides. Returns a command string or nil."
-  (alist-get key (my/project-config root)))
+(defun my/project-commands (&optional root)
+  ":: Normalized commands from `.dev.el': plists with :name, :cmd, :type.
+Entries missing :name or :cmd are dropped; :type defaults to `server'."
+  (seq-keep
+   (lambda (c)
+     (let ((name (plist-get c :name))
+           (cmd  (plist-get c :cmd))
+           (type (or (plist-get c :type) 'server)))
+       (when (and (stringp name) (stringp cmd))
+         (list :name name :cmd cmd :type type))))
+   (my/project-config root)))
 
-(defun my/package-json-scripts (&optional root)
-  ":: Return the scripts alist from package.json at ROOT, or nil.
-Keys are symbols, values are the raw script strings."
-  (let* ((root (or root (my/project-root)))
-         (file (expand-file-name "package.json" root)))
-    (when (file-readable-p file)
-      (ignore-errors
-        (with-temp-buffer
-          (insert-file-contents file)
-          (alist-get 'scripts (json-parse-string (buffer-string)
-                                                 :object-type 'alist
-                                                 :null-object nil)))))))
-
-(defun my/frontend-dev-script (&optional root)
-  ":: First of dev/start/develop that actually exists in package.json scripts."
-  (let ((scripts (my/package-json-scripts root)))
-    (seq-find (lambda (name) (assq (intern name) scripts))
-              '("dev" "start" "develop"))))
-
-(defun my/frontend-dev-command (&optional root)
-  ":: Resolve frontend dev cmd: override > package.json script > lockfile default."
-  (let* ((root (or root (my/project-root)))
-         (pm   (my/detect-package-manager root)))
-    (or (my/project-config-get 'frontend-dev root)
-        (when-let ((script (my/frontend-dev-script root)))
-          (format "%s run %s" pm script))
-        (format "%s run dev" pm))))
-
-(defun my/frontend-build-command (&optional root)
-  ":: Resolve frontend build cmd: override > lockfile default."
-  (let* ((root (or root (my/project-root)))
-         (pm   (my/detect-package-manager root)))
-    (or (my/project-config-get 'frontend-build root)
-        (format "%s run build" pm))))
-
-(defun my/backend-command (&optional root)
-  ":: Resolve backend server cmd: override > Django default."
-  (let* ((root   (or root (my/project-root)))
-         (python (my/django-python root)))
-    (or (my/project-config-get 'backend root)
-        (format "%s manage.py runserver" python))))
-
-(defun my/dev-config-template (&optional root)
-  ":: Return a commented `.dev.el' scaffold showing ROOT's resolved defaults."
-  (let ((root (or root (my/project-root))))
-    (format
-     (concat
-      ";; :: %s -- per-project dev command overrides (gitignored)\n"
-      ";; :: Only the keys you set here win; everything else uses detection.\n"
-      ";;\n"
-      ";; :: Current resolved defaults for this project:\n"
-      ";; ::   frontend-dev   => %S\n"
-      ";; ::   frontend-build => %S\n"
-      ";; ::   backend        => %S\n"
-      ";;\n"
-      ";; :: Uncomment and edit any line to override.\n"
-      "(\n"
-      " ;; (frontend-dev   . \"turbo dev --filter=web\")\n"
-      " ;; (frontend-build . \"pnpm build\")\n"
-      " ;; (backend        . \"uv run python manage.py runserver\")\n"
-      ")\n")
-     my/dev-config-file
-     (my/frontend-dev-command root)
-     (my/frontend-build-command root)
-     (my/backend-command root))))
+(defun my/dev-config-template ()
+  ":: Return a `.dev.el' scaffold documenting the plist schema."
+  (concat
+   ";; :: " my/dev-config-file " -- per-project dev commands (gitignored)\n"
+   ";; :: Each entry is a plist:\n"
+   ";; ::   :name  label shown in the picker    (required)\n"
+   ";; ::   :cmd   shell command, run at root    (required)\n"
+   ";; ::   :type  server | compile | vterm      (optional, default server)\n"
+   ";; ::\n"
+   ";; :: server  = long-running, logged, stoppable   (dev servers)\n"
+   ";; :: compile = one-shot in a compilation buffer   (builds, migrations)\n"
+   ";; :: vterm   = interactive terminal               (REPLs, shells)\n"
+   "(\n"
+   " (:name \"Frontend Dev\"   :cmd \"pnpm dev\"                  :type server)\n"
+   " (:name \"Frontend Build\" :cmd \"pnpm build\"                :type compile)\n"
+   " (:name \"Backend\"        :cmd \"python manage.py runserver\" :type server)\n"
+   " (:name \"Migrate\"        :cmd \"python manage.py migrate\"   :type compile)\n"
+   " (:name \"Django Shell\"   :cmd \"python manage.py shell\"     :type vterm)\n"
+   ")\n"))
 
 (defun my/dev-config-edit ()
-  ":: Open the project's `.dev.el', scaffolding a commented template if absent."
+  ":: Open the project's `.dev.el', scaffolding a template if absent."
   (interactive)
   (let* ((root (my/project-root))
          (file (expand-file-name my/dev-config-file root))
          (new  (not (file-exists-p file))))
     (find-file file)
     (when (and new (zerop (buffer-size)))
-      (insert (my/dev-config-template root))
+      (insert (my/dev-config-template))
       (goto-char (point-min)))))
 
 ;; ──────────────────────────────────────────────────────
-;; :: Process registry  -- keyed by (root . type)
+;; :: Process registry  -- keyed by (root . name)
 ;; ──────────────────────────────────────────────────────
 
 (defvar my/dev-processes (make-hash-table :test 'equal)
-  ":: Running dev processes, keyed by (project-root . server-type).")
+  ":: Running dev processes, keyed by (project-root . command-name).")
 
-(defun my/dev-proc-get (root type)
-  (gethash (cons root type) my/dev-processes))
+(defun my/dev-proc-get (root name)
+  (gethash (cons root name) my/dev-processes))
 
-(defun my/dev-proc-set (root type proc)
-  (puthash (cons root type) proc my/dev-processes))
+(defun my/dev-proc-set (root name proc)
+  (puthash (cons root name) proc my/dev-processes))
 
-(defun my/dev-proc-live-p (root type)
-  (let ((p (my/dev-proc-get root type)))
+(defun my/dev-proc-live-p (root name)
+  (let ((p (my/dev-proc-get root name)))
     (and p (process-live-p p))))
 
-(defun my/dev-proc-kill (root type)
-  (let ((p (my/dev-proc-get root type)))
+(defun my/dev-proc-kill (root name)
+  (let ((p (my/dev-proc-get root name)))
     (when (and p (process-live-p p)) (kill-process p)))
-  (remhash (cons root type) my/dev-processes))
+  (remhash (cons root name) my/dev-processes))
+
+(defun my/dev-server-names (&optional root)
+  ":: Command names registered for ROOT (running or exited), in insertion order."
+  (let ((root (or root (my/project-root)))
+        names)
+    (maphash (lambda (k _) (when (equal (car k) root) (push (cdr k) names)))
+             my/dev-processes)
+    (nreverse names)))
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Buffer and display helpers
 ;; ──────────────────────────────────────────────────────
 
-(defun my/dev-buffer-name (type &optional root)
-  ":: Return log buffer name for TYPE in project ROOT."
-  (format "*%s [%s]*" type (if root
+(defun my/dev-buffer-name (name &optional root)
+  ":: Return log buffer name for command NAME in project ROOT."
+  (format "*%s [%s]*" name (if root
                                (file-name-nondirectory (directory-file-name root))
                              (my/project-name))))
 
@@ -199,16 +141,36 @@ WINDOW is whatever `display-buffer' returned; no-op if it isn't live."
     (when (and (eq major-mode 'vterm-mode) (fboundp 'evil-insert-state))
       (evil-insert-state))))
 
-(defun my/dev-log-slot (type)
-  ":: Bottom-side slot for a dev-log TYPE, so logs sit side by side."
-  (pcase type
-    ("Frontend" 0)
-    ("Django"   1)
-    (_          0)))
+(defvar my/dev-log-slots (make-hash-table :test 'equal)
+  ":: Stable bottom-side slot per command name, so logs sit side by side.")
 
-(defun my/display-dev-log (buf type)
-  ":: Display a dev-server log BUF across the bottom, slotted by TYPE."
-  (my/display-in-side buf 'bottom (my/dev-log-slot type) 0.30))
+(defun my/dev-log-slot (name)
+  ":: Return a stable bottom-side slot for NAME, assigning one on first use."
+  (or (gethash name my/dev-log-slots)
+      (puthash name (hash-table-count my/dev-log-slots) my/dev-log-slots)))
+
+(defun my/dev-register-buffer (buf)
+  ":: Make BUF discoverable in `SPC ,' and `SPC b b'.
+Dev buffers are created bypassing Doom's popup system, so persp-mode never
+adds them to the current workspace and the workspace switchers hide them.
+Add BUF to the current perspective explicitly, and mark it real."
+  (when (buffer-live-p buf)
+    (with-current-buffer buf
+      (setq-local doom-real-buffer-p t))   ; :: survive workspace buffer filters
+    (when-let* (((bound-and-true-p persp-mode))
+                ((fboundp 'persp-add-buffer))
+                (persp (and (fboundp 'get-current-persp) (get-current-persp))))
+      ;; :: nil `switch' arg -> add without stealing focus to BUF
+      (persp-add-buffer buf persp nil))))
+
+(defun my/display-dev-log (buf)
+  ":: Re-surface a dev log/compile BUF.
+Compile buffers pop back through their Doom popup rule (and take focus, since
+you asked for them); server logs get a persistent bottom side window."
+  (my/dev-register-buffer buf)
+  (if (string-prefix-p "*compile: " (buffer-name buf))
+      (pop-to-buffer buf)
+    (my/display-in-side buf 'bottom (my/dev-log-slot (buffer-name buf)) 0.30)))
 
 (defun my/prepare-log-buffer (name)
   ":: Create or clear NAME as a read-only log buffer. Returns buffer."
@@ -233,137 +195,222 @@ WINDOW is whatever `display-buffer' returned; no-op if it isn't live."
         (when at-end (goto-char (point-max)))))))
 
 ;; ──────────────────────────────────────────────────────
-;; :: Generic server lifecycle
+;; :: Server lifecycle (long-running, logged, stoppable)
 ;; ──────────────────────────────────────────────────────
 
-(defun my/dev-start-server (type cmd)
-  ":: Start a named server TYPE by running CMD at the project root.
-Creates a log buffer and opens it in a side split."
-  (let* ((root  (my/project-root))
-         (bname (my/dev-buffer-name type root))
-         (buf   (my/prepare-log-buffer bname))
-         (proc  (start-process-shell-command
-                 type buf
-                 (format "cd %s && %s" (shell-quote-argument root) cmd))))
-    (set-process-filter proc #'my/dev-process-filter)
-    (set-process-sentinel
-     proc (lambda (p _)
-            (message "[web.el] %s %s." type (process-status p))))
-    (my/dev-proc-set root type proc)
-    (my/display-dev-log buf type)
-    (message "%s started (detected: %s)." type cmd)))
-
-(defun my/dev-stop-server (type)
-  ":: Kill the running server of TYPE for the current project."
+(defun my/dev-start-server (name cmd)
+  ":: Start (or resurface) a long-running server NAME running CMD at root.
+If one is already live, just surfaces its log buffer instead of duplicating."
   (let ((root (my/project-root)))
-    (if (my/dev-proc-live-p root type)
+    (if (my/dev-proc-live-p root name)
         (progn
-          (my/dev-proc-kill root type)
-          (message "%s stopped." type))
-      (message "No %s running for [%s]." type (my/project-name)))))
+          (message "%s already running for [%s]." name (my/project-name))
+          (my/dev-open-logs name))
+      (let* ((bname (my/dev-buffer-name name root))
+             (buf   (my/prepare-log-buffer bname))
+             (proc  (start-process-shell-command
+                     name buf
+                     (format "cd %s && %s" (shell-quote-argument root) cmd))))
+        (set-process-filter proc #'my/dev-process-filter)
+        (set-process-sentinel
+         proc (lambda (p _)
+                (message "[web.el] %s %s." name (process-status p))))
+        (my/dev-proc-set root name proc)
+        (my/display-dev-log buf)
+        (message "%s started: %s" name cmd)))))
 
-(defun my/dev-open-logs (type)
-  ":: Show the log buffer for TYPE in a side split."
+(defun my/dev-stop-server (name)
+  ":: Kill the running server NAME for the current project."
+  (let ((root (my/project-root)))
+    (if (my/dev-proc-live-p root name)
+        (progn
+          (my/dev-proc-kill root name)
+          (message "%s stopped." name))
+      (message "No %s running for [%s]." name (my/project-name)))))
+
+(defun my/dev-open-logs (name)
+  ":: Show the log buffer for command NAME in a side split."
   (let* ((root (my/project-root))
-         (buf  (get-buffer (my/dev-buffer-name type root))))
+         (buf  (get-buffer (my/dev-buffer-name name root))))
     (if buf
-        (my/display-dev-log buf type)
-      (message "No %s log buffer yet -- start the server first." type))))
+        (my/display-dev-log buf)
+      (message "No %s log buffer yet -- run it first." name))))
 
-(defun my/dev-clear-logs (type)
-  ":: Clear the log buffer for TYPE."
+(defun my/dev-clear-logs (name)
+  ":: Clear the log buffer for command NAME."
   (let* ((root (my/project-root))
-         (buf  (get-buffer (my/dev-buffer-name type root))))
+         (buf  (get-buffer (my/dev-buffer-name name root))))
     (if buf
         (progn
           (with-current-buffer buf
             (let ((inhibit-read-only t)) (erase-buffer)))
-          (message "%s logs cleared." type))
-      (message "No %s log buffer to clear." type))))
+          (message "%s logs cleared." name))
+      (message "No %s log buffer to clear." name))))
 
 ;; ──────────────────────────────────────────────────────
-;; :: Frontend commands
+;; :: Compile buffers as Doom popups
 ;; ──────────────────────────────────────────────────────
 
-(defun my/frontend-start ()
-  ":: Start the frontend dev server (override > package.json script > default)."
-  (interactive)
-  (let ((root (my/project-root)))
-    (if (my/dev-proc-live-p root "Frontend")
-        (message "Frontend already running for [%s]." (my/project-name))
-      (my/dev-start-server "Frontend" (my/frontend-dev-command root)))))
+(when (fboundp 'set-popup-rule!)
+  ;; :: `:ttl nil'  -> never auto-kill; closing keeps the build log around
+  ;; ::                (still findable via SPC , / SPC b b / SPC d l).
+  ;; :: `:select nil' -> a running build doesn't steal focus from your code;
+  ;; ::                deliberate re-opens use `pop-to-buffer' and DO focus it.
+  ;; :: `:quit t'   -> q / ESC / C-g dismisses the popup (buffer survives).
+  (set-popup-rule! "^\\*compile: "
+    :side 'bottom :size 0.30 :select nil :quit t :ttl nil :modeline t))
 
-(defun my/frontend-stop ()
-  ":: Stop the frontend dev server."
-  (interactive)
-  (my/dev-stop-server "Frontend"))
-
-(defun my/frontend-build ()
-  ":: Run the frontend build in a compilation buffer (override > default)."
-  (interactive)
-  (let ((root (my/project-root)))
-    (compile (format "cd %s && %s"
-                     (shell-quote-argument root)
-                     (my/frontend-build-command root)))))
-
-(defun my/frontend-logs ()
-  ":: Show frontend log buffer in a side split."
-  (interactive)
-  (my/dev-open-logs "Frontend"))
-
-(defun my/frontend-logs-clear ()
-  ":: Clear the frontend log buffer."
-  (interactive)
-  (my/dev-clear-logs "Frontend"))
+(defadvice! my/dev-compile-obeys-popup-a (fn buffer-or-name &rest args)
+  ":: Route `switch-to-buffer' to `pop-to-buffer' for compile popups.
+`switch-to-buffer' ignores `display-buffer-alist', so reaching a compile
+buffer via SPC , / SPC b b would hijack the current window. Rerouting to
+`pop-to-buffer' makes it honor the popup rule and land in the bottom slot."
+  :around #'switch-to-buffer
+  (let ((buf (ignore-errors (get-buffer buffer-or-name))))
+    (if (and (bufferp buf)
+             (string-prefix-p "*compile: " (buffer-name buf)))
+        (pop-to-buffer buf)
+      (apply fn buffer-or-name args))))
 
 ;; ──────────────────────────────────────────────────────
-;; :: Backend / Django commands
+;; :: Command runners  -- dispatched by :type
 ;; ──────────────────────────────────────────────────────
 
-(defun my/backend-start ()
-  ":: Start the backend server (override > venv/poetry/system Django default)."
-  (interactive)
-  (let ((root (my/project-root)))
-    (if (my/dev-proc-live-p root "Django")
-        (message "Django already running for [%s]." (my/project-name))
-      (my/dev-start-server "Django" (my/backend-command root)))))
+(defun my/dev-run-compile (name cmd root)
+  ":: Run CMD one-shot in its own compilation buffer, shown as a Doom popup.
+The buffer is named per NAME so re-runs don't clobber other commands' output;
+its popup rule (`^\\*compile: ', `:ttl nil') means `q' only buries it -- the
+process keeps running and the buffer stays findable in SPC , / SPC d l."
+  (let* ((bufname (format "*compile: %s [%s]*" name (my/project-name)))
+         (default-directory root)
+         (compilation-buffer-name-function (lambda (_mode) bufname)))
+    ;; :: `compile' displays via `display-buffer' -> hits the popup rule above
+    ;; :: (no focus steal). It returns the buffer; register it for SPC , / SPC b b.
+    (let ((buf (compile (format "cd %s && %s" (shell-quote-argument root) cmd))))
+      (when (buffer-live-p buf)
+        (my/dev-register-buffer buf))
+      buf)))
 
-(defun my/backend-stop ()
-  ":: Stop Django runserver."
-  (interactive)
-  (my/dev-stop-server "Django"))
+(defun my/dev-run-vterm (name cmd root)
+  ":: Run CMD in an interactive vterm side split, reusing one buffer per NAME."
+  (unless (fboundp 'vterm)
+    (user-error "vterm not loaded -- enable ':term vterm' in init.el"))
+  (let* ((bufname (my/dev-buffer-name name root))
+         (buf     (get-buffer bufname)))
+    (if (buffer-live-p buf)
+        (my/focus-window (my/vterm-display buf))
+      (my/vterm-create bufname root)
+      (run-with-timer 0.4 nil
+                      (lambda ()
+                        (when-let ((b (get-buffer bufname)))
+                          (with-current-buffer b
+                            (vterm-send-string (concat cmd "\n"))))))
+      (my/focus-window (my/vterm-display bufname)))))
 
-(defun my/backend-logs ()
-  ":: Show Django log buffer in a side split."
-  (interactive)
-  (my/dev-open-logs "Django"))
+(defun my/dev-run-command (spec)
+  ":: Run a normalized command SPEC (plist of :name :cmd :type) at project root."
+  (let ((name (plist-get spec :name))
+        (cmd  (plist-get spec :cmd))
+        (type (plist-get spec :type))
+        (root (my/project-root)))
+    (pcase type
+      ('server  (my/dev-start-server name cmd))
+      ('compile (my/dev-run-compile name cmd root))
+      ('vterm   (my/dev-run-vterm name cmd root))
+      (_        (user-error "Unknown :type %S for command %s" type name)))))
 
-(defun my/backend-logs-clear ()
-  ":: Clear the Django log buffer."
-  (interactive)
-  (my/dev-clear-logs "Django"))
+;; ──────────────────────────────────────────────────────
+;; :: Entry points
+;; ──────────────────────────────────────────────────────
 
-(defun my/backend-manage ()
-  ":: Run an arbitrary Django management command interactively."
+(defun my/project-run ()
+  ":: Pick a command from `.dev.el' and run it according to its :type."
   (interactive)
-  (let* ((root   (my/project-root))
-         (python (my/django-python root))
-         (cmd    (read-string "manage.py command: " "migrate")))
-    (compile (format "cd %s && %s manage.py %s"
-                     (shell-quote-argument root) python cmd))))
+  (let* ((root (my/project-root))
+         (cmds (my/project-commands root)))
+    (if (null cmds)
+        (when (y-or-n-p
+               (format "No commands in %s for [%s]. Create it? "
+                       my/dev-config-file (my/project-name)))
+          (my/dev-config-edit))
+      (let* ((names  (mapcar (lambda (c) (plist-get c :name)) cmds))
+             (choice (completing-read (format "Run in [%s]: " (my/project-name))
+                                      names nil t))
+             (spec   (seq-find (lambda (c) (equal (plist-get c :name) choice))
+                               cmds)))
+        (when spec (my/dev-run-command spec))))))
+
+(defun my/project-stop ()
+  ":: Pick a running server for this project and stop it."
+  (interactive)
+  (let* ((root (my/project-root))
+         (live (seq-filter (lambda (n) (my/dev-proc-live-p root n))
+                           (my/dev-server-names root))))
+    (pcase live
+      ('()       (message "No running servers for [%s]." (my/project-name)))
+      (`(,only)  (my/dev-stop-server only))
+      (_         (my/dev-stop-server
+                  (completing-read "Stop server: " live nil t))))))
+
+(defun my/dev-log-buffers (&optional root)
+  ":: This project's viewable log buffers: server logs + compile buffers.
+Compile buffers are matched by name (`*compile: NAME [proj]*'), so a build
+you closed with `q' is still listed here as long as its buffer is alive."
+  (let* ((root    (or root (my/project-root)))
+         (proj    (file-name-nondirectory (directory-file-name root)))
+         (suffix  (format "[%s]*" proj))
+         (server  (seq-keep (lambda (n) (get-buffer (my/dev-buffer-name n root)))
+                            (my/dev-server-names root)))
+         (compile (seq-filter
+                   (lambda (b)
+                     (let ((n (buffer-name b)))
+                       (and (string-prefix-p "*compile: " n)
+                            (string-suffix-p suffix n))))
+                   (buffer-list))))
+    (delete-dups (append server compile))))
+
+(defun my/project-logs ()
+  ":: Pick a server log or compile buffer for this project and re-surface it.
+Includes buffers you closed with `q' -- that only removed the window; the
+process keeps running and this brings the buffer back in a bottom split."
+  (interactive)
+  (let ((bufs (my/dev-log-buffers)))
+    (pcase bufs
+      ('()       (message "No dev logs for [%s]." (my/project-name)))
+      (`(,only)  (my/display-dev-log only))
+      (_         (let ((choice (completing-read
+                                "Show log: " (mapcar #'buffer-name bufs) nil t)))
+                   (when-let ((b (get-buffer choice)))
+                     (my/display-dev-log b)))))))
+
+(defun my/project-logs-clear ()
+  ":: Pick a server for this project and clear its log buffer."
+  (interactive)
+  (let ((names (my/dev-server-names)))
+    (pcase names
+      ('()       (message "No server logs for [%s]." (my/project-name)))
+      (`(,only)  (my/dev-clear-logs only))
+      (_         (my/dev-clear-logs
+                  (completing-read "Clear logs: " names nil t))))))
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Status
 ;; ──────────────────────────────────────────────────────
 
 (defun my/dev-status ()
-  ":: Show running server status for the current project."
+  ":: Show running/stopped status of this project's servers."
   (interactive)
-  (let* ((root (my/project-root))
-         (fe   (if (my/dev-proc-live-p root "Frontend") "running" "stopped"))
-         (be   (if (my/dev-proc-live-p root "Django")   "running" "stopped")))
-    (message "[%s]  Frontend: %s  |  Django: %s"
-             (my/project-name) fe be)))
+  (let* ((root  (my/project-root))
+         (names (my/dev-server-names root)))
+    (if (null names)
+        (message "[%s] no servers started." (my/project-name))
+      (message "[%s]  %s"
+               (my/project-name)
+               (mapconcat
+                (lambda (n)
+                  (format "%s: %s" n
+                          (if (my/dev-proc-live-p root n) "running" "stopped")))
+                names "  |  ")))))
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Claude Code
