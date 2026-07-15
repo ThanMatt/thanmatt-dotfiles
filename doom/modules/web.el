@@ -416,28 +416,53 @@ process keeps running and this brings the buffer back in a bottom split."
 ;; :: Claude Code
 ;; ──────────────────────────────────────────────────────
 
+;; :: Manage the Claude Code terminal as a persistent bottom-docked popup (like
+;; :: the db result buffers): closing with `q' only buries it, and it stays
+;; :: findable in `SPC ,'. `:quit nil :ttl nil' keeps the vterm process alive.
+(when (fboundp 'set-popup-rule!)
+  (set-popup-rule! "^\\*Claude Code "
+    :side 'bottom :size 0.4 :select t :modeline t :quit nil :ttl nil))
+
+;; :: `switch-to-buffer' (e.g. reaching the buffer from `SPC ,') ignores
+;; :: display-buffer-alist, so route the Claude Code buffer back through
+;; :: `pop-to-buffer' to land in its popup slot no matter how it's reached.
+(defadvice! my/claude-code-buffer-obeys-popup-rule-a (fn buffer-or-name &rest args)
+  :around #'switch-to-buffer
+  (let ((buf (get-buffer buffer-or-name)))
+    (if (and buf (string-prefix-p "*Claude Code " (buffer-name buf)))
+        (pop-to-buffer buf)
+      (apply fn buffer-or-name args))))
+
 (defun my/claude-code ()
-  ":: Open Claude Code in a vterm side split at the current project root.
-Re-uses the buffer if it already exists."
+  ":: Toggle Claude Code in a persistent bottom-docked popup at the project root.
+Re-uses the buffer if it already exists; `q' buries it (the session keeps
+running), and `SPC d c' / `SPC ,' bring it back."
   (interactive)
   (unless (fboundp 'vterm)
     (user-error "vterm not loaded -- enable ':term vterm' in init.el"))
   (let* ((root     (my/project-root))
          (buf-name (format "*Claude Code [%s]*" (my/project-name))))
     (if (buffer-live-p (get-buffer buf-name))
-        ;; :: already open, just surface it and focus
-        (my/focus-window (my/display-side-split (get-buffer buf-name)))
+        ;; :: already alive -> surface it via its popup rule and focus
+        (my/focus-window (display-buffer (get-buffer buf-name)))
       ;; :: create fresh vterm without hijacking window layout
       (let ((default-directory root))
         (save-window-excursion (vterm buf-name)))
-      ;; :: small delay for vterm to initialize before sending the command
-      (run-with-timer 0.4 nil
-                      (lambda ()
-                        (when-let ((buf (get-buffer buf-name)))
-                          (with-current-buffer buf
-                            (vterm-send-string "claude\n")))))
-      ;; :: show the buffer and move point into it so typing goes to Claude
-      (my/focus-window (my/display-side-split (get-buffer-create buf-name))))))
+      (let ((buf (get-buffer buf-name)))
+        ;; :: make it a first-class workspace buffer (SPC ,) and let `q' bury the
+        ;; :: popup from normal state without killing the running session
+        (my/dev-register-buffer buf)
+        (with-current-buffer buf
+          (when (fboundp 'evil-local-set-key)
+            (evil-local-set-key 'normal (kbd "q") #'+popup/close)))
+        ;; :: small delay for vterm to initialize before sending the command
+        (run-with-timer 0.4 nil
+                        (lambda ()
+                          (when-let ((b (get-buffer buf-name)))
+                            (with-current-buffer b
+                              (vterm-send-string "claude\n")))))
+        ;; :: show the buffer and move point into it so typing goes to Claude
+        (my/focus-window (display-buffer buf))))))
 
 ;; ──────────────────────────────────────────────────────
 ;; :: ncspot (Spotify TUI)

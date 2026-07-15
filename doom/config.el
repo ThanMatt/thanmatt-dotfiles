@@ -269,7 +269,8 @@ buffer impossible while the engine is web-mode."
 ;; :: Don't let Doom's popup manager own our project terminals -- popups are
 ;; :: killed when their window closes. With `:ignore t' they use normal window
 ;; :: display (the side split in web.el) and closing only hides the buffer.
-(set-popup-rule! "^\\*\\(?:Claude Code\\|Docker\\|vterm\\) " :ignore t)
+;; :: (Claude Code is the exception: web.el gives it a real, persistent popup rule.)
+(set-popup-rule! "^\\*\\(?:Docker\\|vterm\\) " :ignore t)
 
 ;; :: Scrub inherited Claude Code session vars. If `doom env' is ever run from a
 ;; :: shell inside a Claude Code session, it freezes CLAUDE_CODE_* into
