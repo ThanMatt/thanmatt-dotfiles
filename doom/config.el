@@ -726,7 +726,13 @@ in a trailing \"other\" section."
              :items    ,(lambda ()
                           (consult--buffer-query
                            :sort 'visibility
-                           :as #'buffer-name
+                           ;; :: Pair item: car = "<project> - <buffer>" is what's
+                           ;; :: shown AND what completion matches (so typing the
+                           ;; :: project name filters to it); cdr = raw buffer name,
+                           ;; :: which preview/switch resolve to (consult--multi-lookup).
+                           :as (lambda (buf)
+                                 (let ((bn (buffer-name buf)))
+                                   (cons (format "%s - %s" name bn) bn)))
                            :predicate
                            (lambda (buf)
                              (and (+workspace-contains-buffer-p buf workspace)
