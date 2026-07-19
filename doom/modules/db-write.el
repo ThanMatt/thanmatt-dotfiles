@@ -120,14 +120,38 @@
     (remhash conn my/sql--txn-sessions)))
 
 (defun my/sql--write (conn sql)
-  ":: run a write SQL inside CONN's open txn; raise on ERROR, bump the write count"
-  (let ((out (my/sql--txn-raw conn (concat (string-trim-right sql ";") ";\n"))))
-    (when (string-match-p "ERROR:" out)
-      (user-error "%s" (string-trim out)))
-    (let ((s (gethash conn my/sql--txn-sessions)))
-      (puthash conn (plist-put s :writes (1+ (or (plist-get s :writes) 0)))
-               my/sql--txn-sessions))
-    out))
+  ":: run a write SQL inside CONN's open txn; raise on failure (with the server's
+   message), bump the write count on success.
+   ::
+   :: Two things make naive error handling fail here: (1) psql sends the error TEXT
+   :: to stderr, a different pipe than the `\\echo' done-marker `my/sql--txn-raw'
+   :: waits for on stdout -- the marker can arrive first, so grepping the captured
+   :: output for `ERROR:' races and usually misses it; (2) a failed statement leaves
+   :: the whole transaction ABORTED (`ON_ERROR_ROLLBACK' is a no-op in our
+   :: non-interactive pipe), so every later query is silently ignored until rollback.
+   :: So: detect failure via psql's in-band `:ERROR' variable (echoed on stdout, in
+   :: order -- race-free), and wrap the write in a SAVEPOINT so a failure rolls back
+   :: only that statement and the session stays usable."
+  (let* ((clean  (string-trim-right (string-trim sql) ";"))
+         (out    (my/sql--txn-raw
+                  conn
+                  (concat "SAVEPOINT __mdb_w;\n"
+                          clean ";\n"
+                          "\\echo __MDB_ERR__:ERROR\n"
+                          "\\echo __MDB_MSG__:LAST_ERROR_MESSAGE\n")))
+         (failed (string-match-p "^__MDB_ERR__true" out)))
+    (if failed
+        (let ((msg (if (string-match "^__MDB_MSG__\\(.*\\)$" out)
+                       (string-trim (match-string 1 out))
+                     "write failed (unknown error)")))
+          ;; :: undo just this statement so the txn survives for a retry / rollback
+          (ignore-errors (my/sql--txn-raw conn "ROLLBACK TO SAVEPOINT __mdb_w;\n"))
+          (user-error "%s" msg))
+      (ignore-errors (my/sql--txn-raw conn "RELEASE SAVEPOINT __mdb_w;\n"))
+      (let ((s (gethash conn my/sql--txn-sessions)))
+        (puthash conn (plist-put s :writes (1+ (or (plist-get s :writes) 0)))
+                 my/sql--txn-sessions))
+      out)))
 
 (defun my/sql--ensure-txn (conn)
   ":: auto-open a transaction on first write (every change is a txn, for safety)"

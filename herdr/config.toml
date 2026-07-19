@@ -1,0 +1,42 @@
+# :: herdr config — migrated from tmux/.tmux.conf
+# :: symlinked to ~/.config/herdr/config.toml
+
+[theme]
+name = "gruvbox"
+auto_switch = false
+
+[terminal]
+# :: tmux: new-window/split-window -c "#{pane_current_path}"
+new_cwd = "follow"
+
+[keys]
+# :: tmux: prefix2 C-a (herdr supports a single prefix, so ctrl+b is replaced)
+prefix = "ctrl+a"
+
+# :: tmux: bind c new-window
+new_tab = "prefix+c"
+
+# :: tmux: bind " split-window (stacked) / bind % split-window -h (side by side)
+split_horizontal = 'prefix+"'
+split_vertical = "prefix+%"
+
+# :: tmux: copy mode (prefix+[), vi keys are herdr's copy-mode defaults (v select, y copy)
+copy_mode = "prefix+["
+
+# :: tmux: vim-tmux-navigator C-h/j/k/l pane navigation
+# :: NOTE: herdr has no is_vim passthrough — these intercept ctrl+h/j/k/l before
+# :: Neovim sees them. Delete these four lines to fall back to prefix+h/j/k/l.
+focus_pane_left = "ctrl+h"
+focus_pane_down = "ctrl+j"
+focus_pane_up = "ctrl+k"
+focus_pane_right = "ctrl+l"
+
+# :: tmux: M-h/j/k/l resize — herdr only supports a resize mode (h/j/k/l inside it)
+resize_mode = "prefix+r"
+
+# :: tmux: monitor-activity/visual-activity → in-app toasts
+[ui.toast]
+delivery = "system"
+
+[ui]
+agent_panel_sort = "spaces"

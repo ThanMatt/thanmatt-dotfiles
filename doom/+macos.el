@@ -95,12 +95,12 @@
 ;; :: Cascadia Code on macOS; FiraCode Nerd Font kept commented as a fallback
 ;; :: (uncomment if Cascadia is missing). Set here, not in config.el, because the
 ;; :: platform `load!' runs before config.el's appearance block.
-(setq doom-font (font-spec :family "Cascadia Code" :size 12)
-      doom-variable-pitch-font (font-spec :family "Cascadia Code" :size 14)
-      doom-big-font (font-spec :family "Cascadia Code" :size 18))
-;; (setq doom-font (font-spec :family "FiraCode Nerd Font" :size 12)
-;;       doom-variable-pitch-font (font-spec :family "FiraCode Nerd Font" :size 14)
-;;       doom-big-font (font-spec :family "FiraCode Nerd Font" :size 18))
+;; (setq doom-font (font-spec :family "Cascadia Code" :size 12)
+;;       doom-variable-pitch-font (font-spec :family "Cascadia Code" :size 14)
+;;       doom-big-font (font-spec :family "Cascadia Code" :size 18))
+(setq doom-font (font-spec :family "FiraCode Nerd Font" :size 12)
+      doom-variable-pitch-font (font-spec :family "FiraCode Nerd Font" :size 14)
+      doom-big-font (font-spec :family "FiraCode Nerd Font" :size 18))
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Fonts -- force text presentation for symbol ranges
@@ -137,8 +137,8 @@
 ;; :: Supplemental fonts -- has full 256/256 coverage of that block and of
 ;; :: Misc Symbols, so stack it in below Menlo as a broader-coverage fallback.
 (dolist (range '((#x2300 . #x23FF)    ; Miscellaneous Technical
-                  (#x2600 . #x26FF)    ; Miscellaneous Symbols
-                  (#x2700 . #x27BF))) ; Dingbats
+                 (#x2600 . #x26FF)    ; Miscellaneous Symbols
+                 (#x2700 . #x27BF))) ; Dingbats
   (set-fontset-font t range (font-spec :family "STIX Two Math") nil 'prepend)
   (set-fontset-font t range (font-spec :family "Menlo") nil 'prepend))
 
