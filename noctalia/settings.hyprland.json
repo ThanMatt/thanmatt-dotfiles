@@ -424,7 +424,7 @@
             ]
         },
         "language": "",
-        "lockOnSuspend": true,
+        "lockOnSuspend": false,
         "lockScreenAnimations": true,
         "lockScreenBlur": 0.68,
         "lockScreenCountdownDuration": 1000,
@@ -459,11 +459,11 @@
         "wallpaperChange": ""
     },
     "idle": {
-        "customCommands": "[]",
+        "customCommands": "[{\"timeout\":660,\"command\":\"pidof hyprlock || hyprlock\",\"resumeCommand\":\"\"}]",
         "enabled": true,
         "fadeDuration": 5,
         "lockCommand": "",
-        "lockTimeout": 660,
+        "lockTimeout": 0,
         "resumeLockCommand": "",
         "resumeScreenOffCommand": "",
         "resumeSuspendCommand": "",
@@ -572,7 +572,7 @@
                 "action": "lock",
                 "command": "",
                 "countdownEnabled": true,
-                "enabled": true,
+                "enabled": false,
                 "keybind": "L"
             },
             {
@@ -695,7 +695,7 @@
         "solidColor": "#1a1a2e",
         "sortOrder": "name",
         "transitionDuration": 1500,
-        "transitionEdgeSmoothness": 0.02,
+        "transitionEdgeSmoothness": 0.05,
         "transitionType": [
             "honeycomb"
         ],
