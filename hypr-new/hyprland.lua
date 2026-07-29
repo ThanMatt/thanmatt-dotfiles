@@ -122,7 +122,7 @@ hl.config({
 -- ::   1.0 = Hyprland defaults   0.6 ≈ 40% faster   0.4 = very snappy
 -- :: (Spring leaves — window open/close/move — ignore `speed`; their pace comes
 -- ::  from the `easy` spring's stiffness/dampening, tuned snappier just below.)
-local animSpeed = 0.6
+local animSpeed = 2.5
 
 hl.curve("easeOutQuint",   { type = "bezier", points = { {0.23, 1},    {0.32, 1}    } })
 hl.curve("easeInOutCubic", { type = "bezier", points = { {0.65, 0.05}, {0.36, 1}    } })
@@ -156,9 +156,20 @@ anim("layersIn",      4,    { bezier = "easeOutQuint", style = "fade" })
 anim("layersOut",     1.5,  { bezier = "linear",       style = "fade" })
 anim("fadeLayersIn",  1.79, { bezier = "almostLinear" })
 anim("fadeLayersOut", 1.39, { bezier = "almostLinear" })
-anim("workspaces",    1.94, { bezier = "almostLinear", style = "fade" })
-anim("workspacesIn",  1.21, { bezier = "almostLinear", style = "fade" })
-anim("workspacesOut", 1.94, { bezier = "almostLinear", style = "fade" })
+-- :: Horizontal push (Sway/i3 feel) instead of a cross-fade. In/Out share one
+-- :: speed on purpose — with `slide` a mismatched pair makes the outgoing and
+-- :: incoming workspace visibly desync mid-transition.
+anim("workspaces",    2.4,  { bezier = "easeOutQuint", style = "slide" })
+anim("workspacesIn",  2.4,  { bezier = "easeOutQuint", style = "slide" })
+anim("workspacesOut", 2.4,  { bezier = "easeOutQuint", style = "slide" })
+-- :: Scratchpad (special:magic, SUPER+ALT+minus). Without these three the leaves
+-- :: inherit `workspaces` above, i.e. the plain horizontal slide. `slidevert`
+-- :: drops in from the top instead, so the scratchpad reads as an overlay
+-- :: rather than a workspace switch. (`slidefadevert` = same + a cross-fade.)
+-- :: In/Out share a speed for the same desync reason as the workspace leaves.
+anim("specialWorkspace",    1.6, { bezier = "easeOutQuint", style = "slidevert" })
+anim("specialWorkspaceIn",  1.6, { bezier = "easeOutQuint", style = "slidevert" })
+anim("specialWorkspaceOut", 1.6, { bezier = "easeOutQuint", style = "slidevert" })
 anim("zoomFactor",    7,    { bezier = "quick" })
 
 hl.config({
@@ -218,6 +229,18 @@ hl.config({
             natural_scroll       = true,
         },
     },
+})
+
+-- :: Trackpad speed. `input.touchpad` has NO sensitivity option — touchpad speed
+-- :: comes from `input.sensitivity` / `input.accel_profile`, which above are set
+-- :: for the mouse (flat, -0.5) and would otherwise make the trackpad crawl.
+-- :: So override just the trackpad per-device (name from `hyprctl devices`).
+-- :: sensitivity range is -1.0 .. 1.0; adaptive re-enables pointer acceleration,
+-- :: which feels much better than `flat` on a touchpad. Tune 0.2 -> 0.6 to taste.
+hl.device({
+    name           = "synaptics-tm3381-002",
+    accel_profile  = "adaptive",
+    sensitivity    = 0.3,
 })
 
 -- :: Sway had a 3-finger equivalent via touchpad scrolling; keep Hyprland's
@@ -284,18 +307,56 @@ hl.bind(mainMod .. " + up",    hl.dsp.focus({ direction = "up" }))
 hl.bind(mainMod .. " + right", hl.dsp.focus({ direction = "right" }))
 
 --------------------------------------------------------------------------------
--- Move window (vim keys + arrows)  — Sway `move left/down/up/right`
--- :: Hyprland tiling moves are directional (it swaps/relocates in the layout);
--- :: the px step sizes from Sway don't apply to tiled windows.
+-- Move window (vim keys + arrows)  — Sway `move left/down/up/right 30px/10px`
+-- :: Sway's `move <dir> <px>` did double duty: reorder in the tree when tiled,
+-- :: nudge by pixels when floating. Hyprland splits those across two
+-- :: dispatchers — `window.move{direction=}` (movewindow) only ever SNAPS a
+-- :: floating window to the monitor edge, and `window.move{x=,y=,relative=}`
+-- :: (moveactive) only does anything useful when floating. So dispatch on the
+-- :: window's state, restoring the Sway feel: free-form px nudging while
+-- :: floating, layout reordering while tiled.
+-- :: NOTE: bind takes a Lua function as well as a dispatcher, so this runs
+-- :: in-process — no script spawn per keypress, which matters with
+-- :: `repeating = true` at a 50/s repeat rate.
 --------------------------------------------------------------------------------
-hl.bind(mainMod .. " + SHIFT + " .. L, hl.dsp.window.move({ direction = "left" }))
-hl.bind(mainMod .. " + SHIFT + " .. D, hl.dsp.window.move({ direction = "down" }))
-hl.bind(mainMod .. " + SHIFT + " .. U, hl.dsp.window.move({ direction = "up" }))
-hl.bind(mainMod .. " + SHIFT + " .. R, hl.dsp.window.move({ direction = "right" }))
-hl.bind(mainMod .. " + SHIFT + left",  hl.dsp.window.move({ direction = "left" }))
-hl.bind(mainMod .. " + SHIFT + down",  hl.dsp.window.move({ direction = "down" }))
-hl.bind(mainMod .. " + SHIFT + up",    hl.dsp.window.move({ direction = "up" }))
-hl.bind(mainMod .. " + SHIFT + right", hl.dsp.window.move({ direction = "right" }))
+local moveStep = 30  -- :: h/j/k/l   (Sway `move <dir> 30px`)
+local moveFine = 10  -- :: arrow keys (Sway `move <dir> 10px`)
+
+local function moveDwim(dir, px)
+    return function()
+        local w = hl.get_active_window()
+        if w and w.floating then
+            local dx, dy = 0, 0
+            if dir == "left" then
+                dx = -px
+            elseif dir == "right" then
+                dx = px
+            elseif dir == "up" then
+                dy = -px
+            else
+                dy = px
+            end
+            hl.dispatch(hl.dsp.window.move({ x = dx, y = dy, relative = true }))
+        else
+            hl.dispatch(hl.dsp.window.move({ direction = dir }))
+        end
+    end
+end
+
+local moveOpts = { repeating = true }  -- :: hold the key to keep nudging
+
+hl.bind(mainMod .. " + SHIFT + " .. L, moveDwim("left",  moveStep), moveOpts)
+hl.bind(mainMod .. " + SHIFT + " .. D, moveDwim("down",  moveStep), moveOpts)
+hl.bind(mainMod .. " + SHIFT + " .. U, moveDwim("up",    moveStep), moveOpts)
+hl.bind(mainMod .. " + SHIFT + " .. R, moveDwim("right", moveStep), moveOpts)
+hl.bind(mainMod .. " + SHIFT + left",  moveDwim("left",  moveFine), moveOpts)
+hl.bind(mainMod .. " + SHIFT + down",  moveDwim("down",  moveFine), moveOpts)
+hl.bind(mainMod .. " + SHIFT + up",    moveDwim("up",    moveFine), moveOpts)
+hl.bind(mainMod .. " + SHIFT + right", moveDwim("right", moveFine), moveOpts)
+
+-- :: Center a floating window when it gets lost (moveactive is unclamped — a
+-- :: nudge can push a window mostly off-screen).
+hl.bind(mainMod .. " + SHIFT + G", hl.dsp.window.center())
 
 --------------------------------------------------------------------------------
 -- Workspaces  — Sway `workspace number N` / `move container to workspace number N`
@@ -338,6 +399,16 @@ hl.bind(mainMod .. " + S", hl.dsp.group.next())    -- :: $mod+s -> cycle to next
 
 hl.bind(mainMod .. " + M",             hl.dsp.window.fullscreen())            -- :: $mod+m fullscreen toggle
 hl.bind(mainMod .. " + SHIFT + Space", hl.dsp.window.float({ action = "toggle" }))  -- :: $mod+Shift+space floating toggle
+
+-- :: Reaching floating windows from the keyboard. The directional focus binds
+-- :: above (movefocus) do NOT cross the float/tile boundary — from a tiled
+-- :: window they skip floating windows entirely (and can jump to the next
+-- :: monitor instead); from a floating window they do nothing. `cyclenext` is
+-- :: the only dispatcher that crosses over, so:
+-- ::   SUPER+Tab -> cycle every window on the workspace, floating included
+-- ::   SUPER+G   -> Sway's `focus mode_toggle`: hop tiled <-> floating layer
+hl.bind(mainMod .. " + Tab", hl.dsp.window.cycle_next())
+hl.bind(mainMod .. " + G",   hl.dsp.exec_cmd("~/.config/hypr/scripts/focus-mode-toggle.sh"))
 
 -- :: Sway `$mod+a focus parent` relies on i3/Sway's container tree, which
 -- :: Hyprland's dwindle layout does not expose — no direct equivalent.
@@ -479,6 +550,10 @@ hl.bind("switch:on:Lid Switch",
 -- :: Lid OPEN -> re-enable the laptop panel with its configured mode/position.
 -- :: (Mirrors the MONITORS block above; keep them in sync, or swap the command
 -- ::  for `hyprctl reload` to re-apply every monitor rule from config.)
+-- :: NOTE: `hyprctl keyword` does NOT work with the Lua config parser ("keyword
+-- :: can't work with non-legacy parsers. Use eval."), so this goes through
+-- :: `hyprctl eval` + hl.monitor. `disabled = false` is required — without it
+-- :: the monitor keeps the disabled state lid-close.sh set.
 hl.bind("switch:off:Lid Switch",
-    hl.dsp.exec_cmd([[hyprctl keyword monitor "eDP-1, 1920x1080, 2560x180, 1"]]),
+    hl.dsp.exec_cmd([[hyprctl eval 'hl.monitor({ output = "eDP-1", mode = "1920x1080", position = "2560x180", scale = 1, disabled = false })']]),
     { locked = true })

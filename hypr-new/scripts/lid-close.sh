@@ -14,7 +14,10 @@
 # :: here means an external display is connected and on.
 external=$(hyprctl -j monitors | jq -r '.[] | select(.name != "eDP-1") | .name' | head -1)
 
-hyprctl keyword monitor "eDP-1, disable"
+# :: `hyprctl keyword` is a no-op under the Lua config parser — it answers
+# :: "keyword can't work with non-legacy parsers. Use eval." — so drive the
+# :: monitor through `hyprctl eval` + the Lua monitor spec instead.
+hyprctl eval 'hl.monitor({ output = "eDP-1", disabled = true })'
 
 if [ -z "$external" ]; then
   # :: No external display -> lock with hyprlock first so it is up before we go
