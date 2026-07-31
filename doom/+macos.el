@@ -26,6 +26,11 @@
       (add-to-list 'exec-path-from-shell-variables var))))
 
 ;; ──────────────────────────────────────────────────────
+;; :: GPG passphrase prompts -- in-Emacs, no external pinentry
+;; ──────────────────────────────────────────────────────
+(setq epg-pinentry-mode 'loopback)
+
+;; ──────────────────────────────────────────────────────
 ;; :: Shell -- Homebrew Fish for terminal emulators inside Emacs
 ;; ──────────────────────────────────────────────────────
 (setq-default vterm-shell "/opt/homebrew/bin/fish")

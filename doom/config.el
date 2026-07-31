@@ -1051,8 +1051,13 @@ shrink (DELTA columns, default 10)."
 (load! "modules/db-saved")
 (load! "modules/db-write")      ; :: edit/delete rows + transactions (after db-browser)
 (load! "modules/web")
+(load! "modules/docker")        ; :: SPC d D -- ps/dps, exec, logs (after web: uses its vterm helpers)
 (load! "modules/claude")        ; :: , c -- ask Claude about visual selection
 (load! "modules/hackernews")    ; :: SPC o h -- in-buffer Hacker News reader
+
+(when (file-exists-p (expand-file-name "modules/worktree.el" doom-user-dir))
+  (load! "modules/worktree"))
+
 (load! "modules/keybindings")   ; :: keep this last
 
 ;; :: Terminal cursor shape in `emacs -nw' (no-op in GUI on either OS).

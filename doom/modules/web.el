@@ -208,6 +208,11 @@ If one is already live, just surfaces its log buffer instead of duplicating."
           (my/dev-open-logs name))
       (let* ((bname (my/dev-buffer-name name root))
              (buf   (my/prepare-log-buffer bname))
+             ;; :: pipe, not pty -- macOS ptys deliver output to Emacs in ~1kb
+             ;; :: chunks, so a large backlog (docker compose logs, etc.) drips
+             ;; :: in line by line; a pipe reads up to `read-process-output-max'
+             ;; :: (64kb) per chunk, same as `compile'
+             (process-connection-type nil)
              (proc  (start-process-shell-command
                      name buf
                      (format "cd %s && %s" (shell-quote-argument root) cmd))))

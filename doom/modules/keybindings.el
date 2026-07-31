@@ -31,6 +31,14 @@
                 :desc "Delete saved query" "d" #'my/sql-delete-saved
                 :desc "Kill all DB buffers" "K" #'my/sql-kill-all-buffers)
 
+               ;; :: Docker (modules/docker.el) -- C-u on any of these includes
+               ;; :: stopped containers
+               (:prefix ("D" . "docker")
+                :desc "docker ps"          "p" #'my/docker-ps
+                :desc "dps (short ps)"     "d" #'my/dps
+                :desc "Exec into container" "e" #'my/docker-exec
+                :desc "Follow logs"        "l" #'my/docker-logs)
+
                ;; :: Tools
                :desc "Toggle TSX engine"  "x" #'my/tsx-toggle-treesit
                ;; :: carry-over daily agenda retired -> denote journal (see backlog.md)
