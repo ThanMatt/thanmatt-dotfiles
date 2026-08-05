@@ -49,6 +49,7 @@ hl.on("hyprland.start", function()
     -- :: config dir (themes/plugins/colors) stays shared. $HOME expands via sh.
     hl.exec_cmd("env NOCTALIA_SETTINGS_FILE=$HOME/.config/noctalia/settings.hyprland.json qs -c noctalia-shell")
     hl.exec_cmd("hypridle")                                              -- :: sleep/lock broker for hyprlock (see hypridle.conf)
+    hl.exec_cmd("~/.config/hypr/scripts/monitor-watch.py")              -- :: monitorremoved -> re-run the clamshell check (see LID SWITCH)
     hl.exec_cmd("~/.config/sway/scripts/audio-routing.sh")              -- :: PipeWire routing (WM-agnostic)
     hl.exec_cmd("systemctl --user start app-org.kde.kdeconnect.daemon@autostart.service")
     hl.exec_cmd("kdeconnect-indicator")
@@ -541,6 +542,11 @@ hl.layer_rule({
 -- :: NOTE: confirm the switch device name in a live session with
 -- ::   hyprctl devices | grep -iA2 switch
 -- :: and adjust "Lid Switch" below if libinput reports a different name.
+
+-- :: These binds fire on the lid EVENT only. Unplugging the external while the
+-- :: lid is already closed is a monitor event, not a lid one, so it is handled
+-- :: by scripts/monitor-watch.py (autostart) — it re-runs lid-close.sh so the
+-- :: clamshell rule below stays the single source of truth.
 
 -- :: Lid CLOSE -> disable eDP-1; suspend only if no external display (clamshell).
 hl.bind("switch:on:Lid Switch",
