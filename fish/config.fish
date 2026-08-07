@@ -299,6 +299,10 @@ set -x COMPOSE_DOCKER_CLI_BUILD 1
 # source ~/.asdf/asdf.fish
 
 # ASDF configuration code
+if not contains $HOME/bin $PATH
+    set -gx --prepend PATH $HOME/bin
+end
+
 if test -z $ASDF_DATA_DIR
     set _asdf_shims "$HOME/.asdf/shims"
 else
