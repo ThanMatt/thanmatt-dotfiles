@@ -22,6 +22,22 @@
 ;;       doom-big-font (font-spec :family "Cascadia Code" :size 18))
 
 ;; ──────────────────────────────────────────────────────
+;; :: GPG passphrase prompts -- in-Emacs, no external pinentry
+;; ──────────────────────────────────────────────────────
+;; :: Same fix as +macos.el, different cause. Arch's /usr/bin/pinentry is a
+;; :: wrapper that picks a backend from the environment; under Hyprland it lands
+;; :: on pinentry-gnome3, which needs gcr's prompter on the session bus. When
+;; :: that isn't reachable it silently degrades to pinentry-curses -- and GUI
+;; :: Emacs has no controlling tty, so curses dies with "Inappropriate ioctl for
+;; :: device" and ~/.authinfo.gpg never decrypts (breaking modules/db.el and
+;; :: modules/db-browser.el, which read their creds from it).
+;; ::
+;; :: Loopback takes the external pinentry out of the loop entirely: Emacs reads
+;; :: the passphrase in the minibuffer and hands it to gpg directly, so the db
+;; :: browser no longer depends on the desktop's prompter being alive.
+(setq epg-pinentry-mode 'loopback)
+
+;; ──────────────────────────────────────────────────────
 ;; :: Shell -- FHS Fish for terminal emulators inside Emacs
 ;; ──────────────────────────────────────────────────────
 (setq vterm-shell "/usr/bin/fish")

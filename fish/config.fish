@@ -356,6 +356,15 @@ set -gx PATH ~/.config/emacs/bin $PATH
 set -gx MOZ_ENABLE_WAYLAND 1
 set -gx LIBVA_DRIVER_NAME iHD
 
+# :: GPG -- tell gpg-agent which terminal to prompt on
+# :: Without this, a pinentry that falls back to curses/tty has no terminal to
+# :: draw on and dies with "Inappropriate ioctl for device". Interactive-only:
+# :: in a non-interactive shell `tty' prints "not a tty", which would poison the
+# :: var for everything downstream.
+if status is-interactive
+    set -gx GPG_TTY (tty)
+end
+
 # pnpm
 set -gx PNPM_HOME "/home/thanmatt/.local/share/pnpm"
 if not string match -q -- $PNPM_HOME $PATH
