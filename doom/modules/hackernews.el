@@ -28,20 +28,41 @@
 
 ;; :: Algolia's HN API hands back a story *with its whole comment tree* in a
 ;; :: single request -- far nicer than the Firebase API's one-call-per-item.
-;; :: Selectable listing feeds: (id label url-fmt &optional deep-url-fmt). The
-;; :: url-fmt takes a 0-indexed page number. `front' uses HN's own front-page
-;; :: ranking ("hot") for page 0 -- but the `front_page' tag is a small fixed
-;; :: pool (~135 items, relevance-sorted), so paging deeper just dredges up the
-;; :: low-point tail and job posts. Hence page > 0 falls back to `deep-url-fmt'
-;; :: (a popularity-ranked `story' search), which paginates like HN's "More".
-;; :: `new' is newest-first; `ask'/`show' are the Ask/Show HN tags.
+;; ::
+;; :: Listing feeds are (id label . plist), where the plist holds:
+;; ::   :url    endpoint path, taking a 0-indexed page number
+;; ::   :deep   path used for page > 0 instead of :url, when the feed's own
+;; ::           pool doesn't paginate. Because it is a *different* ranking
+;; ::           than :url, the two sources overlap, so deep pages are deduped
+;; ::           against page 0 (see `my/hn--baseline-page')
+;; ::   :days   recency window; results older than this are filtered out
+;; ::
+;; :: `:days' is load-bearing, not a nicety. The `/search' endpoint with an
+;; :: empty query ranks by points over *all of HN history*, so an unfiltered
+;; :: `tags=story' page 1 returns the highest-scoring posts ever written --
+;; :: years old. The same trap applies to `ask_hn'/`show_hn' on page 0. Pinning
+;; :: a window turns "top of all time" into "top of the last N days", which is
+;; :: what a front page tail should be.
+;; ::
+;; :: `front' still uses HN's own front-page ranking for page 0, but that tag is
+;; :: a small pool that is mostly stale: ~180 items of which ~125 are months-old
+;; :: job posts and ~20 are stragglers that kept the tag. The window prunes both,
+;; :: leaving roughly one real page -- hence `:deep' for anything past it.
+;; :: `new' is newest-first (already time-ordered), so it needs no window.
+(defconst my/hn--page-size 30
+  ":: Stories requested (and numbered) per listing page.")
+
+(defconst my/hn--api-base "https://hn.algolia.com/api/v1/"
+  ":: Root of the Algolia HN API.")
+
 (defconst my/hn--feeds
   '((front "Front Page"
-     "https://hn.algolia.com/api/v1/search?tags=front_page&hitsPerPage=30&page=%d"
-     "https://hn.algolia.com/api/v1/search?tags=story&hitsPerPage=30&page=%d")
-    (new   "Newest"     "https://hn.algolia.com/api/v1/search_by_date?tags=story&hitsPerPage=30&page=%d")
-    (ask   "Ask HN"     "https://hn.algolia.com/api/v1/search?tags=ask_hn&hitsPerPage=30&page=%d")
-    (show  "Show HN"    "https://hn.algolia.com/api/v1/search?tags=show_hn&hitsPerPage=30&page=%d"))
+     :url  "search?tags=front_page&page=%d"
+     :deep "search?tags=story&page=%d"
+     :days 3)
+    (new   "Newest"  :url "search_by_date?tags=story&page=%d")
+    (ask   "Ask HN"  :url "search?tags=ask_hn&page=%d"  :days 7)
+    (show  "Show HN" :url "search?tags=show_hn&page=%d" :days 7))
   ":: Listing feeds the front buffer can switch between.")
 
 (defconst my/hn--item-url-fmt
@@ -168,8 +189,19 @@ Uses `shr' (keeps links clickable) and falls back to a tag strip."
   (or (plist-get page :feed) 'front))
 
 (defun my/hn--feed-entry (page)
-  ":: (id label url-fmt) entry for PAGE's feed."
+  ":: (id label . plist) entry for PAGE's feed."
   (assq (my/hn--feed-id page) my/hn--feeds))
+
+(defun my/hn--feed-prop (page prop)
+  ":: Value of PROP in PAGE's feed entry, or nil."
+  (plist-get (cddr (my/hn--feed-entry page)) prop))
+
+(defun my/hn--recent-cutoff (days)
+  ":: Epoch second DAYS ago, floored to the hour.
+Rounding keeps the cutoff identical for every page fetched in the same hour,
+so consecutive pages index into one stable result set instead of sliding out
+from under each other between requests."
+  (- (* 3600 (floor (float-time) 3600)) (* days 86400)))
 
 (defun my/hn--page-key (page)
   ":: Stable cache key for PAGE."
@@ -177,17 +209,44 @@ Uses `shr' (keeps links clickable) and falls back to a tag strip."
     ('front (format "front:%s:%d" (my/hn--feed-id page) (my/hn--page-num page)))
     ('item  (format "item:%s" (plist-get page :id)))))
 
+(defun my/hn--baseline-page (page)
+  ":: Page whose stories PAGE must not repeat, or nil if it can't repeat any.
+Only a `:deep' page needs this: it is drawn from a points-ranked search while
+page 0 comes from HN's own front-page ranking, and the same story can sit in
+both. Deep pages are disjoint slices of one ordering, so they never collide
+with each other -- and a feed without `:deep' paginates a single ordering the
+whole way down, so it needs no filtering at all."
+  (when (and (eq (plist-get page :type) 'front)
+             (> (my/hn--page-num page) 0)
+             (my/hn--feed-prop page :deep))
+    (list :type 'front :feed (my/hn--feed-id page) :page 0)))
+
+(defun my/hn--page-ids (page)
+  ":: objectIDs of PAGE's cached hits; nil for a nil or uncached PAGE."
+  (when page
+    (mapcar (lambda (hit) (my/hn--get 'objectID hit))
+            (my/hn--get 'hits (gethash (my/hn--page-key page) my/hn--cache)))))
+
 (defun my/hn--page-api-url (page)
   ":: API endpoint for PAGE.
-For the front feed, page 0 uses the `front_page' snapshot while deeper pages
-fall back to the popularity-ranked `story' search (the 4th feed-entry slot),
-since the `front_page' tag is a small fixed pool that doesn't paginate."
+Deeper pages swap in the feed's `:deep' path when it has one, and every feed
+with a `:days' window gets a `created_at_i' floor so an empty-query search
+ranks by points *within that window* rather than across all of HN history."
   (pcase (plist-get page :type)
-    ('front (let* ((entry (my/hn--feed-entry page))
-                   (pg    (my/hn--page-num page))
-                   (fmt   (or (and (> pg 0) (nth 3 entry)) (nth 2 entry))))
-              (format fmt pg)))
-    ('item  (format my/hn--item-url-fmt (plist-get page :id)))))
+    ('front
+     (let* ((pg   (my/hn--page-num page))
+            (path (or (and (> pg 0) (my/hn--feed-prop page :deep))
+                      (my/hn--feed-prop page :url)))
+            (days (my/hn--feed-prop page :days)))
+       (concat my/hn--api-base
+               (format path pg)
+               (format "&hitsPerPage=%d" my/hn--page-size)
+               ;; :: %%3E escapes to "%3E", the URL encoding of ">" -- Algolia
+               ;; :: 400s on a raw one.
+               (when days
+                 (format "&numericFilters=created_at_i%%3E%d"
+                         (my/hn--recent-cutoff days))))))
+    ('item (format my/hn--item-url-fmt (plist-get page :id)))))
 
 ;;; :: Rendering -------------------------------------------------------------
 
@@ -201,10 +260,16 @@ since the `front_page' tag is a small fixed pool that doesn't paginate."
                                 (if (> pg 0) (format " · p%d" (1+ pg)) ""))
                         'face 'my/hn-title))
     (insert (propertize (concat "  " (make-string 38 ?─) "\n\n") 'face 'my/hn-rule)))
-  (let* ((i    (* 30 (my/hn--page-num my/hn--current)))
-         ;; :: Drop YC "Is Hiring" job posts: Algolia returns them with no
+  (let* ((i    (* my/hn--page-size (my/hn--page-num my/hn--current)))
+         ;; :: Stories already shown on the baseline page, so a deep page
+         ;; :: doesn't repeat what page 0 just listed.
+         (seen (my/hn--page-ids (my/hn--baseline-page my/hn--current)))
+         ;; :: Also drop YC "Is Hiring" job posts: Algolia returns them with no
          ;; :: points/comments, so they'd render as misleading "0 points" noise.
-         (hits (seq-remove #'my/hn--job-p (my/hn--get 'hits data))))
+         (hits (seq-remove (lambda (hit)
+                             (or (my/hn--job-p hit)
+                                 (member (my/hn--get 'objectID hit) seen)))
+                           (my/hn--get 'hits data))))
     (unless hits
       (insert (propertize "  No more stories — press [ to go back.\n" 'face 'my/hn-meta)))
     (dolist (hit hits)
@@ -307,21 +372,40 @@ since the `front_page' tag is a small fixed pool that doesn't paginate."
 
 ;;; :: Navigation ------------------------------------------------------------
 
+(defun my/hn--ensure (page callback)
+  ":: Call CALLBACK with PAGE's data, fetching and caching it first if needed.
+Runs synchronously on a cache hit. A nil PAGE calls CALLBACK with nil, so
+callers can chain an optional prerequisite without branching."
+  (let* ((key    (and page (my/hn--page-key page)))
+         (cached (and key (gethash key my/hn--cache))))
+    (cond
+     ((null page) (funcall callback nil))
+     (cached      (funcall callback cached))
+     (t (my/hn--fetch
+         (my/hn--page-api-url page)
+         (lambda (data)
+           (puthash key data my/hn--cache)
+           (funcall callback data)))))))
+
 (defun my/hn--load (page restore-point)
-  ":: Show PAGE from cache, or fetch it and cache the result."
-  (let* ((key    (my/hn--page-key page))
-         (cached (gethash key my/hn--cache)))
-    (if cached
-        (my/hn--render page cached restore-point)
-      (my/hn--show-loading page)
-      (my/hn--fetch
-       (my/hn--page-api-url page)
-       (lambda (data)
-         (puthash key data my/hn--cache)
-         ;; :: Only paint if the user hasn't navigated away meanwhile.
-         (with-current-buffer (my/hn--get-buffer)
-           (when (equal (my/hn--page-key my/hn--current) key)
-             (my/hn--render page data restore-point))))))))
+  ":: Show PAGE, fetching it -- and the baseline page it dedupes against --
+if either isn't cached yet."
+  (let ((key (my/hn--page-key page)))
+    (unless (gethash key my/hn--cache)
+      (my/hn--show-loading page))
+    ;; :: The baseline has to land first: `my/hn--render-front' reads its ids
+    ;; :: out of the cache to filter this page, so rendering ahead of it would
+    ;; :: silently skip the dedupe.
+    (my/hn--ensure
+     (my/hn--baseline-page page)
+     (lambda (_baseline)
+       (my/hn--ensure
+        page
+        (lambda (data)
+          ;; :: Only paint if the user hasn't navigated away meanwhile.
+          (with-current-buffer (my/hn--get-buffer)
+            (when (equal (my/hn--page-key my/hn--current) key)
+              (my/hn--render page data restore-point)))))))))
 
 (defun my/hn--goto (page &optional no-push)
   ":: Navigate to PAGE, pushing the current one onto the back-stack."

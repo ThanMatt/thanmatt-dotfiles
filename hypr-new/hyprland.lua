@@ -411,6 +411,21 @@ hl.bind(mainMod .. " + SHIFT + Space", hl.dsp.window.float({ action = "toggle" }
 hl.bind(mainMod .. " + Tab", hl.dsp.window.cycle_next())
 hl.bind(mainMod .. " + G",   hl.dsp.exec_cmd("~/.config/hypr/scripts/focus-mode-toggle.sh"))
 
+-- :: RAISE-ON-FOCUS for floating windows. Hyprland has no config option for this
+-- :: (checked `hyprctl descriptions`); focus and stacking order are independent, so
+-- :: a floating window focused by hover (follow_mouse = 1), SUPER+Tab (cyclenext) or
+-- :: SUPER+G stays buried under whatever floats above it. Hook the focus event and
+-- :: push the new active window to the top of the z-stack instead.
+-- :: Guarded on `floating` — tiled windows never overlap, so re-stacking them is
+-- :: pointless, and it would fight fullscreen/pinned windows sitting above them.
+-- :: alterzorder does not move focus, so this can't re-trigger itself.
+hl.on("window.active", function()
+    local w = hl.get_active_window()
+    if w and w.floating then
+        hl.dispatch(hl.dsp.window.bring_to_top())
+    end
+end)
+
 -- :: Sway `$mod+a focus parent` relies on i3/Sway's container tree, which
 -- :: Hyprland's dwindle layout does not expose — no direct equivalent.
 -- hl.bind(mainMod .. " + A", ...)
