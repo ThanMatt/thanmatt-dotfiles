@@ -1,0 +1,134 @@
+# Migrated from ../noctalia (v4, Quickshell/JSON) to Noctalia v5 (native/TOML).
+# Ported by hand: v5 has no automatic v4 migration (JSON is fully ignored).
+# See summary of dropped/changed items at the end of this file.
+
+[accessibility]
+ui_scale = 0.9
+
+[shell.animation]
+enabled = true
+speed = 1.6
+
+[audio]
+enable_sounds = true
+sound_volume = 0.5
+
+[theme]
+mode = "dark"
+source = "wallpaper"
+builtin = "Gruvbox"
+wallpaper_scheme = "m3-tonal-spot"
+
+    [theme.templates]
+    builtin_ids = [ "gtk3", "gtk4" ]
+
+[wallpaper]
+directory = "/home/thanmatt/Pictures/wallpapers"
+fill_mode = "crop"
+fill_color = "#1a1a2e"
+transition = [ "honeycomb" ]
+transition_duration = 1500.0
+edge_smoothness = 0.05
+
+    [wallpaper.automation]
+    enabled = false
+    interval_seconds = 300
+    order = "random"
+
+[weather]
+enabled = false
+
+[dock]
+enabled = false
+shadow = false
+
+[battery]
+warning_threshold = 20
+
+[lockscreen]
+blur_intensity = 0.68
+tint_intensity = 0.0
+
+[idle]
+pre_action_fade_seconds = 5.0
+
+    [idle.behavior.lock]
+    enabled = true
+    timeout = 660.0
+
+    [idle.behavior.screen-off]
+    enabled = true
+    timeout = 600.0
+
+    [idle.behavior.lock-and-suspend]
+    enabled = true
+    timeout = 1800.0
+
+[notification]
+background_opacity = 1.0
+position = "top_right"
+layer = "overlay"
+
+[osd]
+background_opacity = 1.0
+position = "top_right"
+position_vertical = "top_right"
+
+[shell.launcher]
+compact = true
+sort_by_usage = false
+categories = false
+
+    # :: Windows provider — search currently-open windows from the launcher.
+    # :: Activating a window result focuses/switches to it instead of spawning
+    # :: a new instance. `global = true` surfaces window matches in plain
+    # :: searches too (not just the "/win" prefixed search), e.g. Super+Space
+    # :: -> type "slack" -> the existing Slack window shows up alongside the
+    # :: "launch" entry. https://docs.noctalia.dev/noctalia/configuration/shell/
+    [shell.launcher.providers.windows]
+    global = true
+
+[bar]
+order = [ "default" ]
+
+    [bar.default]
+    background_opacity = 0.0
+    capsule = true
+    capsule_opacity = 0.76
+    shadow = false
+    margin_edge = 4
+    margin_ends = 16
+    widget_spacing = 6
+    start = [ "cpu", "ram", "temp", "disk_used", "workspaces" ]
+    center = [ "clock", "media" ]
+    end = [ "network", "volume", "battery", "tray", "notifications", "control-center" ]
+
+[widget.disk_used]
+type = "sysmon"
+stat = "disk_used_pct"
+
+[widget.clock]
+type = "clock"
+format = "{:%I:%M:%S %p %a, %b %d, %Y}"
+tooltip_format = "{:%A, %B %d, %Y}"
+
+[widget.workspaces]
+type = "workspaces"
+labels_only_when_occupied = true
+pill_scale = 0.6
+max_label_chars = 2
+
+[widget.tray]
+type = "tray"
+drawer = true
+
+# --- Not ported ---
+# - plugin:privacy-indicator and plugin:model-usage: no v5 equivalent.
+#   v5 plugins are an experimental Luau system from a different source repo
+#   (official-plugins / community-plugins, not noctalia-dev/noctalia-plugins).
+#   Your old ~/thanmatt-dotfiles/noctalia/plugins/ QML plugins won't load in v5.
+# - VPN bar widget: removed as a standalone widget; the "network" widget now
+#   shows a VPN shield indicator itself (vpn_status = "replace" by default).
+# - Per-urgency notification durations, terminalCommand override, volumeStep,
+#   brightnessStep, syncGsettings, colorScheme scheduling: no confirmed v5
+#   field found in the current beta; left at defaults.

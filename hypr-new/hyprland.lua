@@ -1,4 +1,3 @@
-
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 -- HYPRLAND CONFIG (ported from ../sway/config)          --
 -- :: Keybindings + equivalents mirrored from the Sway    --
@@ -8,7 +7,6 @@
 
 -- Refer to the wiki for more information.
 -- https://wiki.hypr.land/Configuring/Start/
-
 
 ------------------
 ---- MONITORS ----
@@ -21,20 +19,18 @@
 -- :: report no hardware VRR (vrr_capable=0 in the Hyprland log), so forcing it
 -- :: only logs "No Adaptive sync support" errors. Left off; add `vrr = 1` to a
 -- :: specific output only if you attach a VRR-capable display.
-hl.monitor({ output = "DP-1",  mode = "2560x1440@120", position = "0x0",     scale = 1 })
-hl.monitor({ output = "DP-2",  mode = "2560x1440@120", position = "0x0",     scale = 1 })
-hl.monitor({ output = "eDP-1", mode = "1920x1080",     position = "2560x180", scale = 1 })
+hl.monitor({ output = "DP-1", mode = "2560x1440@120", position = "0x0", scale = 1 })
+hl.monitor({ output = "DP-2", mode = "2560x1440@120", position = "0x0", scale = 1 })
+hl.monitor({ output = "eDP-1", mode = "1920x1080", position = "2560x180", scale = 1 })
 
 -- :: Fallback for any other/unknown output (auto-enable, like Sway's `output * enable`)
 hl.monitor({ output = "", mode = "preferred", position = "auto", scale = "auto" })
-
 
 ---------------------
 ---- MY PROGRAMS ----
 ---------------------
 
 local terminal = "kitty"
-
 
 -------------------
 ---- AUTOSTART ----
@@ -43,18 +39,40 @@ local terminal = "kitty"
 -- :: Mirrors the Sway `exec` lines. Noctalia (quickshell) owns bar / launcher /
 -- :: notifications / idle / wallpaper / night-light / OSD, same as the Sway setup.
 hl.on("hyprland.start", function()
-    -- :: Noctalia shell. NOCTALIA_SETTINGS_FILE points at a Hyprland-only
-    -- :: settings.json (hyprlock lock wiring) so Sway keeps Noctalia's built-in
-    -- :: lock from the default settings.json. Only settings.json differs — the
-    -- :: config dir (themes/plugins/colors) stays shared. $HOME expands via sh.
-    hl.exec_cmd("env NOCTALIA_SETTINGS_FILE=$HOME/.config/noctalia/settings.hyprland.json qs -c noctalia-shell")
-    hl.exec_cmd("hypridle")                                              -- :: sleep/lock broker for hyprlock (see hypridle.conf)
-    hl.exec_cmd("~/.config/hypr/scripts/monitor-watch.py")              -- :: monitorremoved -> re-run the clamshell check (see LID SWITCH)
-    hl.exec_cmd("~/.config/sway/scripts/audio-routing.sh")              -- :: PipeWire routing (WM-agnostic)
-    hl.exec_cmd("systemctl --user start app-org.kde.kdeconnect.daemon@autostart.service")
-    hl.exec_cmd("kdeconnect-indicator")
-end)
+	-- :: xdg-desktop-portal(s). Nothing else on this system starts these — no
+	-- :: session manager (uwsm) is in use, and graphical-session.target refuses
+	-- :: manual activation here, so the portals never come up on their own.
+	-- :: Without them, apps that ask the FreeDesktop Settings portal for
+	-- :: prefers-color-scheme (Firefox, 1Password/Electron) never learn dark
+	-- :: mode is on, even though gsettings itself is already correct. Import
+	-- :: env into the D-Bus activation environment first, then start the
+	-- :: Hyprland-specific backend plus the GTK backend (hyprland-portals.conf
+	-- :: routes unhandled interfaces, including Settings, to gtk) and the
+	-- :: main router.
+	hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE")
+	hl.exec_cmd("/usr/libexec/xdg-desktop-portal-hyprland")
+	hl.exec_cmd("/usr/libexec/xdg-desktop-portal-gtk")
+	hl.exec_cmd("/usr/libexec/xdg-desktop-portal")
 
+	-- :: Noctalia shell. Tries v4 (quickshell) first; NOCTALIA_SETTINGS_FILE
+	-- :: points at a Hyprland-only settings.json (hyprlock lock wiring) so
+	-- :: Sway keeps Noctalia's built-in lock from the default settings.json.
+	-- :: Only settings.json differs — the config dir (themes/plugins/colors)
+	-- :: stays shared. $HOME expands via sh.
+	-- :: Falls back to the native v5 binary (~/.config/noctalia/config.toml)
+	-- :: if `qs -c noctalia-shell` fails to start — e.g. quickshell isn't
+	-- :: installed, or the noctalia-shell QML config is gone. v5 doesn't use
+	-- :: qs/QML at all, so this is what picks it up once v4 is retired.
+	hl.exec_cmd(
+		"env NOCTALIA_SETTINGS_FILE=$HOME/.config/noctalia/settings.hyprland.json qs -c noctalia-shell "
+		.. "|| noctalia -d"
+	)
+	hl.exec_cmd("hypridle") -- :: sleep/lock broker for hyprlock (see hypridle.conf)
+	hl.exec_cmd("~/.config/hypr/scripts/monitor-watch.py") -- :: monitorremoved -> re-run the clamshell check (see LID SWITCH)
+	hl.exec_cmd("~/.config/sway/scripts/audio-routing.sh") -- :: PipeWire routing (WM-agnostic)
+	hl.exec_cmd("systemctl --user start app-org.kde.kdeconnect.daemon@autostart.service")
+	hl.exec_cmd("kdeconnect-indicator")
+end)
 
 -------------------------------
 ---- ENVIRONMENT VARIABLES ----
@@ -63,56 +81,55 @@ end)
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
 
-
 -----------------------
 ---- LOOK AND FEEL ----
 -----------------------
 
 hl.config({
-    general = {
-        -- :: Sway: `gaps inner 8px`, `gaps outer 2px`
-        gaps_in  = 8,
-        gaps_out = 2,
+	general = {
+		-- :: Sway: `gaps inner 8px`, `gaps outer 2px`
+		gaps_in = 8,
+		gaps_out = 2,
 
-        -- :: Sway: `default_border pixel 2`
-        border_size = 2,
+		-- :: Sway: `default_border pixel 2`
+		border_size = 2,
 
-        -- :: Gruvbox borders, from Sway's client.focused / client.unfocused childBorder
-        col = {
-            active_border   = "rgb(7daea3)",
-            inactive_border = "rgb(282828)",
-        },
+		-- :: Gruvbox borders, from Sway's client.focused / client.unfocused childBorder
+		col = {
+			active_border = "rgb(7daea3)",
+			inactive_border = "rgb(282828)",
+		},
 
-        resize_on_border = false,
-        allow_tearing    = false,
-        layout           = "dwindle",
-    },
+		resize_on_border = false,
+		allow_tearing = false,
+		layout = "dwindle",
+	},
 
-    decoration = {
-        rounding       = 10,
-        rounding_power = 2,
+	decoration = {
+		rounding = 10,
+		rounding_power = 2,
 
-        active_opacity   = 1.0,
-        inactive_opacity = 1.0,
+		active_opacity = 1.0,
+		inactive_opacity = 1.0,
 
-        shadow = {
-            enabled      = true,
-            range        = 4,
-            render_power = 3,
-            color        = 0xee1a1a1a,
-        },
+		shadow = {
+			enabled = true,
+			range = 4,
+			render_power = 3,
+			color = 0xee1a1a1a,
+		},
 
-        blur = {
-            enabled  = true,
-            size     = 3,
-            passes   = 1,
-            vibrancy = 0.1696,
-        },
-    },
+		blur = {
+			enabled = true,
+			size = 3,
+			passes = 1,
+			vibrancy = 0.1696,
+		},
+	},
 
-    animations = {
-        enabled = true,
-    },
+	animations = {
+		enabled = true,
+	},
 })
 
 -- Curves + animations, see https://wiki.hypr.land/Configuring/Advanced-and-Cool/Animations/
@@ -123,85 +140,84 @@ hl.config({
 -- ::   1.0 = Hyprland defaults   0.6 ≈ 40% faster   0.4 = very snappy
 -- :: (Spring leaves — window open/close/move — ignore `speed`; their pace comes
 -- ::  from the `easy` spring's stiffness/dampening, tuned snappier just below.)
-local animSpeed = 2.5
+local animSpeed = 1.0
 
-hl.curve("easeOutQuint",   { type = "bezier", points = { {0.23, 1},    {0.32, 1}    } })
-hl.curve("easeInOutCubic", { type = "bezier", points = { {0.65, 0.05}, {0.36, 1}    } })
-hl.curve("linear",         { type = "bezier", points = { {0, 0},       {1, 1}       } })
-hl.curve("almostLinear",   { type = "bezier", points = { {0.5, 0.5},   {0.75, 1}    } })
-hl.curve("quick",          { type = "bezier", points = { {0.15, 0},    {0.1, 1}     } })
+hl.curve("easeOutQuint", { type = "bezier", points = { { 0.23, 1 }, { 0.32, 1 } } })
+hl.curve("easeInOutCubic", { type = "bezier", points = { { 0.65, 0.05 }, { 0.36, 1 } } })
+hl.curve("linear", { type = "bezier", points = { { 0, 0 }, { 1, 1 } } })
+hl.curve("almostLinear", { type = "bezier", points = { { 0.5, 0.5 }, { 0.75, 1 } } })
+hl.curve("quick", { type = "bezier", points = { { 0.15, 0 }, { 0.1, 1 } } })
 
 -- :: Snappier window spring (was stiffness 71.26 / dampening 15.83).
 -- :: Higher stiffness = faster; raise dampening with it to avoid overshoot.
-hl.curve("easy",           { type = "spring", mass = 1, stiffness = 125, dampening = 18 })
+hl.curve("easy", { type = "spring", mass = 1, stiffness = 125, dampening = 18 })
 
 -- :: Helper: applies enabled + the global speed scale so every leaf reads clean.
 local function anim(leaf, speed, opts)
-    opts         = opts or {}
-    opts.leaf    = leaf
-    opts.enabled = true
-    opts.speed   = speed * animSpeed
-    hl.animation(opts)
+	opts = opts or {}
+	opts.leaf = leaf
+	opts.enabled = true
+	opts.speed = speed * animSpeed
+	hl.animation(opts)
 end
 
-anim("global",        10,   { bezier = "default" })
-anim("border",        5.39, { bezier = "easeOutQuint" })
-anim("windows",       4.79, { spring = "easy" })
-anim("windowsIn",     4.1,  { spring = "easy",         style = "popin 87%" })
-anim("windowsOut",    1.49, { bezier = "linear",       style = "popin 87%" })
-anim("fadeIn",        1.73, { bezier = "almostLinear" })
-anim("fadeOut",       1.46, { bezier = "almostLinear" })
-anim("fade",          3.03, { bezier = "quick" })
-anim("layers",        3.81, { bezier = "easeOutQuint" })
-anim("layersIn",      4,    { bezier = "easeOutQuint", style = "fade" })
-anim("layersOut",     1.5,  { bezier = "linear",       style = "fade" })
-anim("fadeLayersIn",  1.79, { bezier = "almostLinear" })
+anim("global", 10, { bezier = "default" })
+anim("border", 5.39, { bezier = "easeOutQuint" })
+anim("windows", 4.79, { spring = "easy" })
+anim("windowsIn", 4.1, { spring = "easy", style = "popin 87%" })
+anim("windowsOut", 1.49, { bezier = "linear", style = "popin 87%" })
+anim("fadeIn", 1.73, { bezier = "almostLinear" })
+anim("fadeOut", 1.46, { bezier = "almostLinear" })
+anim("fade", 3.03, { bezier = "quick" })
+anim("layers", 3.81, { bezier = "easeOutQuint" })
+anim("layersIn", 4, { bezier = "easeOutQuint", style = "fade" })
+anim("layersOut", 1.5, { bezier = "linear", style = "fade" })
+anim("fadeLayersIn", 1.79, { bezier = "almostLinear" })
 anim("fadeLayersOut", 1.39, { bezier = "almostLinear" })
 -- :: Horizontal push (Sway/i3 feel) instead of a cross-fade. In/Out share one
 -- :: speed on purpose — with `slide` a mismatched pair makes the outgoing and
 -- :: incoming workspace visibly desync mid-transition.
-anim("workspaces",    2.4,  { bezier = "easeOutQuint", style = "slide" })
-anim("workspacesIn",  2.4,  { bezier = "easeOutQuint", style = "slide" })
-anim("workspacesOut", 2.4,  { bezier = "easeOutQuint", style = "slide" })
+anim("workspaces", 2.4, { bezier = "easeOutQuint", style = "slide" })
+anim("workspacesIn", 2.4, { bezier = "easeOutQuint", style = "slide" })
+anim("workspacesOut", 2.4, { bezier = "easeOutQuint", style = "slide" })
 -- :: Scratchpad (special:magic, SUPER+ALT+minus). Without these three the leaves
 -- :: inherit `workspaces` above, i.e. the plain horizontal slide. `slidevert`
 -- :: drops in from the top instead, so the scratchpad reads as an overlay
 -- :: rather than a workspace switch. (`slidefadevert` = same + a cross-fade.)
 -- :: In/Out share a speed for the same desync reason as the workspace leaves.
-anim("specialWorkspace",    1.6, { bezier = "easeOutQuint", style = "slidevert" })
-anim("specialWorkspaceIn",  1.6, { bezier = "easeOutQuint", style = "slidevert" })
+anim("specialWorkspace", 1.6, { bezier = "easeOutQuint", style = "slidevert" })
+anim("specialWorkspaceIn", 1.6, { bezier = "easeOutQuint", style = "slidevert" })
 anim("specialWorkspaceOut", 1.6, { bezier = "easeOutQuint", style = "slidevert" })
-anim("zoomFactor",    7,    { bezier = "quick" })
+anim("zoomFactor", 7, { bezier = "quick" })
 
 hl.config({
-    dwindle = {
-        preserve_split = true,
-    },
+	dwindle = {
+		preserve_split = true,
+	},
 })
 
 -- :: Window GROUPS (Hyprland's tabbed-window equivalent). See KEYBINDINGS below
 -- :: for how to build one. The groupbar draws the tabs so a group is visible.
 hl.config({
-    group = {
-        auto_group      = true,   -- :: a new window opened while a group is focused joins it
-        drag_into_group = true,   -- :: hold SUPER and mouse-drag a window onto a group to merge it
-        col = {
-            border_active   = "rgb(7daea3)",   -- :: gruvbox aqua (matches window borders)
-            border_inactive = "rgb(282828)",
-        },
-        groupbar = {
-            enabled   = true,
-            height    = 18,
-            font_size = 11,
-            gradients = false,
-            col = {
-                active   = "rgb(7daea3)",
-                inactive = "rgb(282828)",
-            },
-        },
-    },
+	group = {
+		auto_group = true, -- :: a new window opened while a group is focused joins it
+		drag_into_group = true, -- :: hold SUPER and mouse-drag a window onto a group to merge it
+		col = {
+			border_active = "rgb(7daea3)", -- :: gruvbox aqua (matches window borders)
+			border_inactive = "rgb(282828)",
+		},
+		groupbar = {
+			enabled = true,
+			height = 18,
+			font_size = 11,
+			gradients = false,
+			col = {
+				active = "rgb(7daea3)",
+				inactive = "rgb(282828)",
+			},
+		},
+	},
 })
-
 
 ---------------
 ---- INPUT ----
@@ -209,27 +225,27 @@ hl.config({
 
 -- :: Ported from Sway `input type:{keyboard,pointer,touchpad}` blocks.
 hl.config({
-    input = {
-        kb_layout = "us",
+	input = {
+		kb_layout = "us",
 
-        follow_mouse = 1,
+		follow_mouse = 1,
 
-        -- :: Sway pointer: `accel_profile flat`, `pointer_accel -0.5`, `natural_scroll enabled`
-        accel_profile  = "flat",
-        sensitivity    = -0.5,   -- :: pointer_accel -0.5
-        natural_scroll = true,   -- :: mouse natural scroll
+		-- :: Sway pointer: `accel_profile flat`, `pointer_accel -0.5`, `natural_scroll enabled`
+		accel_profile = "flat",
+		sensitivity = -0.5, -- :: pointer_accel -0.5
+		natural_scroll = true, -- :: mouse natural scroll
 
-        -- :: Sway keyboard: repeat_delay 300, repeat_rate 50
-        repeat_delay = 300,
-        repeat_rate  = 50,
+		-- :: Sway keyboard: repeat_delay 300, repeat_rate 50
+		repeat_delay = 300,
+		repeat_rate = 50,
 
-        -- :: Sway touchpad: dwt / tap / natural_scroll enabled
-        touchpad = {
-            disable_while_typing = true,
-            tap_to_click         = true,
-            natural_scroll       = true,
-        },
-    },
+		-- :: Sway touchpad: dwt / tap / natural_scroll enabled
+		touchpad = {
+			disable_while_typing = true,
+			tap_to_click = true,
+			natural_scroll = true,
+		},
+	},
 })
 
 -- :: Trackpad speed. `input.touchpad` has NO sensitivity option — touchpad speed
@@ -239,23 +255,22 @@ hl.config({
 -- :: sensitivity range is -1.0 .. 1.0; adaptive re-enables pointer acceleration,
 -- :: which feels much better than `flat` on a touchpad. Tune 0.2 -> 0.6 to taste.
 hl.device({
-    name           = "synaptics-tm3381-002",
-    accel_profile  = "adaptive",
-    sensitivity    = 0.3,
+	name = "synaptics-tm3381-002",
+	accel_profile = "adaptive",
+	sensitivity = 0.3,
 })
 
 -- :: Sway had a 3-finger equivalent via touchpad scrolling; keep Hyprland's
 -- :: 3-finger horizontal swipe to switch workspaces.
 hl.gesture({
-    fingers   = 3,
-    direction = "horizontal",
-    action    = "workspace",
+	fingers = 3,
+	direction = "horizontal",
+	action = "workspace",
 })
 
 -- :: Sway `input "type:touch" { events disabled }` has no global Hyprland toggle;
 -- :: disable per touch device instead if needed, e.g.:
 -- hl.device({ name = "your-touchscreen-name", enabled = false })
-
 
 ---------------------
 ---- KEYBINDINGS ----
@@ -269,31 +284,39 @@ local L, D, U, R = "H", "J", "K", "L"
 --------------------------------------------------------------------------------
 -- Basics
 --------------------------------------------------------------------------------
-hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(terminal))               -- :: $mod+Return -> terminal
-hl.bind(mainMod .. " + T",      hl.dsp.exec_cmd(terminal))               -- :: $mod+t -> kitty
-hl.bind(mainMod .. " + Q",      hl.dsp.window.close())                   -- :: $mod+q -> kill
-hl.bind(mainMod .. " + SHIFT + C", hl.dsp.exec_cmd("hyprctl reload"))    -- :: $mod+Shift+c -> reload
-hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exit())                        -- :: $mod+Shift+e -> exit session
+hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(terminal)) -- :: $mod+Return -> terminal
+hl.bind(mainMod .. " + T", hl.dsp.exec_cmd(terminal)) -- :: $mod+t -> kitty
+hl.bind(mainMod .. " + Q", hl.dsp.window.close()) -- :: $mod+q -> kill
+hl.bind(mainMod .. " + SHIFT + C", hl.dsp.exec_cmd("hyprctl reload")) -- :: $mod+Shift+c -> reload
+hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exit()) -- :: $mod+Shift+e -> exit session
 
--- :: Launcher / menus / clipboard / emoji / session — all Noctalia IPC (as in Sway)
-hl.bind(mainMod .. " + Space",         hl.dsp.exec_cmd("qs -c noctalia-shell ipc call launcher toggle"))     -- :: $mod+space
-hl.bind(mainMod .. " + C",             hl.dsp.exec_cmd("~/.config/sway/scripts/calc.sh"))                    -- :: $mod+c -> calculator
-hl.bind(mainMod .. " + Period",        hl.dsp.exec_cmd("qs -c noctalia-shell ipc call launcher emoji"))      -- :: $mod+period
-hl.bind(mainMod .. " + ALT + V",       hl.dsp.exec_cmd("qs -c noctalia-shell ipc call launcher clipboard"))  -- :: $mod+alt+v
-hl.bind(mainMod .. " + ALT + Space",   hl.dsp.exec_cmd("qs -c noctalia-shell ipc call sessionMenu toggle"))  -- :: $mod+alt+space
+-- :: Launcher / menus / clipboard / emoji / session — all Noctalia IPC (as in Sway).
+-- :: Same v4-first, v5-fallback pattern as the AUTOSTART block: v4's `qs ipc call`
+-- :: syntax is tried first, falling back to v5's `noctalia msg` if `qs` isn't
+-- :: present (confirmed against the running v5 daemon: panel-toggle launcher,
+-- :: with /emo and /clip context strings, and panel-toggle session).
+hl.bind(mainMod .. " + Space", hl.dsp.exec_cmd("qs -c noctalia-shell ipc call launcher toggle || noctalia msg panel-toggle launcher")) -- :: $mod+space
+hl.bind(mainMod .. " + C", hl.dsp.exec_cmd("~/.config/sway/scripts/calc.sh")) -- :: $mod+c -> calculator
+hl.bind(mainMod .. " + Period", hl.dsp.exec_cmd("qs -c noctalia-shell ipc call launcher emoji || noctalia msg panel-toggle launcher /emo")) -- :: $mod+period
+hl.bind(mainMod .. " + ALT + V", hl.dsp.exec_cmd("qs -c noctalia-shell ipc call launcher clipboard || noctalia msg panel-toggle clipboard")) -- :: $mod+alt+v
+hl.bind(mainMod .. " + ALT + Space", hl.dsp.exec_cmd("qs -c noctalia-shell ipc call sessionMenu toggle || noctalia msg panel-toggle session")) -- :: $mod+alt+space
 -- :: Manual lock -> hyprlock (Super+L is taken by focus-right). Direct call so
 -- :: it works even if hypridle isn't running; `pidof` guard avoids a 2nd instance.
-hl.bind(mainMod .. " + ALT + L",       hl.dsp.exec_cmd("pidof hyprlock || hyprlock"))                        -- :: $mod+alt+l -> lock
+hl.bind(mainMod .. " + ALT + L", hl.dsp.exec_cmd("pidof hyprlock || hyprlock")) -- :: $mod+alt+l -> lock
 
 --------------------------------------------------------------------------------
 -- Screenshots (grim / slurp / swappy) — identical tooling to Sway
 --------------------------------------------------------------------------------
-hl.bind("Print",                   hl.dsp.exec_cmd([[grim -g "$(slurp)" - | wl-copy]]))          -- :: region -> clipboard
-hl.bind("CTRL + Print",            hl.dsp.exec_cmd([[grim - | wl-copy]]))                        -- :: fullscreen -> clipboard
-hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd([[grim -g "$(slurp)" - | swappy -f -]]))      -- :: region -> annotate
+hl.bind("Print", hl.dsp.exec_cmd([[grim -g "$(slurp)" - | wl-copy]])) -- :: region -> clipboard
+hl.bind("CTRL + Print", hl.dsp.exec_cmd([[grim - | wl-copy]])) -- :: fullscreen -> clipboard
+hl.bind(mainMod .. " + SHIFT + S", hl.dsp.exec_cmd([[grim -g "$(slurp)" - | swappy -f -]])) -- :: region -> annotate
 -- :: Current-window shot: Sway used swaymsg get_tree; Hyprland uses hyprctl activewindow.
-hl.bind(mainMod .. " + SHIFT + Print",
-    hl.dsp.exec_cmd([[grim -g "$(hyprctl -j activewindow | jq -r '"\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"')" ~/Pictures/Screenshots/$(date +'%Y-%m-%d-%H%M%S_grim.png')]]))
+hl.bind(
+	mainMod .. " + SHIFT + Print",
+	hl.dsp.exec_cmd(
+		[[grim -g "$(hyprctl -j activewindow | jq -r '"\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"')" ~/Pictures/Screenshots/$(date +'%Y-%m-%d-%H%M%S_grim.png')]]
+	)
+)
 
 --------------------------------------------------------------------------------
 -- Focus (vim keys + arrows)  — Sway `focus left/down/up/right`
@@ -302,9 +325,9 @@ hl.bind(mainMod .. " + " .. L, hl.dsp.focus({ direction = "left" }))
 hl.bind(mainMod .. " + " .. D, hl.dsp.focus({ direction = "down" }))
 hl.bind(mainMod .. " + " .. U, hl.dsp.focus({ direction = "up" }))
 hl.bind(mainMod .. " + " .. R, hl.dsp.focus({ direction = "right" }))
-hl.bind(mainMod .. " + left",  hl.dsp.focus({ direction = "left" }))
-hl.bind(mainMod .. " + down",  hl.dsp.focus({ direction = "down" }))
-hl.bind(mainMod .. " + up",    hl.dsp.focus({ direction = "up" }))
+hl.bind(mainMod .. " + left", hl.dsp.focus({ direction = "left" }))
+hl.bind(mainMod .. " + down", hl.dsp.focus({ direction = "down" }))
+hl.bind(mainMod .. " + up", hl.dsp.focus({ direction = "up" }))
 hl.bind(mainMod .. " + right", hl.dsp.focus({ direction = "right" }))
 
 --------------------------------------------------------------------------------
@@ -320,39 +343,39 @@ hl.bind(mainMod .. " + right", hl.dsp.focus({ direction = "right" }))
 -- :: in-process — no script spawn per keypress, which matters with
 -- :: `repeating = true` at a 50/s repeat rate.
 --------------------------------------------------------------------------------
-local moveStep = 30  -- :: h/j/k/l   (Sway `move <dir> 30px`)
-local moveFine = 10  -- :: arrow keys (Sway `move <dir> 10px`)
+local moveStep = 30 -- :: h/j/k/l   (Sway `move <dir> 30px`)
+local moveFine = 10 -- :: arrow keys (Sway `move <dir> 10px`)
 
 local function moveDwim(dir, px)
-    return function()
-        local w = hl.get_active_window()
-        if w and w.floating then
-            local dx, dy = 0, 0
-            if dir == "left" then
-                dx = -px
-            elseif dir == "right" then
-                dx = px
-            elseif dir == "up" then
-                dy = -px
-            else
-                dy = px
-            end
-            hl.dispatch(hl.dsp.window.move({ x = dx, y = dy, relative = true }))
-        else
-            hl.dispatch(hl.dsp.window.move({ direction = dir }))
-        end
-    end
+	return function()
+		local w = hl.get_active_window()
+		if w and w.floating then
+			local dx, dy = 0, 0
+			if dir == "left" then
+				dx = -px
+			elseif dir == "right" then
+				dx = px
+			elseif dir == "up" then
+				dy = -px
+			else
+				dy = px
+			end
+			hl.dispatch(hl.dsp.window.move({ x = dx, y = dy, relative = true }))
+		else
+			hl.dispatch(hl.dsp.window.move({ direction = dir }))
+		end
+	end
 end
 
-local moveOpts = { repeating = true }  -- :: hold the key to keep nudging
+local moveOpts = { repeating = true } -- :: hold the key to keep nudging
 
-hl.bind(mainMod .. " + SHIFT + " .. L, moveDwim("left",  moveStep), moveOpts)
-hl.bind(mainMod .. " + SHIFT + " .. D, moveDwim("down",  moveStep), moveOpts)
-hl.bind(mainMod .. " + SHIFT + " .. U, moveDwim("up",    moveStep), moveOpts)
+hl.bind(mainMod .. " + SHIFT + " .. L, moveDwim("left", moveStep), moveOpts)
+hl.bind(mainMod .. " + SHIFT + " .. D, moveDwim("down", moveStep), moveOpts)
+hl.bind(mainMod .. " + SHIFT + " .. U, moveDwim("up", moveStep), moveOpts)
 hl.bind(mainMod .. " + SHIFT + " .. R, moveDwim("right", moveStep), moveOpts)
-hl.bind(mainMod .. " + SHIFT + left",  moveDwim("left",  moveFine), moveOpts)
-hl.bind(mainMod .. " + SHIFT + down",  moveDwim("down",  moveFine), moveOpts)
-hl.bind(mainMod .. " + SHIFT + up",    moveDwim("up",    moveFine), moveOpts)
+hl.bind(mainMod .. " + SHIFT + left", moveDwim("left", moveFine), moveOpts)
+hl.bind(mainMod .. " + SHIFT + down", moveDwim("down", moveFine), moveOpts)
+hl.bind(mainMod .. " + SHIFT + up", moveDwim("up", moveFine), moveOpts)
 hl.bind(mainMod .. " + SHIFT + right", moveDwim("right", moveFine), moveOpts)
 
 -- :: Center a floating window when it gets lost (moveactive is unclamped — a
@@ -363,26 +386,26 @@ hl.bind(mainMod .. " + SHIFT + G", hl.dsp.window.center())
 -- Workspaces  — Sway `workspace number N` / `move container to workspace number N`
 --------------------------------------------------------------------------------
 for i = 1, 10 do
-    local key = i % 10 -- :: 10 maps to key 0, matching Sway
-    hl.bind(mainMod .. " + " .. key,         hl.dsp.focus({ workspace = i }))
-    hl.bind(mainMod .. " + SHIFT + " .. key, hl.dsp.window.move({ workspace = i }))
+	local key = i % 10 -- :: 10 maps to key 0, matching Sway
+	hl.bind(mainMod .. " + " .. key, hl.dsp.focus({ workspace = i }))
+	hl.bind(mainMod .. " + SHIFT + " .. key, hl.dsp.window.move({ workspace = i }))
 end
 
 -- :: Sway `Ctrl+$mod+l/h -> workspace next/prev_on_output`
-hl.bind("CTRL + " .. mainMod .. " + " .. R, hl.dsp.focus({ workspace = "m+1" }))  -- :: next on this monitor
-hl.bind("CTRL + " .. mainMod .. " + " .. L, hl.dsp.focus({ workspace = "m-1" }))  -- :: prev on this monitor
+hl.bind("CTRL + " .. mainMod .. " + " .. R, hl.dsp.focus({ workspace = "m+1" })) -- :: next on this monitor
+hl.bind("CTRL + " .. mainMod .. " + " .. L, hl.dsp.focus({ workspace = "m-1" })) -- :: prev on this monitor
 
 --------------------------------------------------------------------------------
 -- Layout  — Sway split / layout binds
 --------------------------------------------------------------------------------
-hl.bind(mainMod .. " + backslash", hl.dsp.layout("togglesplit"))  -- :: $mod+backslash split toggle (dwindle)
-hl.bind(mainMod .. " + E",         hl.dsp.layout("togglesplit"))  -- :: $mod+e layout toggle split
+hl.bind(mainMod .. " + backslash", hl.dsp.layout("togglesplit")) -- :: $mod+backslash split toggle (dwindle)
+hl.bind(mainMod .. " + E", hl.dsp.layout("togglesplit")) -- :: $mod+e layout toggle split
 
 -- :: Hyprland dwindle has no explicit horizontal/vertical split like Sway's
 -- :: `split h` / `split v`; the next split follows window aspect ratio and
 -- :: togglesplit flips it. Kept mapped to togglesplit for muscle memory.
-hl.bind(mainMod .. " + bar",   hl.dsp.layout("togglesplit"))  -- :: $mod+bar   split h
-hl.bind(mainMod .. " + minus", hl.dsp.layout("togglesplit"))  -- :: $mod+minus split v
+hl.bind(mainMod .. " + bar", hl.dsp.layout("togglesplit")) -- :: $mod+bar   split h
+hl.bind(mainMod .. " + minus", hl.dsp.layout("togglesplit")) -- :: $mod+minus split v
 
 -- :: Sway tabbed/stacking -> Hyprland groups (tabbed-style). No stacking mode,
 -- :: so $mod+s cycles group members instead of stacking.
@@ -395,11 +418,11 @@ hl.bind(mainMod .. " + minus", hl.dsp.layout("togglesplit"))  -- :: $mod+minus s
 -- :: NOTE: Hyprland 0.56's Lua API has no `moveintogroup`/`movewindoworgroup`
 -- :: wrapper, so there is no keybind to pull an EXISTING window in — use the
 -- :: mouse-drag (step 2) for that. group.next below is cycle-only (no stacking).
-hl.bind(mainMod .. " + W", hl.dsp.group.toggle())  -- :: $mod+w -> create/dissolve group
-hl.bind(mainMod .. " + S", hl.dsp.group.next())    -- :: $mod+s -> cycle to next tab in group
+hl.bind(mainMod .. " + W", hl.dsp.group.toggle()) -- :: $mod+w -> create/dissolve group
+hl.bind(mainMod .. " + S", hl.dsp.group.next()) -- :: $mod+s -> cycle to next tab in group
 
-hl.bind(mainMod .. " + M",             hl.dsp.window.fullscreen())            -- :: $mod+m fullscreen toggle
-hl.bind(mainMod .. " + SHIFT + Space", hl.dsp.window.float({ action = "toggle" }))  -- :: $mod+Shift+space floating toggle
+hl.bind(mainMod .. " + M", hl.dsp.window.fullscreen()) -- :: $mod+m fullscreen toggle
+hl.bind(mainMod .. " + SHIFT + Space", hl.dsp.window.float({ action = "toggle" })) -- :: $mod+Shift+space floating toggle
 
 -- :: Reaching floating windows from the keyboard. The directional focus binds
 -- :: above (movefocus) do NOT cross the float/tile boundary — from a tiled
@@ -409,7 +432,7 @@ hl.bind(mainMod .. " + SHIFT + Space", hl.dsp.window.float({ action = "toggle" }
 -- ::   SUPER+Tab -> cycle every window on the workspace, floating included
 -- ::   SUPER+G   -> Sway's `focus mode_toggle`: hop tiled <-> floating layer
 hl.bind(mainMod .. " + Tab", hl.dsp.window.cycle_next())
-hl.bind(mainMod .. " + G",   hl.dsp.exec_cmd("~/.config/hypr/scripts/focus-mode-toggle.sh"))
+hl.bind(mainMod .. " + G", hl.dsp.exec_cmd("~/.config/hypr/scripts/focus-mode-toggle.sh"))
 
 -- :: RAISE-ON-FOCUS for floating windows. Hyprland has no config option for this
 -- :: (checked `hyprctl descriptions`); focus and stacking order are independent, so
@@ -434,52 +457,55 @@ end)
 -- Scratchpad  — Sway used swaymsg scripts (not portable). Hyprland's idiomatic
 -- :: equivalent is a special workspace ("magic").
 --------------------------------------------------------------------------------
-hl.bind(mainMod .. " + SHIFT + minus", hl.dsp.window.move({ workspace = "special:magic" }))  -- :: send to scratchpad
-hl.bind(mainMod .. " + ALT + minus",   hl.dsp.workspace.toggle_special("magic"))             -- :: toggle scratchpad
+hl.bind(mainMod .. " + SHIFT + minus", hl.dsp.window.move({ workspace = "special:magic" })) -- :: send to scratchpad
+hl.bind(mainMod .. " + ALT + minus", hl.dsp.workspace.toggle_special("magic")) -- :: toggle scratchpad
 
 --------------------------------------------------------------------------------
 -- Resize submap  — Sway `mode "resize"`
 --------------------------------------------------------------------------------
 -- :: RESIZE STEP KNOB (px per keypress). Deltas map to Hyprland's resizeactive.
 -- :: `step` = h/j/k/l (coarse), `fine` = arrow keys. Bump these to resize faster.
-local step = 60   -- :: was 30
-local fine = 20   -- :: was 10
+local step = 60 -- :: was 30
+local fine = 20 -- :: was 10
 hl.define_submap("resize", function()
-    hl.bind(L, hl.dsp.window.resize({ x = -step, y = 0,     relative = true }))  -- :: shrink width
-    hl.bind(R, hl.dsp.window.resize({ x = step,  y = 0,     relative = true }))  -- :: grow width
-    hl.bind(U, hl.dsp.window.resize({ x = 0,     y = -step, relative = true }))  -- :: shrink height
-    hl.bind(D, hl.dsp.window.resize({ x = 0,     y = step,  relative = true }))  -- :: grow height
+	hl.bind(L, hl.dsp.window.resize({ x = -step, y = 0, relative = true })) -- :: shrink width
+	hl.bind(R, hl.dsp.window.resize({ x = step, y = 0, relative = true })) -- :: grow width
+	hl.bind(U, hl.dsp.window.resize({ x = 0, y = -step, relative = true })) -- :: shrink height
+	hl.bind(D, hl.dsp.window.resize({ x = 0, y = step, relative = true })) -- :: grow height
 
-    hl.bind("left",  hl.dsp.window.resize({ x = -fine, y = 0,     relative = true }))
-    hl.bind("right", hl.dsp.window.resize({ x = fine,  y = 0,     relative = true }))
-    hl.bind("up",    hl.dsp.window.resize({ x = 0,     y = -fine, relative = true }))
-    hl.bind("down",  hl.dsp.window.resize({ x = 0,     y = fine,  relative = true }))
+	hl.bind("left", hl.dsp.window.resize({ x = -fine, y = 0, relative = true }))
+	hl.bind("right", hl.dsp.window.resize({ x = fine, y = 0, relative = true }))
+	hl.bind("up", hl.dsp.window.resize({ x = 0, y = -fine, relative = true }))
+	hl.bind("down", hl.dsp.window.resize({ x = 0, y = fine, relative = true }))
 
-    -- :: Back to default: Enter / Escape / $mod+r
-    hl.bind("Return",           hl.dsp.submap("reset"))
-    hl.bind("Escape",           hl.dsp.submap("reset"))
-    hl.bind(mainMod .. " + R",  hl.dsp.submap("reset"))
+	-- :: Back to default: Enter / Escape / $mod+r
+	hl.bind("Return", hl.dsp.submap("reset"))
+	hl.bind("Escape", hl.dsp.submap("reset"))
+	hl.bind(mainMod .. " + R", hl.dsp.submap("reset"))
 end)
-hl.bind(mainMod .. " + R", hl.dsp.submap("resize"))  -- :: $mod+r -> enter resize mode
+hl.bind(mainMod .. " + R", hl.dsp.submap("resize")) -- :: $mod+r -> enter resize mode
 
 --------------------------------------------------------------------------------
 -- Mouse  — Sway `floating_modifier $mod normal`
 --------------------------------------------------------------------------------
-hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true })  -- :: $mod + LMB drag
-hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })  -- :: $mod + RMB resize
+hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true }) -- :: $mod + LMB drag
+hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true }) -- :: $mod + RMB resize
 hl.bind(mainMod .. " + mouse_down", hl.dsp.focus({ workspace = "e+1" }))
-hl.bind(mainMod .. " + mouse_up",   hl.dsp.focus({ workspace = "e-1" }))
+hl.bind(mainMod .. " + mouse_up", hl.dsp.focus({ workspace = "e-1" }))
 
 --------------------------------------------------------------------------------
 -- Media / brightness keys  — Sway pamixer + brightnessctl
 -- :: Noctalia OSD pops automatically on PipeWire/brightness changes.
 --------------------------------------------------------------------------------
-hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("pamixer --sink @DEFAULT_SINK@ -i 5"),          { repeating = true })
-hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("pamixer --sink @DEFAULT_SINK@ -d 5"),          { repeating = true })
-hl.bind("XF86AudioMute",        hl.dsp.exec_cmd("pamixer --sink @DEFAULT_SINK@ --toggle-mute"))
-hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("brightnessctl set 5%+"), { locked = true, repeating = true })
+-- :: `pamixer` isn't installed on this machine, so these silently no-op'd.
+-- :: Noctalia already owns audio via WirePlumber, so drive volume through its
+-- :: own IPC instead of adding an external dependency (confirmed against the
+-- :: running daemon: 40% -> 45% for a step of 5, via `pactl get-sink-volume`).
+hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("noctalia msg volume-up 5"), { repeating = true })
+hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("noctalia msg volume-down 5"), { repeating = true })
+hl.bind("XF86AudioMute", hl.dsp.exec_cmd("noctalia msg volume-mute"))
+hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd("brightnessctl set 5%+"), { locked = true, repeating = true })
 hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl set 5%-"), { locked = true, repeating = true })
-
 
 --------------------------------
 ---- WINDOWS AND WORKSPACES ----
@@ -488,37 +514,36 @@ hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("brightnessctl set 5%-"), { loc
 -- :: Sway `for_window [app_id=...] floating enable`. In Hyprland, `class`
 -- :: matches the Wayland app_id for native Wayland apps.
 hl.window_rule({
-    name  = "float-nautilus",
-    match = { class = "^(org\\.gnome\\.Nautilus)$" },
-    float = true,
+	name = "float-nautilus",
+	match = { class = "^(org\\.gnome\\.Nautilus)$" },
+	float = true,
 })
 hl.window_rule({
-    name  = "float-qalculate",
-    match = { class = "^(qalculate-gtk)$" },
-    float = true,
+	name = "float-qalculate",
+	match = { class = "^(qalculate-gtk)$" },
+	float = true,
 })
 
 -- Ignore maximize requests from all apps.
 hl.window_rule({
-    name  = "suppress-maximize-events",
-    match = { class = ".*" },
-    suppress_event = "maximize",
+	name = "suppress-maximize-events",
+	match = { class = ".*" },
+	suppress_event = "maximize",
 })
 
 -- Fix some dragging issues with XWayland
 hl.window_rule({
-    name  = "fix-xwayland-drags",
-    match = {
-        class      = "^$",
-        title      = "^$",
-        xwayland   = true,
-        float      = true,
-        fullscreen = false,
-        pin        = false,
-    },
-    no_focus = true,
+	name = "fix-xwayland-drags",
+	match = {
+		class = "^$",
+		title = "^$",
+		xwayland = true,
+		float = true,
+		fullscreen = false,
+		pin = false,
+	},
+	no_focus = true,
 })
-
 
 --------------------------------
 ---- NOCTALIA (quickshell) -----
@@ -533,19 +558,20 @@ hl.window_rule({
 -- :: All Noctalia surfaces share the `noctalia-*` layer namespace — blur only the
 -- :: real UI panels (NOT the wallpaper/background/utility layers).
 hl.layer_rule({
-    name  = "noctalia-blur",
-    match = { namespace = "^(noctalia-(bar-content|launcher-overlay|notifications|osd|overview|dock|toast|desktop-widgets)-.*)$" },
-    blur         = true,
-    ignore_alpha = 0.6,   -- :: don't blur the transparent bar frame, only the capsules/panels
+	name = "noctalia-blur",
+	match = {
+		namespace = "^(noctalia-(bar-content|launcher-overlay|notifications|osd|overview|dock|toast|desktop-widgets)-.*)$",
+	},
+	blur = true,
+	ignore_alpha = 0.6, -- :: don't blur the transparent bar frame, only the capsules/panels
 })
 
 -- :: Dim the desktop behind the modal launcher / overview.
 hl.layer_rule({
-    name  = "noctalia-dim-modals",
-    match = { namespace = "^(noctalia-(launcher-overlay|overview)-.*)$" },
-    dim_around = true,
+	name = "noctalia-dim-modals",
+	match = { namespace = "^(noctalia-(launcher-overlay|overview)-.*)$" },
+	dim_around = true,
 })
-
 
 -------------------------
 ---- LID SWITCH ---------
@@ -564,9 +590,7 @@ hl.layer_rule({
 -- :: clamshell rule below stays the single source of truth.
 
 -- :: Lid CLOSE -> disable eDP-1; suspend only if no external display (clamshell).
-hl.bind("switch:on:Lid Switch",
-    hl.dsp.exec_cmd("~/.config/hypr/scripts/lid-close.sh"),
-    { locked = true })
+hl.bind("switch:on:Lid Switch", hl.dsp.exec_cmd("~/.config/hypr/scripts/lid-close.sh"), { locked = true })
 
 -- :: Lid OPEN -> re-enable the laptop panel with its configured mode/position.
 -- :: (Mirrors the MONITORS block above; keep them in sync, or swap the command
@@ -575,6 +599,31 @@ hl.bind("switch:on:Lid Switch",
 -- :: can't work with non-legacy parsers. Use eval."), so this goes through
 -- :: `hyprctl eval` + hl.monitor. `disabled = false` is required — without it
 -- :: the monitor keeps the disabled state lid-close.sh set.
-hl.bind("switch:off:Lid Switch",
-    hl.dsp.exec_cmd([[hyprctl eval 'hl.monitor({ output = "eDP-1", mode = "1920x1080", position = "2560x180", scale = 1, disabled = false })']]),
-    { locked = true })
+hl.bind(
+	"switch:off:Lid Switch",
+	hl.dsp.exec_cmd(
+		[[hyprctl eval 'hl.monitor({ output = "eDP-1", mode = "1920x1080", position = "2560x180", scale = 1, disabled = false })']]
+	),
+	{ locked = true }
+)
+
+-------------------------
+----- NVIDIA STUFF ------
+-------------------------
+local function has_nvidia()
+	local f = io.open("/sys/module/nvidia_drm/parameters/modeset", "r")
+	if f then
+		f:close()
+		return true
+	end
+	return false
+end
+
+if has_nvidia() then
+	hl.env("LIBVA_DRIVER_NAME", "nvidia")
+	hl.env("GBM_BACKEND", "nvidia-drm")
+	hl.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
+end
+
+-- safe everywhere, no condition needed
+hl.env("ELECTRON_OZONE_PLATFORM_HINT", "wayland")

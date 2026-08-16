@@ -7,10 +7,20 @@
 ;; :: Configure org-agenda files. The agenda is a generated *view* over these
 ;; :: -- unfinished TODOs reappear daily until DONE, so no carry-over is needed.
 ;; :: notes/ (denote) is intentionally excluded so braindumps can't pollute it.
-(after! org
+;; :: Wrapped in a function because a vault switch has to rebuild the list --
+;; :: `my/vault-refresh' calls this (see modules/vault.el).
+(defun my/org-agenda-refresh-files ()
+  ":: rebuild `org-agenda-files' from the active vault"
   (setq org-agenda-files (list (expand-file-name "tasks.org" my/notes-dir)
                                (expand-file-name "meetings.org" my/notes-dir)
-                               (expand-file-name "projects/" my/notes-dir))))
+                               (expand-file-name "projects/" my/notes-dir)))
+  ;; :: reminders.el appends its file inside a one-shot `after! org', which won't
+  ;; :: run again -- so re-add it here or a vault switch silently kills appt
+  ;; :: notifications. `add-to-list' keeps this idempotent.
+  (when (boundp 'my/reminders-file)
+    (add-to-list 'org-agenda-files my/reminders-file t)))
+
+(after! org (my/org-agenda-refresh-files))
 
 ;; :: Time format configuration
 (after! org
@@ -98,9 +108,14 @@
   (setq org-capture-templates
         (cl-remove-if (lambda (tpl) (member (car tpl) '("t" "n" "j")))
                       org-capture-templates))
+  ;; :: RELATIVE path, not `expand-file-name' at load time: org resolves a string
+  ;; :: target against `org-directory' on every capture (org-capture-expand-file),
+  ;; :: and vault.el keeps `org-directory' on the active vault. Baking an absolute
+  ;; :: path in here would keep capturing into whichever vault was active at
+  ;; :: startup. The "m" template below already relies on the same behaviour.
   (dolist (tpl
-           `(("t" "Task -> tasks.org" entry
-              (file+headline ,(expand-file-name "tasks.org" my/notes-dir) "Inbox")
+           '(("t" "Task -> tasks.org" entry
+              (file+headline "tasks.org" "Inbox")
               "* TODO %?\n%U\n%a" :prepend t)         ;; :: %a backlinks to context
              ("n" "Note (denote)" plain
               (file denote-last-path) #'denote-org-capture

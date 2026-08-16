@@ -18,21 +18,32 @@
 ;; ──────────────────────────────────────────────────────
 ;; :: Notes / org root -- per-machine
 ;; ──────────────────────────────────────────────────────
-;; :: Single source of truth for the org/notes tree. The real value is set
-;; :: per-machine in the OS files just below -- ~/notes/ on macOS, ~/org-notes/
-;; :: on Linux -- and everything note-related (org-directory, agenda, snippets,
-;; :: brain, schema, finance, ...) derives from it, so relocating the whole tree
-;; :: is a one-line change. The default here is only a fallback.
+;; :: Single source of truth for the org/notes tree: the ACTIVE VAULT. Everything
+;; :: note-related (org-directory, agenda, denote, snippets, brain, schema,
+;; :: finance, ...) derives from it, so switching vaults relocates the whole tree
+;; :: at runtime -- see modules/vault.el. The container holding the vaults is
+;; :: `my/vaults-root', set per-machine in the OS files just below (~/notes/ on
+;; :: macOS, ~/org-notes/ on Linux). The value here is only a fallback: vault.el
+;; :: overwrites it during the `load!' further down.
+(defvar my/vaults-root (expand-file-name "~/notes/")
+  ":: Container of vault directories; overridden per-machine in the OS files below.")
+
 (defvar my/notes-dir (expand-file-name "~/notes/")
-  ":: Root of my org/notes tree; overridden per-machine in +macos.el / +linux.el.")
+  ":: Active vault directory; derived from `my/vaults-root' by modules/vault.el.")
 
 ;; :: Load OS-specific config EARLY -- on macOS this imports shell env vars
 ;; :: (GITLAB_*, PROJECT_SEARCH_PATHS, ...) via exec-path-from-shell before the
 ;; :: `load!'s below read them. Linux sets the Wayland clipboard + shell path.
-;; :: (The OS files also set `my/notes-dir' for that machine.)
+;; :: (The OS files also set `my/vaults-root' for that machine.)
 (if (featurep :system 'macos)
     (load! "+macos")
   (load! "+linux"))
+
+;; :: Vaults -- resolves the active vault and points `my/notes-dir' at it. This
+;; :: MUST come before `org-directory' is set below and before every other
+;; :: `load!' at the bottom of this file: those modules capture `my/notes-dir' in
+;; :: top-level `defvar's, so they have to see the vault path, not the root.
+(load! "modules/vault")
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Soft word wrap (:editor word-wrap)
@@ -483,8 +494,17 @@ Paste the result into any org file; following the link jumps to that exact line.
 ;; ──────────────────────────────────────────────────────
 ;; :: Org file-apps + extra TS niceties
 ;; ──────────────────────────────────────────────────────
+;; :: Re-ingestable: `after! org' fires once, so a vault switch needs this again
+;; :: (my/vault-refresh calls it). Guarded because a freshly scaffolded vault has
+;; :: no api.org at all.
+(defun my/notes-lob-ingest ()
+  ":: (re)load the active vault's babel library of named src blocks"
+  (let ((api (expand-file-name "api.org" my/notes-dir)))
+    (when (file-exists-p api)
+      (org-babel-lob-ingest api))))
+
 (after! org
-  (org-babel-lob-ingest (expand-file-name "api.org" my/notes-dir))
+  (my/notes-lob-ingest)
   (add-to-list 'org-file-apps '("\\.ts\\'" . emacs))
   (add-to-list 'org-file-apps '("\\.d\\.ts\\'" . emacs)))
 (add-to-list 'auto-mode-alist '("\\.d\\.ts\\'" . typescript-ts-mode))
@@ -1004,10 +1024,12 @@ shrink (DELTA columns, default 10)."
 ;; :: denote: reference notes + journal (see modules/denote.el)
 (map! :leader
       :prefix "n"
-      :desc "New/open denote note" "n" #'denote-open-or-create
+      ;; :: n/j prompt for a vault first (see modules/vault.el); f/g/i/I just
+      ;; :: follow the active vault, since denote-directory is vault-scoped.
+      :desc "New/open denote note" "n" #'my/vault-note
       :desc "Find note (consult)"  "f" #'consult-denote-find
       :desc "Grep notes (consult)" "g" #'consult-denote-grep
-      :desc "Journal (today)"      "j" #'denote-journal-new-or-existing-entry
+      :desc "Journal (today)"      "j" #'my/vault-journal
       :desc "Insert link to note"  "i" #'denote-link
       :desc "Link or create note"  "I" #'denote-link-or-create)
 

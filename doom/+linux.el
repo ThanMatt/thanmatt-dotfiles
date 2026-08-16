@@ -4,9 +4,10 @@
 ;; :: path, and xdg-open handlers -- none of which apply on macOS.
 
 ;; ──────────────────────────────────────────────────────
-;; :: Notes / org root (this machine)
+;; :: Notes / org root (this machine) -- the container holding the vault dirs.
+;; :: modules/vault.el derives `my/notes-dir' (the active vault) from this.
 ;; ──────────────────────────────────────────────────────
-(setq my/notes-dir (expand-file-name "~/org-notes/"))
+(setq my/vaults-root (expand-file-name "~/org-notes/"))
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Font family (this machine)
