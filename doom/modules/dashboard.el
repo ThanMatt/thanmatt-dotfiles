@@ -76,7 +76,7 @@
 
 ;; :: Dashboard menu sections (add or remove items here). Actions referencing
 ;; :: inventory/finance resolve lazily against modules/{inventory,finance}.el.
-(setq +doom-dashboard-menu-sections
+(setq +dashboard-menu-sections
       '(("Reload last session"
          :icon (nerd-icons-octicon "nf-oct-history" :face 'doom-dashboard-menu-title)
          :when (cond ((modulep! :ui workspaces)

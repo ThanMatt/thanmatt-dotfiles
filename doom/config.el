@@ -330,13 +330,17 @@ buffer impossible while the engine is web-mode."
    (shell      . t)
    (js         . t)))
 
-(setq +doom-dashboard-ascii-banner-fn #'my/simple-banner)
+(setq +dashboard-ascii-banner-fn #'my/simple-banner)
 (defun my/simple-banner ()
-  '("                                    "
-    "    Welcome to My Emacs Setup!     "
-    "                                    "
-    "         Ready to code...           "
-    "                                    "))
+  (propertize
+   (string-join
+    '("                                    "
+      "    Welcome to My Emacs Setup!     "
+      "                                    "
+      "         Ready to code...           "
+      "                                    ")
+    "\n")
+   'face '+dashboard-banner))
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Org block wrapping + link helpers

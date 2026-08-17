@@ -81,6 +81,20 @@ end)
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
 
+-- :: Session PATH is whatever started Hyprland (systemd --user shows just
+-- :: /usr/local/bin:/usr/bin) — it never picks up ~/.cargo/bin or ~/.local/bin
+-- :: the way an interactive fish shell does. Noctalia widgets run their
+-- :: commands through /bin/sh, which inherits this session PATH, not fish's,
+-- :: so cargo-installed CLIs (e.g. ai-usagebar) come back "command not found"
+-- :: even though they're on disk. Prepend both here for every child process.
+-- :: Built with os.getenv (not a literal "$HOME/...:$PATH" string) because
+-- :: hl.env does not shell-expand its value -- a literal "$PATH" would set
+-- :: PATH to that unexpanded text and break every PATH lookup for anything
+-- :: Hyprland spawns afterward (confirmed: broke noctalia/hypridle autostart
+-- :: entirely on the first attempt).
+local home = os.getenv("HOME")
+hl.env("PATH", home .. "/.cargo/bin:" .. home .. "/.local/bin:" .. os.getenv("PATH"))
+
 -----------------------
 ---- LOOK AND FEEL ----
 -----------------------
@@ -303,6 +317,11 @@ hl.bind(mainMod .. " + ALT + Space", hl.dsp.exec_cmd("qs -c noctalia-shell ipc c
 -- :: Manual lock -> hyprlock (Super+L is taken by focus-right). Direct call so
 -- :: it works even if hypridle isn't running; `pidof` guard avoids a 2nd instance.
 hl.bind(mainMod .. " + ALT + L", hl.dsp.exec_cmd("pidof hyprlock || hyprlock")) -- :: $mod+alt+l -> lock
+-- :: Chill mode toggle -- see ChillModeRule (WINDOWS AND WORKSPACES, below) for
+-- :: what this actually does. Wrapped in a closure (not passed directly) so
+-- :: definition order in this file doesn't matter -- the global lookup happens
+-- :: at keypress time, not here.
+hl.bind(mainMod .. " + ALT + F", function() ChillModeToggle() end) -- :: $mod+alt+f -> toggle chill mode
 
 --------------------------------------------------------------------------------
 -- Screenshots (grim / slurp / swappy) — identical tooling to Sway
@@ -544,6 +563,49 @@ hl.window_rule({
 	},
 	no_focus = true,
 })
+
+--------------------------------------------------------------------------------
+-- Chill mode -- float EVERY window (present + future, every workspace) so
+-- Hyprland stops looking/behaving like a tiling WM; toggle back to restore
+-- tiling. Classic Hyprland's `workspaceopt allfloat` dispatcher does not exist
+-- in this fork (checked hl.dsp.workspace in /usr/share/hypr/stubs/hl.meta.lua:
+-- only change_id/move/rename/swap_monitors/toggle_special), so this fakes it
+-- with a single window_rule matching every window, flipped on/off at runtime
+-- via WindowRule:set_enabled() -- the toggleable-object pattern this API uses
+-- for keybinds/timers/layer rules too.
+--
+-- MUST be a real global (not `local`) -- both `hl.bind` above (via closure)
+-- and `hyprctl eval` from outside the config (see fish/functions/chill-mode.fish)
+-- need to reach ChillModeRule / ChillModeSet / ChillModeToggle by name.
+ChillModeRule = hl.window_rule({
+	name = "chill-mode",
+	match = { class = ".*" },
+	float = true,
+	enabled = false,
+})
+
+-- :: State file is the single source of truth for fish's on/off message --
+-- written here so it stays correct whether the toggle came from the keybind
+-- or from `chill-mode` on the command line via `hyprctl eval`.
+local chillModeStateFile = os.getenv("HOME") .. "/.cache/hypr/chill-mode-state"
+
+function ChillModeSet(on)
+	ChillModeRule:set_enabled(on)
+	os.execute('mkdir -p "$HOME/.cache/hypr"')
+	local f = io.open(chillModeStateFile, "w")
+	if f then
+		f:write(on and "1" or "0")
+		f:close()
+	end
+	hl.notification.create({
+		text = on and "Chill mode ON — new windows float" or "Chill mode OFF — back to tiling",
+		timeout = 2500,
+	})
+end
+
+function ChillModeToggle()
+	ChillModeSet(not ChillModeRule:is_enabled())
+end
 
 --------------------------------
 ---- NOCTALIA (quickshell) -----
