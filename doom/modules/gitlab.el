@@ -66,9 +66,11 @@ unless GITLAB_ISSUES_DIR is set, in which case the env var always wins.")
       (error "GitLab token not found in auth-source. Please add it to ~/.authinfo.gpg"))))
 
 (defun my/gitlab--issue-link-text (filepath display-text)
-  "Return an org or markdown link to FILEPATH with DISPLAY-TEXT for the current buffer."
+  "Return an org or markdown link to FILEPATH with DISPLAY-TEXT for the current buffer.
+Org links use the vault abbreviation (`work:projects/...') so they resolve on
+both the macOS and Linux roots; markdown keeps the plain path."
   (if (derived-mode-p 'org-mode)
-      (format "[[file:%s][%s]]" filepath display-text)
+      (format "[[%s][%s]]" (my/org-link-abbreviate filepath) display-text)
     (format "[%s](%s)" display-text filepath)))
 
 (defun my/gitlab--issue-files ()

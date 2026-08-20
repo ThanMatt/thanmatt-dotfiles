@@ -117,6 +117,53 @@
    symbol for paths that depend on other state (e.g. the gitlab project name)
    -- see `my/gitlab-issues-relative-dir' in modules/gitlab.el.")
 
+;; ──────────────────────────────────────────────────────
+;; :: Portable org links -- vault-relative, not machine-absolute
+;; ──────────────────────────────────────────────────────
+;; :: `~/notes/' (macOS) and `~/org-notes/mos/' (Linux) are the same Syncthing
+;; :: folder, so an absolute `file:' link written on one box is dead on the other.
+;; :: Every vault gets an `org-link-abbrev-alist' entry named after itself, so a
+;; :: link is stored as `work:projects/mos/issues/foo.org' and resolved against
+;; :: whatever the root is on this machine.
+;; ::
+;; :: Deliberately one tag PER VAULT rather than a single "notes:" bound to the
+;; :: active vault -- the latter would silently resolve to a different file after
+;; :: a switch, which is worse than a link that plainly fails.
+
+(defvar my/code-root
+  (file-name-as-directory
+   (or (car (split-string (or (getenv "PROJECT_SEARCH_PATHS") "") ":" t))
+       (expand-file-name "~/dev/")))
+  ":: root of the code trees, backing the `code:' link abbreviation")
+
+(defvar my/link-abbrev-extra nil
+  ":: extra (TAG . TEMPLATE) pairs appended to `org-link-abbrev-alist'")
+
+(defun my/vault-refresh-link-abbrevs ()
+  ":: rebuild `org-link-abbrev-alist' -- one tag per vault, plus `code:'. Safe to
+   run before org loads: `defcustom' keeps a value that is already set."
+  (setq org-link-abbrev-alist
+        (append
+         (mapcar (lambda (v) (cons (downcase v) (concat (my/vault-dir v) "%s")))
+                 (my/vault-list))
+         (list (cons "code" (concat my/code-root "%s")))
+         my/link-abbrev-extra)))
+
+(defun my/org-link-abbreviate (path)
+  ":: PATH rewritten as an abbreviated link target (`work:projects/...') when it
+   sits under a vault or `my/code-root'; PATH unchanged otherwise. Longest root
+   wins, so a vault nested under another root still gets its own tag."
+  (let* ((path (expand-file-name path))
+         (roots (append
+                 (mapcar (lambda (v) (cons (downcase v) (my/vault-dir v)))
+                         (my/vault-list))
+                 (list (cons "code" my/code-root))))
+         (hit (car (sort (seq-filter (lambda (c) (string-prefix-p (cdr c) path)) roots)
+                         (lambda (a b) (> (length (cdr a)) (length (cdr b))))))))
+    (if hit
+        (concat (car hit) ":" (substring path (length (cdr hit))))
+      path)))
+
 (defun my/vault--ensure-dirs ()
   ":: create the vault skeleton if a switch landed us somewhere incomplete"
   (dolist (rel my/vault-subdirs)
@@ -145,6 +192,16 @@
         (set sym (if (string-empty-p rel)
                      my/notes-dir
                    (expand-file-name rel my/notes-dir))))))
+  ;; :: gitlab issue dir is derived, not in the rebind alist, because the project
+  ;; :: name is dynamic. $GITLAB_ISSUES_DIR outranks the vault -- see gitlab.el:31.
+  (when (and (boundp 'my/gitlab-issues-dir) (not (getenv "GITLAB_ISSUES_DIR")))
+    (setq my/gitlab-issues-dir
+          (expand-file-name
+           (format "projects/%s/issues"
+                   (or (bound-and-true-p my/gitlab-project-name) "mos"))
+           my/notes-dir)))
+  ;; :: link abbreviations track the vault list
+  (my/vault-refresh-link-abbrevs)
   ;; :: agenda is rebuilt from the new paths (and re-adds reminders.org, which
   ;; :: reminders.el only appends inside a one-shot `after! org')
   (when (fboundp 'my/org-agenda-refresh-files)
@@ -299,6 +356,7 @@
 (setq my/vault (my/vault--resolve)
       my/notes-dir (my/vault-dir))
 (my/vault--ensure-dirs)
+(my/vault-refresh-link-abbrevs)
 
 ;; :: make EVERY vault reachable from `SPC p p', not just the active one
 ;; :: (config.el registers the active one; this adds the rest)
