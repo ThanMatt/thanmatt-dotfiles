@@ -61,11 +61,26 @@ bindsym $mod+backslash split toggle
 
 # bindsym $mod+period exec bemoji -t
 
-bindsym $mod+period exec qs -c noctalia-shell ipc call launcher emoji
+bindsym $mod+period exec noctalia msg panel-toggle launcher /emo
 
 # :: Disabled — Noctalia handles night light (nightLight.enabled: true)
 # exec wlsunset -l 14.5995 -L 120.9842 -t 2700 -T 6500
-exec qs -c noctalia-shell
+
+# :: Included HERE rather than at the end of the file: the drop-ins are pure
+# :: `exec` lines (sway-systemd's assign-cgroups.py + session.sh), and session.sh
+# :: is what runs dbus-update-activation-environment and forces
+# :: XDG_CURRENT_DESKTOP=sway. Sway runs execs in config order, so this has to
+# :: precede the Noctalia exec below — otherwise Noctalia starts before the
+# :: portal environment exists.
+include /etc/sway/config.d/*
+
+# :: Noctalia v5 — the native binary. Quickshell (`qs`) is NOT installed on this
+# :: system and v5 does not use QML at all, so every old `qs -c noctalia-shell`
+# :: call was a silent no-op and the shell never came up. v5 speaks sway IPC
+# :: natively (SWAYSOCK), so the bar / workspaces / window-switcher widgets work.
+# :: Wrapped in session-env.sh so everything the launcher spawns inherits
+# :: PATH / GITLAB_* / ELECTRON_* — see that script for why.
+exec ~/.config/sway/scripts/session-env.sh noctalia -d
 
 
 # :: Disabled — Noctalia handles idle/lock/screen-off/suspend (idle.enabled: true)
@@ -131,7 +146,7 @@ input "type:touch" {
 # :: Disabled — Noctalia runs the cliphist watchers (appLauncher.enableClipboardHistory: true)
 # exec ~/.config/sway/scripts/start-cliphist.sh
 # :: Noctalia clipboard history (replaces wofi dmenu)
-bindsym $mod+alt+v exec qs -c noctalia-shell ipc call launcher clipboard
+bindsym $mod+alt+v exec noctalia msg panel-toggle clipboard
 # bindsym $mod+alt+v exec cliphist list | wofi --dmenu | cliphist decode | wl-copy
 bindsym Print exec grim -g "$(slurp)" - | wl-copy
 
@@ -155,9 +170,19 @@ bindsym $mod+Shift+Print exec grim -g "$(swaymsg -t get_tree | jq -r '.. | selec
 bindsym Ctrl+$mod+l workspace next_on_output
 bindsym Ctrl+$mod+h workspace prev_on_output
 
+# :: Mouse-wheel workspace switching over any part of a window, matching
+# :: hyprland.lua's $mod+mouse_down / $mod+mouse_up. button5 = scroll down.
+bindsym --whole-window $mod+button5 workspace next_on_output
+bindsym --whole-window $mod+button4 workspace prev_on_output
+
 
 # :: Noctalia session menu (replaces wlogout)
-bindsym $mod+alt+space exec qs -c noctalia-shell ipc call sessionMenu toggle
+bindsym $mod+alt+space exec noctalia msg panel-toggle session
+
+# :: Manual lock ($mod+alt+l, as in hyprland.lua — $mod+l is focus-right).
+# :: Noctalia v5 has a built-in lockscreen on every compositor, so there is no
+# :: swaylock/hyprlock wiring to do.
+bindsym $mod+alt+l exec noctalia msg session lock
 # bindsym $mod+alt+space exec wlogout
 
 
@@ -180,9 +205,14 @@ bindsym $mod+t exec kitty
     bindsym $mod+q kill
 
     # Start your launcher (Noctalia, replaces wofi)
-    bindsym $mod+space exec qs -c noctalia-shell ipc call launcher toggle
+    bindsym $mod+space exec noctalia msg panel-toggle launcher
     # bindsym $mod+space exec $menu
-    bindsym $mod+c exec ~/.config/sway/scripts/calc.sh
+    # :: Was scripts/calc.sh (wofi + qalc) — neither is installed, so it did
+    # :: nothing. v5's launcher has a built-in Calculator provider instead.
+    bindsym $mod+c exec noctalia msg panel-toggle launcher /calc
+
+    # :: Mimir AI chat panel (matches $mod+g in hyprland.lua).
+    bindsym $mod+g exec noctalia msg panel-toggle alexander/mimir:chat
 
     # Drag floating windows by holding down $mod and left mouse button.
     # Resize them with right mouse button + $mod.
@@ -220,6 +250,9 @@ bindsym $mod+t exec kitty
     bindsym $mod+Shift+Down move down 10px
     bindsym $mod+Shift+Up move up 10px
     bindsym $mod+Shift+Right move right 10px
+
+    # :: Recover a floating window nudged mostly off-screen (hyprland.lua $mod+shift+g).
+    bindsym $mod+Shift+g move position center
 #
 # Workspaces:
 #
@@ -267,7 +300,11 @@ bindsym $mod+t exec kitty
     bindsym $mod+m fullscreen toggle
 
     # Toggle the current focus between tiling and floating mode
-    bindsym $mod+Shift+space floating toggle
+    # :: `border pixel 3` chained on for the same reason as in
+    # :: scripts/scratch-send.sh: default_floating_border does not apply to a
+    # :: window that becomes floating after it was mapped, so without this the
+    # :: client's CSD preference wins and the border vanishes on float.
+    bindsym $mod+Shift+space floating toggle, border pixel 3
 
     # Swap focus between the tiling area and the floating area
     # bindsym $mod+space focus mode_toggle
@@ -329,9 +366,15 @@ bindsym $mod+r mode "resize"
     # exec mkfifo /tmp/wob_volume && tail -f /tmp/wob_volume | wob
 
     # :: Volume controls — Noctalia OSD pops automatically on PipeWire changes
-    bindsym XF86AudioRaiseVolume exec pamixer --sink @DEFAULT_SINK@ -i 5
-    bindsym XF86AudioLowerVolume exec pamixer --sink @DEFAULT_SINK@ -d 5
-    bindsym XF86AudioMute exec pamixer --sink @DEFAULT_SINK@ --toggle-mute
+    # :: `pamixer` is NOT installed on this system, so these silently no-op'd.
+    # :: Noctalia already owns audio via WirePlumber, so drive volume through its
+    # :: IPC instead of adding a dependency (same calls as hyprland.lua).
+    # :: --locked so they still work while the lockscreen is up, matching the
+    # :: brightness binds below.
+    bindsym --locked XF86AudioRaiseVolume exec noctalia msg volume-up 5
+    bindsym --locked XF86AudioLowerVolume exec noctalia msg volume-down 5
+    bindsym --locked XF86AudioMute exec noctalia msg volume-mute
+    bindsym --locked XF86AudioMicMute exec noctalia msg mic-mute
     # Special keys to adjust brightness via brightnessctl
     
     bindsym --locked XF86MonBrightnessDown exec brightnessctl set 5%-
@@ -360,11 +403,16 @@ bindsym $mod+r mode "resize"
 
 
 
-include /etc/sway/config.d/*
+# :: `include /etc/sway/config.d/*` moved up into the AUTOSTART section — it has
+# :: to run before the Noctalia exec. See the comment there.
 
 # Border settings
-default_border pixel 2
-default_floating_border pixel 2
+# :: NOTE: sway cannot vary border WIDTH by focus state — width is global and
+# :: only the COLOUR changes per state (client.* below). So "border on focus"
+# :: means: a border on every window, tinted bright for the focused one and dark
+# :: enough on the others to recede. Bump these two numbers together to taste.
+default_border pixel 3
+default_floating_border pixel 3
 
 # Gruvbox colors for focused/unfocused windows
 # Format: border / background / text / indicator / childBorder

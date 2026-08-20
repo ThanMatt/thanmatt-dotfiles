@@ -30,6 +30,7 @@ alias Sway="vi ~/.config/sway/config"
 alias Doom!="doom sync"
 alias Niri="vi ~/.config/niri/config.kdl"
 alias Timestamp="date -u +\"%Y%m%d%H%M%S\""
+alias vim="nvim"
 
 # :: Arch
 alias update='yay -Sy'

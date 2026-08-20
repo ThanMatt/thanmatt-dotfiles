@@ -108,8 +108,12 @@
     (todo-agenda-directory . "agendas/")
     (inventory-file        . "inventory.org")
     (my/reminders-file     . "reminders.org")
-    (my/schema-file        . "schema.d.ts"))
-  ":: alist of (SYMBOL . PATH-RELATIVE-TO-VAULT) rebound on every vault switch")
+    (my/schema-file        . "schema.d.ts")
+    (my/gitlab-issues-dir  . my/gitlab-issues-relative-dir))
+  ":: alist of (SYMBOL . PATH-RELATIVE-TO-VAULT) rebound on every vault switch.
+   PATH-RELATIVE-TO-VAULT is normally a string, but may be a 0-arg function
+   symbol for paths that depend on other state (e.g. the gitlab project name)
+   -- see `my/gitlab-issues-relative-dir' in modules/gitlab.el.")
 
 (defun my/vault--ensure-dirs ()
   ":: create the vault skeleton if a switch landed us somewhere incomplete"
@@ -128,11 +132,14 @@
   (setq denote-journal-directory (expand-file-name "journal" denote-directory))
   ;; :: the load-time defvars other modules captured
   (dolist (cell my/vault-rebind-alist)
-    (let ((sym (car cell))
-          (rel (cdr cell)))
-      ;; :: $SCHEMA_FILE outranks the vault -- see modules/schema.el:10
+    (let* ((sym (car cell))
+           (spec (cdr cell))
+           (rel (if (functionp spec) (funcall spec) spec)))
+      ;; :: $SCHEMA_FILE / $GITLAB_ISSUES_DIR outrank the vault -- see
+      ;; :: modules/schema.el:10 and modules/gitlab.el:29
       (when (and (boundp sym)
-                 (not (and (eq sym 'my/schema-file) (getenv "SCHEMA_FILE"))))
+                 (not (and (eq sym 'my/schema-file) (getenv "SCHEMA_FILE")))
+                 (not (and (eq sym 'my/gitlab-issues-dir) (getenv "GITLAB_ISSUES_DIR"))))
         (set sym (if (string-empty-p rel)
                      my/notes-dir
                    (expand-file-name rel my/notes-dir))))))

@@ -1,53 +1,45 @@
-# Migrated from ../noctalia (v4, Quickshell/JSON) to Noctalia v5 (native/TOML).
-# Ported by hand: v5 has no automatic v4 migration (JSON is fully ignored).
-# See summary of dropped/changed items at the end of this file.
-
 [accessibility]
-ui_scale = 0.9
-
-[shell.animation]
-enabled = true
-speed = 1.6
+ui_scale = 0.90000000000000002
 
 [audio]
 enable_sounds = true
 sound_volume = 0.5
 
-[theme]
-mode = "dark"
-source = "wallpaper"
-builtin = "Gruvbox"
-wallpaper_scheme = "m3-tonal-spot"
+[bar]
+order = [ "default" ]
 
-    [theme.templates]
-    builtin_ids = [ "gtk3", "gtk4" ]
+    [bar.default]
+    background_opacity = 0.0
+    capsule = true
+    capsule_opacity = 0.76000000000000001
+    capsule_padding = 11.0
+    center = [ "clock", "media" ]
+    end = [ "network", "bar", "volume", "battery", "tray", "notifications", "control-center" ]
+    font_family = "FiraCode Nerd Font"
+    margin_edge = 4
+    margin_ends = 16
+    scale = 0.80000000447034836
+    shadow = false
+    start = [ "group:g1", "workspaces" ]
+    widget_spacing = 6
 
-[wallpaper]
-directory = "/home/thanmatt/Pictures/wallpapers"
-fill_mode = "crop"
-fill_color = "#1a1a2e"
-transition = [ "honeycomb" ]
-transition_duration = 1500.0
-edge_smoothness = 0.05
-
-    [wallpaper.automation]
-    enabled = false
-    interval_seconds = 300
-    order = "random"
-
-[weather]
-enabled = false
-
-[dock]
-enabled = false
-shadow = false
+        [[bar.default.capsule_group]]
+        enabled = true
+        fill = "surface_variant"
+        id = "g1"
+        members = [ "cpu", "ram", "temp", "disk_used" ]
+        opacity = 0.75999999046325684
+        padding = 11.0
 
 [battery]
 warning_threshold = 20
 
-[lockscreen]
-blur_intensity = 0.68
-tint_intensity = 0.0
+[control_center.calendar]
+show_events_card = false
+
+[dock]
+enabled = false
+shadow = false
 
 [idle]
 pre_action_fade_seconds = 5.0
@@ -56,79 +48,205 @@ pre_action_fade_seconds = 5.0
     enabled = true
     timeout = 660.0
 
-    [idle.behavior.screen-off]
-    enabled = true
-    timeout = 600.0
-
     [idle.behavior.lock-and-suspend]
     enabled = true
     timeout = 1800.0
 
+    [idle.behavior.screen-off]
+    enabled = true
+    timeout = 600.0
+
+[lockscreen]
+blur_intensity = 0.68000000000000005
+tint_intensity = 0.0
+wallpaper = "/home/thanmatt/Pictures/wallpapers/mecha-nostalgia.png"
+
+[lockscreen_widgets]
+enabled = true
+schema_version = 2
+widget_order = [ "lockscreen-login-box@WAYLAND-1", "lockscreen-login-box@DP-1", "lockscreen-widget-0000000000000001" ]
+
+    [lockscreen_widgets.grid]
+    cell_size = 16
+    major_interval = 4
+    visible = true
+
+    [lockscreen_widgets.widget."lockscreen-login-box@DP-1"]
+    box_height = 70.0
+    box_width = 400.0
+    cx = 1280.0
+    cy = 1027.0
+    output = "DP-1"
+    rotation = 0.0
+    type = "login_box"
+
+        [lockscreen_widgets.widget."lockscreen-login-box@DP-1".settings]
+        background_color = "surface_variant"
+        background_opacity = 0.88
+        background_radius = 10.0
+        center_password_text = true
+        input_opacity = 1.0
+        input_radius = 6.0
+        layout = "compact"
+        show_caps_lock = true
+        show_keyboard_layout = true
+        show_login_button = false
+        show_media = false
+        show_session_buttons = false
+        show_unlock_hint = false
+        show_weather = false
+
+    [lockscreen_widgets.widget."lockscreen-login-box@WAYLAND-1"]
+    box_height = 196.0
+    box_width = 720.0
+    cx = 320.0
+    cy = 178.0
+    output = "WAYLAND-1"
+    rotation = 0.0
+    type = "login_box"
+
+        [lockscreen_widgets.widget."lockscreen-login-box@WAYLAND-1".settings]
+        background_color = "surface_variant"
+        background_opacity = 0.88
+        background_radius = 12.0
+        center_password_text = false
+        input_opacity = 1.0
+        input_radius = 6.0
+        layout = "regular"
+        show_caps_lock = true
+        show_keyboard_layout = true
+        show_login_button = true
+        show_media = true
+        show_session_buttons = true
+        show_unlock_hint = true
+        show_weather = true
+
+    [lockscreen_widgets.widget.lockscreen-widget-0000000000000001]
+    box_height = 384.0
+    box_width = 880.0
+    cx = 1280.0
+    cy = 720.0
+    output = "DP-1"
+    rotation = 0.0
+    type = "clock"
+
+        [lockscreen_widgets.widget.lockscreen-widget-0000000000000001.settings]
+        background = false
+        center_text = true
+        clock_style = "digital"
+        color = "on_surface"
+        format = "{:%H}\\n{:%M}"
+        shadow = false
+
 [notification]
 background_opacity = 1.0
-position = "top_right"
 layer = "overlay"
+position = "top_right"
 
 [osd]
 background_opacity = 1.0
 position = "top_right"
 position_vertical = "top_right"
 
-[shell.launcher]
-compact = true
-sort_by_usage = false
-categories = false
+[plugin_settings."alexander/mimir"]
+api_endpoint = "http://localhost:11434/v1"
 
-    # :: Windows provider — search currently-open windows from the launcher.
-    # :: Activating a window result focuses/switches to it instead of spawning
-    # :: a new instance. `global = true` surfaces window matches in plain
-    # :: searches too (not just the "/win" prefixed search), e.g. Super+Space
-    # :: -> type "slack" -> the existing Slack window shows up alongside the
-    # :: "launch" entry. https://docs.noctalia.dev/noctalia/configuration/shell/
-    [shell.launcher.providers.windows]
-    global = true
+[plugins]
+enabled = [ "felipeartur/ai-usagebar", "alexander/mimir" ]
 
-[bar]
-order = [ "default" ]
+[shell]
+font_family = "FiraCode Nerd Font"
 
-    [bar.default]
-    background_opacity = 0.0
-    capsule = true
-    capsule_opacity = 0.76
-    shadow = false
-    margin_edge = 4
-    margin_ends = 16
-    widget_spacing = 6
-    start = [ "cpu", "ram", "temp", "disk_used", "workspaces" ]
-    center = [ "clock", "media" ]
-    end = [ "network", "volume", "battery", "tray", "notifications", "control-center" ]
+    [shell.animation]
+    enabled = true
+    speed = 1.5000000223517418
 
-[widget.disk_used]
-type = "sysmon"
-stat = "disk_used_pct"
+    [shell.launcher]
+    categories = false
+    compact = true
+    sort_by_usage = false
+
+        [shell.launcher.providers.windows]
+        global = true
+
+    [shell.panel]
+    open_near_click_control_center = true
+
+[theme]
+builtin = "Gruvbox"
+mode = "dark"
+source = "wallpaper"
+wallpaper_scheme = "m3-tonal-spot"
+
+    [theme.templates]
+    builtin_ids = [ "gtk3", "gtk4" ]
+
+[wallpaper]
+directory = "/home/thanmatt/Pictures/wallpapers"
+edge_smoothness = 0.050000000000000003
+fill_color = "#1a1a2e"
+fill_mode = "crop"
+transition = [ "honeycomb" ]
+transition_duration = 1500.0
+transition_on_startup = true
+
+    [wallpaper.automation]
+    enabled = false
+    interval_seconds = 300
+    order = "random"
+
+    [wallpaper.default]
+    path = "/home/thanmatt/Pictures/wallpapers/mecha-nostalgia.png"
+
+    [wallpaper.last]
+    path = "/home/thanmatt/Pictures/wallpapers/mecha-nostalgia.png"
+
+    [wallpaper.monitors.DP-1]
+    path = "/home/thanmatt/Pictures/wallpapers/mecha-nostalgia.png"
+
+[weather]
+enabled = false
+
+[widget.bar]
+scale = 1.2
+type = "felipeartur/ai-usagebar:bar"
+vendor = "anthropic"
 
 [widget.clock]
-type = "clock"
 format = "{:%I:%M:%S %p %a, %b %d, %Y}"
 tooltip_format = "{:%A, %B %d, %Y}"
+type = "clock"
 
-[widget.workspaces]
-type = "workspaces"
-labels_only_when_occupied = true
-pill_scale = 0.6
-max_label_chars = 2
+[widget.cpu]
+display = "text"
+
+[widget.disk_used]
+display = "text"
+stat = "disk_used_pct"
+type = "sysmon"
+
+[widget.media]
+album_art_only = true
+hide_when_no_media = true
+
+[widget.network]
+show_label = false
+
+[widget.ram]
+display = "text"
+
+[widget.temp]
+display = "text"
 
 [widget.tray]
-type = "tray"
+detached_panel = true
 drawer = true
+drawer_item_size = 24.0
+type = "tray"
 
-# --- Not ported ---
-# - plugin:privacy-indicator and plugin:model-usage: no v5 equivalent.
-#   v5 plugins are an experimental Luau system from a different source repo
-#   (official-plugins / community-plugins, not noctalia-dev/noctalia-plugins).
-#   Your old ~/thanmatt-dotfiles/noctalia/plugins/ QML plugins won't load in v5.
-# - VPN bar widget: removed as a standalone widget; the "network" widget now
-#   shows a VPN shield indicator itself (vpn_status = "replace" by default).
-# - Per-urgency notification durations, terminalCommand override, volumeStep,
-#   brightnessStep, syncGsettings, colorScheme scheduling: no confirmed v5
-#   field found in the current beta; left at defaults.
+[widget.workspaces]
+labels_only_when_occupied = true
+max_label_chars = 2
+pill_scale = 0.59999999999999998
+style = "minimal"
+type = "workspaces"

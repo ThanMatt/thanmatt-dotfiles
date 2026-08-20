@@ -26,11 +26,19 @@
 (defvar my/gitlab-project-name (or (getenv "GITLAB_PROJECT_NAME") "project")
   "Short name for your project (set via GITLAB_PROJECT_NAME env var)")
 
+(defun my/gitlab-issues-relative-dir ()
+  ":: vault-relative path for `my/gitlab-issues-dir' -- read by
+   `my/vault-rebind-alist' so a vault switch re-points it. Kept as a function
+   (not a literal string) because it depends on `my/gitlab-project-name'."
+  (format "projects/%s/issues/" my/gitlab-project-name))
+
 (defvar my/gitlab-issues-dir
   (expand-file-name
    (or (getenv "GITLAB_ISSUES_DIR")
-       (format "%sprojects/%s/issues" my/notes-dir my/gitlab-project-name)))
-  "Directory to store GitLab issue files (set via GITLAB_ISSUES_DIR env var)")
+       (concat my/notes-dir (my/gitlab-issues-relative-dir))))
+  "Directory to store GitLab issue files (set via GITLAB_ISSUES_DIR env var).
+Vault-scoped: re-pointed at the active vault on every `my/vault-switch'
+unless GITLAB_ISSUES_DIR is set, in which case the env var always wins.")
 
 (defun my/gitlab-safe-title (title &optional max-length)
   "Sanitize TITLE for use in a filename, truncating to MAX-LENGTH (default 60)."

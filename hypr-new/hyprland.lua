@@ -49,7 +49,9 @@ hl.on("hyprland.start", function()
 	-- :: Hyprland-specific backend plus the GTK backend (hyprland-portals.conf
 	-- :: routes unhandled interfaces, including Settings, to gtk) and the
 	-- :: main router.
-	hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE")
+	hl.exec_cmd(
+		"dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE"
+	)
 	hl.exec_cmd("/usr/libexec/xdg-desktop-portal-hyprland")
 	hl.exec_cmd("/usr/libexec/xdg-desktop-portal-gtk")
 	hl.exec_cmd("/usr/libexec/xdg-desktop-portal")
@@ -65,7 +67,7 @@ hl.on("hyprland.start", function()
 	-- :: qs/QML at all, so this is what picks it up once v4 is retired.
 	hl.exec_cmd(
 		"env NOCTALIA_SETTINGS_FILE=$HOME/.config/noctalia/settings.hyprland.json qs -c noctalia-shell "
-		.. "|| noctalia -d"
+			.. "|| noctalia -d"
 	)
 	hl.exec_cmd("hypridle") -- :: sleep/lock broker for hyprlock (see hypridle.conf)
 	hl.exec_cmd("~/.config/hypr/scripts/monitor-watch.py") -- :: monitorremoved -> re-run the clamshell check (see LID SWITCH)
@@ -94,6 +96,12 @@ hl.env("HYPRCURSOR_SIZE", "24")
 -- :: entirely on the first attempt).
 local home = os.getenv("HOME")
 hl.env("PATH", home .. "/.cargo/bin:" .. home .. "/.local/bin:" .. os.getenv("PATH"))
+
+-- :: Same problem, different variable: modules/gitlab.el reads these via
+-- :: getenv at Emacs startup, but Emacs is spawned by Hyprland/the launcher,
+-- :: not an interactive fish shell -- `set -Ux` in fish never reaches it.
+hl.env("GITLAB_PROJECT_ID", "53733314")
+hl.env("GITLAB_PROJECT_NAME", "mos")
 
 -----------------------
 ---- LOOK AND FEEL ----
@@ -304,16 +312,30 @@ hl.bind(mainMod .. " + Q", hl.dsp.window.close()) -- :: $mod+q -> kill
 hl.bind(mainMod .. " + SHIFT + C", hl.dsp.exec_cmd("hyprctl reload")) -- :: $mod+Shift+c -> reload
 hl.bind(mainMod .. " + SHIFT + E", hl.dsp.exit()) -- :: $mod+Shift+e -> exit session
 
+hl.bind(mainMod .. "+ G", hl.dsp.exec_cmd("noctalia msg panel-toggle alexander/mimir:chat"))
+
 -- :: Launcher / menus / clipboard / emoji / session — all Noctalia IPC (as in Sway).
 -- :: Same v4-first, v5-fallback pattern as the AUTOSTART block: v4's `qs ipc call`
 -- :: syntax is tried first, falling back to v5's `noctalia msg` if `qs` isn't
 -- :: present (confirmed against the running v5 daemon: panel-toggle launcher,
 -- :: with /emo and /clip context strings, and panel-toggle session).
-hl.bind(mainMod .. " + Space", hl.dsp.exec_cmd("qs -c noctalia-shell ipc call launcher toggle || noctalia msg panel-toggle launcher")) -- :: $mod+space
+hl.bind(
+	mainMod .. " + Space",
+	hl.dsp.exec_cmd("qs -c noctalia-shell ipc call launcher toggle || noctalia msg panel-toggle launcher")
+) -- :: $mod+space
 hl.bind(mainMod .. " + C", hl.dsp.exec_cmd("~/.config/sway/scripts/calc.sh")) -- :: $mod+c -> calculator
-hl.bind(mainMod .. " + Period", hl.dsp.exec_cmd("qs -c noctalia-shell ipc call launcher emoji || noctalia msg panel-toggle launcher /emo")) -- :: $mod+period
-hl.bind(mainMod .. " + ALT + V", hl.dsp.exec_cmd("qs -c noctalia-shell ipc call launcher clipboard || noctalia msg panel-toggle clipboard")) -- :: $mod+alt+v
-hl.bind(mainMod .. " + ALT + Space", hl.dsp.exec_cmd("qs -c noctalia-shell ipc call sessionMenu toggle || noctalia msg panel-toggle session")) -- :: $mod+alt+space
+hl.bind(
+	mainMod .. " + Period",
+	hl.dsp.exec_cmd("qs -c noctalia-shell ipc call launcher emoji || noctalia msg panel-toggle launcher /emo")
+) -- :: $mod+period
+hl.bind(
+	mainMod .. " + ALT + V",
+	hl.dsp.exec_cmd("qs -c noctalia-shell ipc call launcher clipboard || noctalia msg panel-toggle clipboard")
+) -- :: $mod+alt+v
+hl.bind(
+	mainMod .. " + ALT + Space",
+	hl.dsp.exec_cmd("qs -c noctalia-shell ipc call sessionMenu toggle || noctalia msg panel-toggle session")
+) -- :: $mod+alt+space
 -- :: Manual lock -> hyprlock (Super+L is taken by focus-right). Direct call so
 -- :: it works even if hypridle isn't running; `pidof` guard avoids a 2nd instance.
 hl.bind(mainMod .. " + ALT + L", hl.dsp.exec_cmd("pidof hyprlock || hyprlock")) -- :: $mod+alt+l -> lock
@@ -321,7 +343,9 @@ hl.bind(mainMod .. " + ALT + L", hl.dsp.exec_cmd("pidof hyprlock || hyprlock")) 
 -- :: what this actually does. Wrapped in a closure (not passed directly) so
 -- :: definition order in this file doesn't matter -- the global lookup happens
 -- :: at keypress time, not here.
-hl.bind(mainMod .. " + ALT + F", function() ChillModeToggle() end) -- :: $mod+alt+f -> toggle chill mode
+hl.bind(mainMod .. " + ALT + F", function()
+	ChillModeToggle()
+end) -- :: $mod+alt+f -> toggle chill mode
 
 --------------------------------------------------------------------------------
 -- Screenshots (grim / slurp / swappy) — identical tooling to Sway
@@ -462,10 +486,10 @@ hl.bind(mainMod .. " + G", hl.dsp.exec_cmd("~/.config/hypr/scripts/focus-mode-to
 -- :: pointless, and it would fight fullscreen/pinned windows sitting above them.
 -- :: alterzorder does not move focus, so this can't re-trigger itself.
 hl.on("window.active", function()
-    local w = hl.get_active_window()
-    if w and w.floating then
-        hl.dispatch(hl.dsp.window.bring_to_top())
-    end
+	local w = hl.get_active_window()
+	if w and w.floating then
+		hl.dispatch(hl.dsp.window.bring_to_top())
+	end
 end)
 
 -- :: Sway `$mod+a focus parent` relies on i3/Sway's container tree, which
@@ -548,6 +572,18 @@ hl.window_rule({
 	name = "suppress-maximize-events",
 	match = { class = ".*" },
 	suppress_event = "maximize",
+})
+
+-- xdg-desktop-portal-hyprland spawns hyprland-share-picker (used by OBS/any
+-- app using the standard ScreenCast portal flow, unlike Discord/Vesktop which
+-- build their own in-app picker) as a detached process with no workspace
+-- context, so Hyprland always opens it on workspace 1 regardless of which
+-- workspace is actually focused -- it looked like the picker just never
+-- appeared. Pin it so it's visible immediately no matter where you are.
+hl.window_rule({
+	name = "pin-share-picker",
+	match = { class = "^(hyprland-share-picker)$" },
+	workspace = "current",
 })
 
 -- Fix some dragging issues with XWayland
