@@ -11,6 +11,7 @@
 ;; ::   RET / e   exec into it     l   follow its logs
 ;; ::   g / r     refresh          a   toggle stopped containers
 ;; ::   y         copy its name    q   bury the buffer
+;; ::   d         stop it          (C-u d -> kill it)
 ;; ::
 ;; :: `ps'/`dps' render into one reusable read-only buffer; `exec'/`logs' get a
 ;; :: vterm in the right-side split (same machinery the dev commands in web.el
@@ -142,7 +143,7 @@ reasoning as the db table viewers."
   ":: Header line: what's being shown + the keys that act on it."
   (concat " " (if (eq my/docker-ps--source 'dps) "dps" "docker ps")
           (if my/docker-ps--all " -a" "")
-          "   RET/e exec   l logs   y copy   a all   g refresh   q bury"))
+          "   RET/e exec   l logs   d stop (C-u kill)   y copy   a all   g refresh   q bury"))
 
 (defun my/docker-ps--render ()
   ":: (Re)fill the current listing buffer, keeping point on the same line."
@@ -218,6 +219,17 @@ prefix -- which also makes the header row fail cleanly."
   ":: Follow the logs of the container on this line."
   (interactive)
   (my/docker-logs--run (plist-get (my/docker-ps--container-at-point) :name)))
+
+(defun my/docker-ps-stop (&optional kill)
+  ":: Stop the container on this line. With KILL (C-u), `docker kill' it instead.
+Asks for confirmation first -- there's no undo for either."
+  (interactive "P")
+  (let* ((container (my/docker-ps--container-at-point))
+         (name (plist-get container :name)))
+    (when (yes-or-no-p (format "%s %s? " (if kill "Kill" "Stop") name))
+      (my/docker--run (if kill "kill" "stop") name)
+      (my/docker-ps--render)
+      (message "%s %s" (if kill "Killed" "Stopped") name))))
 
 (defun my/docker-ps-copy-name ()
   ":: Copy the container name on this line to the clipboard."
@@ -318,6 +330,7 @@ follow exits immediately."
       :n "RET" #'my/docker-ps-exec
       :n "e"   #'my/docker-ps-exec
       :n "l"   #'my/docker-ps-logs
+      :n "d"   #'my/docker-ps-stop
       :n "y"   #'my/docker-ps-copy-name
       :n "a"   #'my/docker-ps-toggle-all
       :n "g"   #'my/docker-ps-refresh
