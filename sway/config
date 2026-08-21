@@ -419,3 +419,5 @@ default_floating_border pixel 3
 client.focused          #7daea3 #7daea3 #282828 #a9b665 #7daea3
 client.focused_inactive #3c3836 #3c3836 #d4be98 #3c3836 #3c3836
 client.unfocused        #282828 #282828 #d4be98 #282828 #282828
+
+include ~/.config/sway/noctalia

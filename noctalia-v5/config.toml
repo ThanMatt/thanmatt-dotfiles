@@ -42,29 +42,50 @@ enabled = false
 shadow = false
 
 [idle]
+behavior_order = [ "dim", "lock", "lock-and-suspend", "screen-off" ]
 pre_action_fade_seconds = 5.0
 
+    [idle.behavior.dim]
+    action = "custom"
+    command = "/home/thanmatt/.config/sway/scripts/panel-dim.sh dim"
+    enabled = false
+    resume_command = "/home/thanmatt/.config/sway/scripts/panel-dim.sh restore"
+    timeout = 5.0
+
     [idle.behavior.lock]
+    action = "lock"
     enabled = true
-    timeout = 660.0
+    timeout = 525.0
 
     [idle.behavior.lock-and-suspend]
+    action = "lock_and_suspend"
     enabled = true
     timeout = 1800.0
 
     [idle.behavior.screen-off]
+    action = "screen_off"
     enabled = true
-    timeout = 600.0
+    timeout = 500.0
+
+[location]
+address = "Manila, Philippines"
+auto_locate = false
 
 [lockscreen]
 blur_intensity = 0.68000000000000005
 tint_intensity = 0.0
-wallpaper = "/home/thanmatt/Pictures/wallpapers/mecha-nostalgia.png"
+wallpaper = "/home/thanmatt/Pictures/wallpapers/my-neighbor-totoro-sunflowers.png"
 
 [lockscreen_widgets]
 enabled = true
 schema_version = 2
-widget_order = [ "lockscreen-login-box@WAYLAND-1", "lockscreen-login-box@DP-1", "lockscreen-widget-0000000000000001" ]
+widget_order = [
+    "lockscreen-login-box@WAYLAND-1",
+    "lockscreen-login-box@DP-1",
+    "lockscreen-widget-0000000000000004",
+    "lockscreen-widget-0000000000000005",
+    "lockscreen-widget-0000000000000003"
+]
 
     [lockscreen_widgets.grid]
     cell_size = 16
@@ -75,18 +96,18 @@ widget_order = [ "lockscreen-login-box@WAYLAND-1", "lockscreen-login-box@DP-1", 
     box_height = 70.0
     box_width = 400.0
     cx = 1280.0
-    cy = 1027.0
+    cy = 781.0
     output = "DP-1"
     rotation = 0.0
     type = "login_box"
 
         [lockscreen_widgets.widget."lockscreen-login-box@DP-1".settings]
         background_color = "surface_variant"
-        background_opacity = 0.88
-        background_radius = 10.0
+        background_opacity = 0.0
+        background_radius = 0.0
         center_password_text = true
-        input_opacity = 1.0
-        input_radius = 6.0
+        input_opacity = 0.31
+        input_radius = 13.0
         layout = "compact"
         show_caps_lock = true
         show_keyboard_layout = true
@@ -138,6 +159,51 @@ widget_order = [ "lockscreen-login-box@WAYLAND-1", "lockscreen-login-box@DP-1", 
         format = "{:%H}\\n{:%M}"
         shadow = false
 
+    [lockscreen_widgets.widget.lockscreen-widget-0000000000000003]
+    box_height = 48.0
+    box_width = 176.0
+    cx = 1280.0
+    cy = 680.0
+    output = "DP-1"
+    rotation = 0.0
+    type = "clock"
+
+        [lockscreen_widgets.widget.lockscreen-widget-0000000000000003.settings]
+        background = false
+        background_opacity = 0.57000000000000006
+        format = "{:%A}, {:%d} {:%b} {:%y}"
+
+    [lockscreen_widgets.widget.lockscreen-widget-0000000000000004]
+    box_height = 112.0
+    box_width = 160.0
+    cx = 1280.0
+    cy = 494.5
+    output = "DP-1"
+    rotation = 0.0
+    type = "clock"
+
+        [lockscreen_widgets.widget.lockscreen-widget-0000000000000004.settings]
+        background = false
+        format = "{:%H}"
+
+    [lockscreen_widgets.widget.lockscreen-widget-0000000000000005]
+    box_height = 112.0
+    box_width = 160.0
+    cx = 1280.0
+    cy = 592.0
+    output = "DP-1"
+    rotation = 0.0
+    type = "clock"
+
+        [lockscreen_widgets.widget.lockscreen-widget-0000000000000005.settings]
+        background = false
+        format = "{:%M}"
+
+[nightlight]
+enabled = true
+temperature_day = 6500
+temperature_night = 2700
+
 [notification]
 background_opacity = 1.0
 layer = "overlay"
@@ -179,7 +245,8 @@ source = "wallpaper"
 wallpaper_scheme = "m3-tonal-spot"
 
     [theme.templates]
-    builtin_ids = [ "gtk3", "gtk4" ]
+    builtin_ids = [ "gtk3", "gtk4", "sway" ]
+    community_ids = [ "discord" ]
 
 [wallpaper]
 directory = "/home/thanmatt/Pictures/wallpapers"
@@ -196,16 +263,16 @@ transition_on_startup = true
     order = "random"
 
     [wallpaper.default]
-    path = "/home/thanmatt/Pictures/wallpapers/mecha-nostalgia.png"
+    path = "/home/thanmatt/Pictures/wallpapers/my-neighbor-totoro-sunflowers.png"
 
     [wallpaper.last]
-    path = "/home/thanmatt/Pictures/wallpapers/mecha-nostalgia.png"
+    path = "/home/thanmatt/Pictures/wallpapers/my-neighbor-totoro-sunflowers.png"
 
     [wallpaper.monitors.DP-1]
-    path = "/home/thanmatt/Pictures/wallpapers/mecha-nostalgia.png"
+    path = "/home/thanmatt/Pictures/wallpapers/my-neighbor-totoro-sunflowers.png"
 
 [weather]
-enabled = false
+enabled = true
 
 [widget.bar]
 scale = 1.2
@@ -213,9 +280,12 @@ type = "felipeartur/ai-usagebar:bar"
 vendor = "anthropic"
 
 [widget.clock]
-format = "{:%I:%M:%S %p %a, %b %d, %Y}"
+format = "{:%H:%M:%S %p %a, %b %d, %Y}"
 tooltip_format = "{:%A, %B %d, %Y}"
 type = "clock"
+
+[widget.control-center]
+glyph = "send"
 
 [widget.cpu]
 display = "text"
