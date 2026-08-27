@@ -362,6 +362,18 @@ hl.bind(
 )
 
 --------------------------------------------------------------------------------
+-- Screen recording (wf-recorder / slurp) — the macOS Cmd+Shift+5 equivalent
+-- :: Same script as Sway ($mod+shift+r there); it lives under sway/scripts
+-- :: because it's WM-agnostic, like calc.sh and audio-routing.sh above.
+-- :: A keybind can only launch a process, never signal one, so the start/stop
+-- :: toggle is the script's pidfile — see its header comment.
+-- :: SUPER+R is the resize submap, so recording takes SUPER+SHIFT+R.
+--------------------------------------------------------------------------------
+hl.bind(mainMod .. " + SHIFT + R", hl.dsp.exec_cmd("~/.config/sway/scripts/wf-record.sh toggle")) -- :: region -> record
+-- :: Whole focused monitor, with system audio (the default PipeWire sink monitor).
+hl.bind(mainMod .. " + ALT + R", hl.dsp.exec_cmd("~/.config/sway/scripts/wf-record.sh output audio"))
+
+--------------------------------------------------------------------------------
 -- Focus (vim keys + arrows)  — Sway `focus left/down/up/right`
 --------------------------------------------------------------------------------
 hl.bind(mainMod .. " + " .. L, hl.dsp.focus({ direction = "left" }))

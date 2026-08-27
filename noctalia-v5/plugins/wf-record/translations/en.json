@@ -1,0 +1,11 @@
+{
+  "settings.hide_when_idle.label": "Hide when idle",
+  "settings.hide_when_idle.description": "Show the widget only while a recording is running.",
+  "settings.show_elapsed.label": "Show elapsed time",
+  "settings.show_elapsed.description": "Display how long the current recording has been running.",
+  "tooltip.recording": "Recording",
+  "tooltip.idle": "Not recording",
+  "tooltip.file": "File",
+  "tooltip.hint": "Click to stop",
+  "tooltip.hint-idle": "Click to select a region and record"
+}

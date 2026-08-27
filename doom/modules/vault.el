@@ -99,9 +99,10 @@
 ;; ──────────────────────────────────────────────────────
 ;; :: These modules capture `my/notes-dir' in a top-level `defvar' at load time
 ;; :: (finance.el:4, todo-agenda.el:8, inventory.el:4, reminders.el:19,
-;; :: org-brain.el:3, schema.el:10). They're correct at startup -- this file loads
-;; :: first -- but go stale on a switch, so we re-`setq' them. Add an entry here
-;; :: whenever a new module derives a path from `my/notes-dir' in a defvar.
+;; :: org-brain.el:3, schema.el:10, gitlab.el:35,934). They're correct at
+;; :: startup -- this file loads first -- but go stale on a switch, so we
+;; :: re-`setq' them. Add an entry here whenever a new module derives a path
+;; :: from `my/notes-dir' in a defvar.
 (defvar my/vault-rebind-alist
   '((org-brain-notes-dir   . "")             ;; :: the vault root itself
     (finance-directory     . "finance/")
@@ -109,7 +110,8 @@
     (inventory-file        . "inventory.org")
     (my/reminders-file     . "reminders.org")
     (my/schema-file        . "schema.d.ts")
-    (my/gitlab-issues-dir  . my/gitlab-issues-relative-dir))
+    (my/gitlab-issues-dir  . my/gitlab-issues-relative-dir)
+    (my/gitlab-mr-template-file . "templates/merge_request_template.md"))
   ":: alist of (SYMBOL . PATH-RELATIVE-TO-VAULT) rebound on every vault switch.
    PATH-RELATIVE-TO-VAULT is normally a string, but may be a 0-arg function
    symbol for paths that depend on other state (e.g. the gitlab project name)

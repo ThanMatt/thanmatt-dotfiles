@@ -14,7 +14,7 @@ order = [ "default" ]
     capsule_opacity = 0.76000000000000001
     capsule_padding = 11.0
     center = [ "clock", "media" ]
-    end = [ "network", "bar", "volume", "battery", "tray", "notifications", "control-center" ]
+    end = [ "recording", "network", "bar", "volume", "battery", "tray", "notifications", "control-center" ]
     font_family = "FiraCode Nerd Font"
     margin_edge = 4
     margin_ends = 16
@@ -304,6 +304,14 @@ show_label = false
 
 [widget.ram]
 display = "text"
+
+# Recording indicator -- reads the pidfile written by sway/scripts/wf-record.sh,
+# so it lights up whether the recording was started from $mod+shift+r or from a
+# click on the widget itself. Hidden entirely while nothing is recording.
+[widget.recording]
+type = "thanmatt/wf-record:indicator"
+hide_when_idle = true
+show_elapsed = true
 
 [widget.temp]
 display = "text"

@@ -1040,6 +1040,20 @@ the current branch. If none is found, reports that no MR exists yet."
               (message "No MR for this branch yet")))
         (message "No MR for this branch yet")))))
 
+(defun my/gitlab-browse-remote ()
+  "Open the current repository's GitLab project page in the browser.
+Uses `glab repo view --web', which resolves the page from the repo's
+origin remote -- no URL parsing needed here."
+  (interactive)
+  (unless (executable-find "glab")
+    (error "glab CLI not found on PATH"))
+  (let* ((dir (or (vc-root-dir)
+                  (error "Not inside a version-controlled repository")))
+         (default-directory dir))
+    (with-temp-buffer
+      (unless (zerop (process-file "glab" nil t nil "repo" "view" "--web"))
+        (error "glab repo view --web failed: %s" (string-trim (buffer-string)))))))
+
 (defun my/gitlab-edit-mr ()
   "Edit the description of the existing MR for the current branch.
 Errors if no MR exists. Otherwise opens an editable buffer pre-filled with
@@ -1178,7 +1192,8 @@ to save or \\[my/gitlab-mr-cancel] to abort."
       :prefix "o"
       :desc "GitLab Create MR" "g M" #'my/gitlab-create-mr
       :desc "GitLab Copy MR Link" "g y" #'my/gitlab-copy-mr-link
-      :desc "GitLab Edit MR" "g e" #'my/gitlab-edit-mr)
+      :desc "GitLab Edit MR" "g e" #'my/gitlab-edit-mr
+      :desc "GitLab Browse Remote" "g b" #'my/gitlab-browse-remote)
 
 (provide 'gitlab)
 ;;; gitlab.el ends here

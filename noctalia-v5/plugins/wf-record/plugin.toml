@@ -1,0 +1,40 @@
+# Recording indicator for wf-record.sh (../../sway/scripts/wf-record.sh).
+#
+# Deliberately NOT a recorder: the script owns starting, stopping and encoding,
+# and is driven by $mod+shift+r in both the sway and Hyprland configs. This
+# plugin is a read-only view of that script's pidfile, so the bar shows the
+# truth whether the recording was started from the keybind or from the widget.
+#
+# The official noctalia/screen_recorder plugin was the alternative here; it was
+# passed over because it captures a whole monitor or a portal selection only
+# (VIDEO_SOURCES = { focused, portal }), and the point of this setup is the
+# slurp region crop.
+
+id = "thanmatt/wf-record"
+name = "Recording Indicator"
+version = "1.0.0"
+plugin_api = 9
+author = "thanmatt"
+license = "MIT"
+dependencies = ["wf-recorder"]
+tags = ["recording", "video"]
+icon = "video"
+description = "Shows a recording indicator and elapsed time while wf-record.sh is capturing."
+
+[[widget]]
+id = "indicator"
+entry = "bar.luau"
+
+  [[widget.setting]]
+  key = "hide_when_idle"
+  type = "bool"
+  label_key = "settings.hide_when_idle.label"
+  description_key = "settings.hide_when_idle.description"
+  default = true
+
+  [[widget.setting]]
+  key = "show_elapsed"
+  type = "bool"
+  label_key = "settings.show_elapsed.label"
+  description_key = "settings.show_elapsed.description"
+  default = true

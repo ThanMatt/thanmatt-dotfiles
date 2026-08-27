@@ -97,6 +97,12 @@ exec ~/.config/sway/scripts/session-env.sh noctalia -d
 exec ~/.config/sway/scripts/audio-routing.sh
 exec systemctl --user start app-org.kde.kdeconnect.daemon@autostart.service
 exec kdeconnect-indicator
+
+# :: Chill mode listener -- floats every NEW window while the toggle is on
+# :: ($mod+alt+f, or the `chill-mode` fish function). Sway has no runtime
+# :: enable/disable for a `for_window` rule the way Hyprland does, so this
+# :: subscribes to window events instead. See the script's header comment.
+exec ~/.config/sway/scripts/chill-mode.sh daemon
 ### Idle configuration
 #
 # Example configuration:
@@ -164,6 +170,14 @@ bindsym $mod+shift+s exec grim -g "$(slurp)" - | swappy -f -
 
 # Screenshot: Current window
 bindsym $mod+Shift+Print exec grim -g "$(swaymsg -t get_tree | jq -r '.. | select(.focused?) | .rect | "\(.x),\(.y) \(.width)x\(.height)"')" ~/Pictures/Screenshots/$(date +'%Y-%m-%d-%H%M%S_grim.png')
+
+# :: Screen recording: select a region, record, press again to stop (the macOS
+# :: Cmd+Shift+5 equivalent). A bindsym can only launch, never signal, so the
+# :: start/stop toggle lives in the script -- see its header comment.
+bindsym $mod+Shift+r exec ~/.config/sway/scripts/wf-record.sh toggle
+
+# :: Same, but the whole focused output, and with system audio.
+bindsym $mod+alt+r exec ~/.config/sway/scripts/wf-record.sh output audio
 
 
 
@@ -305,6 +319,10 @@ bindsym $mod+t exec kitty
     # :: window that becomes floating after it was mapped, so without this the
     # :: client's CSD preference wins and the border vanishes on float.
     bindsym $mod+Shift+space floating toggle, border pixel 3
+
+    # :: Chill mode: make floating the default for every window opened from now
+    # :: on (hyprland.lua binds the same $mod+alt+f to ChillModeToggle).
+    bindsym $mod+alt+f exec ~/.config/sway/scripts/chill-mode.sh toggle
 
     # Swap focus between the tiling area and the floating area
     # bindsym $mod+space focus mode_toggle
