@@ -5,7 +5,8 @@
 # :: lid-close.sh only ever runs on the lid-switch event, so unplugging the
 # :: external display while the lid is ALREADY closed leaves the machine awake,
 # :: unlocked and blind (eDP-1 disabled, no external output at all) until
-# :: Noctalia's idle timers catch it — hyprlock at 660s, suspend at 1800s.
+# :: Noctalia's idle timers catch it — lock at 525s, lock-and-suspend at 1800s
+# :: (noctalia/config.toml [idle]).
 # ::
 # :: This watches for `monitorremoved` and, when the lid is closed, hands the
 # :: decision straight back to lid-close.sh, so the clamshell rule itself lives

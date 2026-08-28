@@ -40,12 +40,11 @@ hyprctl eval 'hl.monitor({ output = "eDP-1", disabled = true })'
 
 if [ -z "$external" ]; then
   log "no external -> lock + suspend"
-  # :: No external display -> lock with hyprlock first so it is up before we go
-  # :: down, then suspend. hypridle's before_sleep_cmd is a backstop, but locking
-  # :: explicitly here avoids any race on slow suspends. `pidof` guard = no 2nd
-  # :: instance. Noctalia's lockOnSuspend is off (settings.json) to avoid a
-  # :: competing lock screen.
-  pidof hyprlock || hyprlock &
+  # :: No external display -> lock first so the lock screen is up before we go
+  # :: down, then suspend. Noctalia draws the lock now (hyprlock/hypridle are
+  # :: disabled); it also holds its own logind "Lock before sleep" inhibitor, so
+  # :: this explicit lock is really just belt-and-braces against a slow suspend.
+  noctalia msg session lock
   systemctl suspend
 else
   log "external present -> clamshell, staying awake"

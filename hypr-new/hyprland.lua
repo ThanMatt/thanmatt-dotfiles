@@ -57,8 +57,10 @@ hl.on("hyprland.start", function()
 	hl.exec_cmd("/usr/libexec/xdg-desktop-portal")
 
 	-- :: Noctalia shell. Tries v4 (quickshell) first; NOCTALIA_SETTINGS_FILE
-	-- :: points at a Hyprland-only settings.json (hyprlock lock wiring) so
-	-- :: Sway keeps Noctalia's built-in lock from the default settings.json.
+	-- :: points at a Hyprland-only settings.json that used to swap Noctalia's
+	-- :: built-in lock for hyprlock. That split is retired — hyprlock/hypridle
+	-- :: are disabled (hypr-new/*.conf.disabled) and Noctalia owns the lock on
+	-- :: both WMs now — so the var only matters if the dead v4 path ever runs.
 	-- :: Only settings.json differs — the config dir (themes/plugins/colors)
 	-- :: stays shared. $HOME expands via sh.
 	-- :: Falls back to the native v5 binary (~/.config/noctalia/config.toml)
@@ -69,7 +71,6 @@ hl.on("hyprland.start", function()
 		"env NOCTALIA_SETTINGS_FILE=$HOME/.config/noctalia/settings.hyprland.json qs -c noctalia-shell "
 			.. "|| noctalia -d"
 	)
-	hl.exec_cmd("hypridle") -- :: sleep/lock broker for hyprlock (see hypridle.conf)
 	hl.exec_cmd("~/.config/hypr/scripts/monitor-watch.py") -- :: monitorremoved -> re-run the clamshell check (see LID SWITCH)
 	hl.exec_cmd("~/.config/sway/scripts/audio-routing.sh") -- :: PipeWire routing (WM-agnostic)
 	hl.exec_cmd("systemctl --user start app-org.kde.kdeconnect.daemon@autostart.service")
@@ -336,9 +337,11 @@ hl.bind(
 	mainMod .. " + ALT + Space",
 	hl.dsp.exec_cmd("qs -c noctalia-shell ipc call sessionMenu toggle || noctalia msg panel-toggle session")
 ) -- :: $mod+alt+space
--- :: Manual lock -> hyprlock (Super+L is taken by focus-right). Direct call so
--- :: it works even if hypridle isn't running; `pidof` guard avoids a 2nd instance.
-hl.bind(mainMod .. " + ALT + L", hl.dsp.exec_cmd("pidof hyprlock || hyprlock")) -- :: $mod+alt+l -> lock
+-- :: Manual lock -> Noctalia's own lock screen (Super+L is taken by focus-right).
+-- :: Was hyprlock; hyprlock/hypridle are disabled now and Noctalia draws the lock
+-- :: (noctalia/config.toml: [lockscreen] + [lockscreen_widgets]). Locking twice is
+-- :: a no-op for the daemon, so no `pidof` guard is needed.
+hl.bind(mainMod .. " + ALT + L", hl.dsp.exec_cmd("noctalia msg session lock")) -- :: $mod+alt+l -> lock
 -- :: Chill mode toggle -- see ChillModeRule (WINDOWS AND WORKSPACES, below) for
 -- :: what this actually does. Wrapped in a closure (not passed directly) so
 -- :: definition order in this file doesn't matter -- the global lookup happens

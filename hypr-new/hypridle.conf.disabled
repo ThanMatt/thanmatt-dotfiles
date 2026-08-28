@@ -1,4 +1,14 @@
 # -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+# :: DISABLED (2026-08-28) — Noctalia v5 owns idle + lock now.  --
+# :: hypridle is no longer autostarted from hyprland.lua, and    --
+# :: this file is renamed .disabled so hypridle would find no    --
+# :: config even if something started it. Noctalia holds its own --
+# :: logind sleep inhibitor ("Lock before sleep"), which was the --
+# :: only job left here. Re-enable: rename back to hypridle.conf --
+# :: and restore the autostart line in hyprland.lua.             --
+# -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+
+# -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 # :: HYPRIDLE — sleep/lock broker ONLY (no idle timeouts)     --
 # ::                                                          --
 # :: Noctalia still owns idle (screen-off / idle-lock /       --

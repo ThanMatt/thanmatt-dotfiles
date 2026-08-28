@@ -1,4 +1,14 @@
 # -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+# :: DISABLED (2026-08-28) — Noctalia v5's own lock screen is    --
+# :: in use instead (noctalia/config.toml: [lockscreen] +         --
+# :: [lockscreen_widgets], locked via `noctalia msg session lock`).--
+# :: Renamed .disabled so hyprlock finds no config; nothing in    --
+# :: hyprland.lua or scripts/ calls hyprlock any more.            --
+# :: Re-enable: rename back to hyprlock.conf and repoint the      --
+# :: Super+Alt+L bind / lid-close.sh at hyprlock.                 --
+# -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+
+# -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 # :: HYPRLOCK — Noctalia-matched lock screen (Gruvbox)         --
 # :: Palette mirrors noctalia/colors.json (predefinedScheme =   --
 # :: Gruvbox, useWallpaperColors = false). Loaded automatically --
