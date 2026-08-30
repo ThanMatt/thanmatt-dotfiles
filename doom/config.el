@@ -647,6 +647,49 @@ Paste the result into any org file; following the link jumps to that exact line.
 ;; :: just don't auto-load on startup. Save/load named workspaces: SPC TAB s / l.
 
 ;; ──────────────────────────────────────────────────────
+;; :: Auto-workspace -- files under a directory open in their own workspace
+;; ──────────────────────────────────────────────────────
+;; :: Opening a file that lives under one of `my/workspace-dir-alist''s
+;; :: directories switches to that workspace (creating it if needed) and pulls
+;; :: the buffer in, so e.g. notes never leak into the dev workspace. Add a pair
+;; :: to the alist to route another tree; first match wins, so list nested
+;; :: directories BEFORE their parents.
+;; :: Only fires on `find-file-hook' -- when a file buffer is first created.
+;; :: Re-visiting an already-open buffer (`SPC ,') moves nothing, and consult's
+;; :: preview is exempt (it inhibits `find-file-hook', plus the `non-essential'
+;; :: guard below).
+(defvar my/workspace-dir-alist
+  `((,my/notes-dir . "notes"))
+  ":: Alist of (DIRECTORY . WORKSPACE-NAME): files under DIRECTORY open in
+WORKSPACE-NAME. First match wins; remove an entry to opt that tree out.")
+
+(defun my/workspace-for-file (file)
+  ":: Workspace name FILE belongs to per `my/workspace-dir-alist', else nil."
+  (let ((file (expand-file-name file)))
+    (cl-loop for (dir . ws) in my/workspace-dir-alist
+             when (string-prefix-p (file-name-as-directory (expand-file-name dir))
+                                   file)
+             return ws)))
+
+(defun my/workspace-auto-switch-h ()
+  ":: Route the file being opened to its directory's workspace."
+  (when-let* (((bound-and-true-p persp-mode))
+              ((not non-essential))          ; :: skip completion/preview visits
+              (after-init-time)              ; :: not while init/session restore runs
+              (file buffer-file-name)
+              (ws (my/workspace-for-file file))
+              ((not (string= ws (+workspace-current-name)))))
+    (let ((buf (current-buffer)))
+      (+workspace-switch ws t)
+      ;; :: persp-mode only registers buffers it's told about (Doom does it from
+      ;; :: `doom-switch-buffer-hook'); add + display explicitly so the buffer
+      ;; :: lands in the new workspace no matter how it was opened.
+      (persp-add-buffer buf (get-current-persp) nil)
+      (switch-to-buffer buf))))
+
+(add-hook 'find-file-hook #'my/workspace-auto-switch-h)
+
+;; ──────────────────────────────────────────────────────
 ;; :: Shadow workspaces -- live preview while switching (SPC TAB .)
 ;; ──────────────────────────────────────────────────────
 ;; :: While the switcher's minibuffer is open, switch to whichever candidate is
@@ -786,6 +829,65 @@ rather than workspaces."
 (map! :leader
       :desc "Split window vertically" "|" #'evil-window-vsplit
       :desc "Split window horizontally" "-" #'evil-window-split)
+
+;; ──────────────────────────────────────────────────────
+;; :: Splitting inside a docked popup (Claude Code, dev logs, ncspot)
+;; ──────────────────────────────────────────────────────
+;; :: Those buffers aren't minibuffers -- they're *side windows* (a docked
+;; :: window group at the edge of the frame), and `split-window' refuses those
+;; :: outright: "Cannot split side window or parent of side window" -- unless
+;; :: `window-combination-resize' is `side', which tells Emacs to carve the new
+;; :: pane out of the side group itself.
+;; ::
+;; :: Only the axis ALONG the strip works: a bottom/top dock splits left|right,
+;; :: a left/right dock splits top/bottom. The perpendicular axis signals *after*
+;; :: creating the window and leaves a stray pane behind, so refuse it up front.
+;; ::
+;; :: The new pane inherits `window-side' (it stays docked in the zone) but none
+;; :: of Doom's popup parameters, so C-hjkl reaches it and `delete-window' closes
+;; :: it normally. For a second Claude agent prefer `SPC d C' -- that claims a
+;; :: real popup slot, which survives hide/re-show; a hand-made split doesn't.
+(defun my/side-window-split-axis (window)
+  ":: Axis WINDOW's side group can be split along, nil if not a side window.
+`horizontal' = panes side by side (top/bottom docks), `vertical' = stacked."
+  (pcase (window-parameter window 'window-side)
+    ((or 'top 'bottom) 'horizontal)
+    ((or 'left 'right) 'vertical)))
+
+(defun my/side-window-split (axis fn args)
+  ":: Call split command FN with ARGS, allowing it inside a side window.
+AXIS is the split FN performs (`horizontal' for `SPC |', `vertical' for
+`SPC -'). Outside a side window this is a plain call."
+  (let* ((win   (selected-window))
+         (allow (my/side-window-split-axis win))
+         (buf   (window-buffer win)))
+    (cond
+     ((null allow) (apply fn args))
+     ((not (eq allow axis))
+      (user-error "A %s dock splits only %s -- use SPC %s (or raise it: SPC b ^)"
+                  (window-parameter win 'window-side)
+                  (if (eq allow 'horizontal) "side by side" "top to bottom")
+                  (if (eq allow 'horizontal) "|" "-")))
+     (t
+      (let ((window-combination-resize 'side))
+        (apply fn args))
+      ;; :: one vterm shown in two windows fights itself over the pty size, so
+      ;; :: hand the new pane another buffer and resync the dock that shrank
+      (when (eq (buffer-local-value 'major-mode buf) 'vterm-mode)
+        (unless (eq (selected-window) win)
+          (set-window-buffer (selected-window) (other-buffer buf)))
+        (when (fboundp 'my/vterm-resync-size)
+          (my/vterm-resync-size win)))))))
+
+(defadvice! my/side-window-vsplit-a (fn &rest args)
+  ":: Let `SPC |' split a docked popup instead of erroring on its side window."
+  :around #'evil-window-vsplit
+  (my/side-window-split 'horizontal fn args))
+
+(defadvice! my/side-window-hsplit-a (fn &rest args)
+  ":: Let `SPC -' split a side-docked popup instead of erroring."
+  :around #'evil-window-split
+  (my/side-window-split 'vertical fn args))
 
 ;; :: Ctrl+hjkl window navigation in every evil state (LazyVim style).
 (map! :nvieomr "C-h" #'evil-window-left
