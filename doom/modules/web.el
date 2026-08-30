@@ -421,53 +421,134 @@ process keeps running and this brings the buffer back in a bottom split."
 ;; :: Claude Code
 ;; ──────────────────────────────────────────────────────
 
-;; :: Manage the Claude Code terminal as a persistent bottom-docked popup (like
-;; :: the db result buffers): closing with `q' only buries it, and it stays
-;; :: findable in `SPC ,'. `:quit nil :ttl nil' keeps the vterm process alive.
+;; :: Claude Code lives in a persistent bottom-docked popup "zone" (like the db
+;; :: result buffers): closing with `q' only buries it, and it stays findable in
+;; :: `SPC ,'. `:quit nil :ttl nil' keeps the vterm process alive.
+;; ::
+;; :: `SPC d c' owns the project's first agent; `SPC d C' spawns extra agents
+;; :: INSIDE the same zone. Emacs refuses to `split-window' a side window, so
+;; :: instead each agent claims its own `slot' in the bottom side-window group --
+;; :: Emacs lays those out left-to-right across the strip (slot 0 | 1 | 2 ...),
+;; :: which is the split.
 (when (fboundp 'set-popup-rule!)
   (set-popup-rule! "^\\*Claude Code "
     :side 'bottom :size 0.4 :select t :modeline t :quit nil :ttl nil))
 
-;; :: `switch-to-buffer' (e.g. reaching the buffer from `SPC ,') ignores
-;; :: display-buffer-alist, so route the Claude Code buffer back through
-;; :: `pop-to-buffer' to land in its popup slot no matter how it's reached.
-(defadvice! my/claude-code-buffer-obeys-popup-rule-a (fn buffer-or-name &rest args)
-  :around #'switch-to-buffer
-  (let ((buf (get-buffer buffer-or-name)))
-    (if (and buf (string-prefix-p "*Claude Code " (buffer-name buf)))
-        (pop-to-buffer buf)
-      (apply fn buffer-or-name args))))
+(defvar my/claude-slots (make-hash-table :test 'equal)
+  ":: Zone slot per Claude Code buffer name (slot 0 = the `SPC d c' agent).")
+
+(defun my/claude-base-name ()
+  ":: Buffer name of this project's primary (`SPC d c') agent."
+  (format "*Claude Code [%s]*" (my/project-name)))
+
+(defun my/claude-buffer-p (buf)
+  ":: Non-nil if BUF is a Claude Code agent buffer (any project)."
+  (and (bufferp buf)
+       (buffer-live-p buf)
+       (string-prefix-p "*Claude Code " (buffer-name buf))))
+
+(defun my/claude-slot (buf)
+  ":: Zone slot assigned to BUF; anything unregistered defaults to slot 0."
+  (or (gethash (buffer-name buf) my/claude-slots) 0))
+
+(defun my/claude-agents ()
+  ":: This project's live agents, ordered left-to-right the way they're shown."
+  (let ((base (my/claude-base-name)))
+    (sort (seq-filter (lambda (b) (string-prefix-p base (buffer-name b)))
+                      (buffer-list))
+          (lambda (a b) (< (my/claude-slot a) (my/claude-slot b))))))
+
+(defun my/claude-free-slot ()
+  ":: Lowest slot no live agent holds, so killing one frees its place again."
+  (let ((used (mapcar #'my/claude-slot (my/claude-agents)))
+        (slot 0))
+    (while (memq slot used) (setq slot (1+ slot)))
+    slot))
+
+(defun my/claude-display (buffer-or-name)
+  ":: Show an agent in the bottom zone at ITS OWN slot; returns the window.
+Goes through `+popup-buffer' with an explicit alist instead of plain
+`display-buffer': the shared `^\\*Claude Code ' popup rule carries no slot, so
+routing through it would stack every agent onto slot 0 (each new one replacing
+the last) rather than placing them side by side."
+  (let* ((buf (get-buffer buffer-or-name))
+         (+popup--inhibit-transient t)
+         (window
+          (+popup-buffer
+           buf
+           `((actions . (+popup-display-buffer-stacked-side-window-fn))
+             (side    . bottom)
+             (size    . 0.4)
+             (slot    . ,(my/claude-slot buf))
+             (vslot   . 0)
+             (window-parameters . ((ttl    . nil)
+                                   (quit   . nil)
+                                   (select . t)
+                                   (modeline . t)))))))
+    ;; :: agents share the strip, so each is far narrower than the frame the
+    ;; :: vterm was born in -- resync `$COLUMNS' or Claude's TUI redraws garbled
+    (my/vterm-resync-size window)
+    window))
+
+(defun my/claude-start (buf-name root slot)
+  ":: Create BUF-NAME as a vterm at ROOT in SLOT, launch `claude', show + focus."
+  (unless (fboundp 'vterm)
+    (user-error "vterm not loaded -- enable ':term vterm' in init.el"))
+  (puthash buf-name slot my/claude-slots)
+  ;; :: create fresh vterm without hijacking window layout
+  (let ((default-directory root))
+    (save-window-excursion (vterm buf-name)))
+  (let ((buf (get-buffer buf-name)))
+    ;; :: make it a first-class workspace buffer (SPC ,) and let `q' bury the
+    ;; :: popup from normal state without killing the running session
+    (my/dev-register-buffer buf)
+    (with-current-buffer buf
+      (when (fboundp 'evil-local-set-key)
+        (evil-local-set-key 'normal (kbd "q") #'+popup/close)))
+    ;; :: small delay for vterm to initialize before sending the command
+    (run-with-timer 0.4 nil
+                    (lambda ()
+                      (when-let ((b (get-buffer buf-name)))
+                        (with-current-buffer b
+                          (vterm-send-string "claude\n")))))
+    ;; :: show the buffer and move point into it so typing goes to Claude
+    (my/focus-window (my/claude-display buf))))
 
 (defun my/claude-code ()
-  ":: Toggle Claude Code in a persistent bottom-docked popup at the project root.
+  ":: Surface the project's primary Claude Code agent (slot 0), starting it once.
 Re-uses the buffer if it already exists; `q' buries it (the session keeps
 running), and `SPC d c' / `SPC ,' bring it back."
   (interactive)
-  (unless (fboundp 'vterm)
-    (user-error "vterm not loaded -- enable ':term vterm' in init.el"))
-  (let* ((root     (my/project-root))
-         (buf-name (format "*Claude Code [%s]*" (my/project-name))))
-    (if (buffer-live-p (get-buffer buf-name))
-        ;; :: already alive -> surface it via its popup rule and focus
-        (my/focus-window (display-buffer (get-buffer buf-name)))
-      ;; :: create fresh vterm without hijacking window layout
-      (let ((default-directory root))
-        (save-window-excursion (vterm buf-name)))
-      (let ((buf (get-buffer buf-name)))
-        ;; :: make it a first-class workspace buffer (SPC ,) and let `q' bury the
-        ;; :: popup from normal state without killing the running session
-        (my/dev-register-buffer buf)
-        (with-current-buffer buf
-          (when (fboundp 'evil-local-set-key)
-            (evil-local-set-key 'normal (kbd "q") #'+popup/close)))
-        ;; :: small delay for vterm to initialize before sending the command
-        (run-with-timer 0.4 nil
-                        (lambda ()
-                          (when-let ((b (get-buffer buf-name)))
-                            (with-current-buffer b
-                              (vterm-send-string "claude\n")))))
-        ;; :: show the buffer and move point into it so typing goes to Claude
-        (my/focus-window (display-buffer buf))))))
+  (let* ((buf-name (my/claude-base-name))
+         (buf      (get-buffer buf-name)))
+    (if (buffer-live-p buf)
+        ;; :: already alive -> surface it in its slot and focus
+        (my/focus-window (my/claude-display buf))
+      (my/claude-start buf-name (my/project-root) 0))))
+
+(defun my/claude-spawn ()
+  ":: Spawn another Claude Code agent beside the running ones, in the same zone.
+With nothing running this is just `my/claude-code'; otherwise it takes the next
+free slot, so the zone keeps splitting: [agent 1 | agent 2 | agent 3 ...].
+Sessions are independent vterms -- `SPC d k' kills one, `SPC ,' switches
+between them."
+  (interactive)
+  (if (null (my/claude-agents))
+      (my/claude-code)
+    (my/claude-start (generate-new-buffer-name (my/claude-base-name))
+                     (my/project-root)
+                     (my/claude-free-slot))))
+
+;; :: `switch-to-buffer' (e.g. reaching the buffer from `SPC ,') ignores
+;; :: display-buffer-alist, so route Claude Code buffers back through
+;; :: `my/claude-display' -- that lands each agent in its own slot no matter how
+;; :: it's reached (plain `pop-to-buffer' would drag it into slot 0).
+(defadvice! my/claude-code-buffer-obeys-popup-rule-a (fn buffer-or-name &rest args)
+  :around #'switch-to-buffer
+  (let ((buf (ignore-errors (get-buffer buffer-or-name))))
+    (if (my/claude-buffer-p buf)
+        (my/claude-display buf)
+      (apply fn buffer-or-name args))))
 
 ;; ──────────────────────────────────────────────────────
 ;; :: ncspot (Spotify TUI)
@@ -527,15 +608,21 @@ final window syncs `$COLUMNS'/`$LINES' to what's on screen."
 Binding `display-buffer-alist' to nil is the key: it stops the `^*vterm'
 popup rule (and its :ttl 0) from attaching to the window, so hiding the
 vterm with `delete-window' never kills the buffer/process — exactly why
-the Claude Code buffer persists. Returns the displayed window."
-  (let* (display-buffer-alist
-         (window
-          (display-buffer
-           (get-buffer buffer-or-name)
-           '((display-buffer-reuse-window display-buffer-in-side-window)
-             (side . right) (slot . 1) (window-width . 0.40)))))
-    (my/vterm-resync-size window)
-    window))
+the Claude Code buffer persists. Returns the displayed window.
+
+Claude agents are the exception: they own the bottom zone, so reaching one
+through the vterm switcher (`SPC d v') hands it back to `my/claude-display'
+instead of dragging it into the right-hand split."
+  (if (my/claude-buffer-p (get-buffer buffer-or-name))
+      (my/claude-display buffer-or-name)
+    (let* (display-buffer-alist
+           (window
+            (display-buffer
+             (get-buffer buffer-or-name)
+             '((display-buffer-reuse-window display-buffer-in-side-window)
+               (side . right) (slot . 1) (window-width . 0.40)))))
+      (my/vterm-resync-size window)
+      window)))
 
 (defun my/vterm-create (buf-name root)
   ":: Create vterm BUF-NAME at ROOT without the popup system hijacking it."

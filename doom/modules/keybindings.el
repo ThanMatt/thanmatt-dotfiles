@@ -46,6 +46,7 @@
                :desc "Reminders"          "r" #'my/reminders
                :desc "Magit status"       "g" #'magit-status
                :desc "Claude Code"        "c" #'my/claude-code
+               :desc "Spawn Claude agent" "C" #'my/claude-spawn
                :desc "ncspot (music)"     "m" #'my/ncspot
                :desc "Project vterm"      "t" #'my/project-vterm
                :desc "New vterm"          "T" #'my/project-vterm-new
