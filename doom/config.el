@@ -869,8 +869,22 @@ AXIS is the split FN performs (`horizontal' for `SPC |', `vertical' for
                   (if (eq allow 'horizontal) "side by side" "top to bottom")
                   (if (eq allow 'horizontal) "|" "-")))
      (t
-      (let ((window-combination-resize 'side))
-        (apply fn args))
+      ;; :: Doom hangs a `split-window' WINDOW PARAMETER on every popup
+      ;; :: (`+popup--split-window'), and it hijacks the split: unless
+      ;; :: `+popup--internal' is set it walks the window list, picks the first
+      ;; :: NON-popup window and splits that instead -- which is why `SPC |'
+      ;; :: kept landing in the main editing area. `split-window' consults that
+      ;; :: parameter before any side-window logic, so neutralize it for the
+      ;; :: duration of the call (binding `+popup--internal' isn't enough: it
+      ;; :: still routes through `ignore-window-parameters', which side windows
+      ;; :: reject outright).
+      (let ((window-combination-resize 'side)
+            (split (window-parameter win 'split-window)))
+        (unwind-protect
+            (progn (set-window-parameter win 'split-window nil)
+                   (apply fn args))
+          (when (window-live-p win)
+            (set-window-parameter win 'split-window split))))
       ;; :: one vterm shown in two windows fights itself over the pty size, so
       ;; :: hand the new pane another buffer and resync the dock that shrank
       (when (eq (buffer-local-value 'major-mode buf) 'vterm-mode)
