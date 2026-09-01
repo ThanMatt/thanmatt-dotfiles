@@ -9,7 +9,8 @@
 ;; ::    export GITLAB_URL="https://gitlab.com"  # or your company's GitLab URL
 ;; ::    export GITLAB_PROJECT_ID="your-project-id"  # find this in GitLab project settings
 ;; ::    export GITLAB_PROJECT_NAME="project-name"  # short name for your project (e.g., "myapp")
-;; ::    export GITLAB_ISSUES_DIR="$HOME/notes/projects/myapp/issues"  # where to store issue files
+;; ::    # GITLAB_ISSUES_DIR is optional: it applies only in vault flat mode.
+;; ::    # With a vault active the issue dir is derived from it -- leave it unset.
 ;; ::
 ;; :: 2. Add your GitLab token to ~/.authinfo.gpg:
 ;; ::    machine gitlab.com login api password YOUR_GITLAB_TOKEN
@@ -27,18 +28,21 @@
   "Short name for your project (set via GITLAB_PROJECT_NAME env var)")
 
 (defun my/gitlab-issues-relative-dir ()
-  ":: vault-relative path for `my/gitlab-issues-dir' -- read by
-   `my/vault-rebind-alist' so a vault switch re-points it. Kept as a function
-   (not a literal string) because it depends on `my/gitlab-project-name'."
+  ":: vault-relative path to the issue files. A function, not a constant,
+   because it depends on `my/gitlab-project-name'."
   (format "projects/%s/issues/" my/gitlab-project-name))
 
-(defvar my/gitlab-issues-dir
-  (expand-file-name
-   (or (getenv "GITLAB_ISSUES_DIR")
-       (concat my/notes-dir (my/gitlab-issues-relative-dir))))
-  "Directory to store GitLab issue files (set via GITLAB_ISSUES_DIR env var).
-Vault-scoped: re-pointed at the active vault on every `my/vault-switch'
-unless GITLAB_ISSUES_DIR is set, in which case the env var always wins.")
+(defun my/gitlab-issues-dir ()
+  "Return the directory holding the local GitLab issue files.
+Resolved at call time from `my/notes-dir', so it always tracks the active
+vault -- and any `my/with-vault' binding -- with nothing to go stale.
+GITLAB_ISSUES_DIR is honoured only in flat mode (no active vault): with a
+vault active the vault wins, so a stale `doom env' snapshot of that
+variable cannot pin issues to a tree outside the vault."
+  (file-name-as-directory
+   (expand-file-name
+    (or (and (not (bound-and-true-p my/vault)) (getenv "GITLAB_ISSUES_DIR"))
+        (concat my/notes-dir (my/gitlab-issues-relative-dir))))))
 
 (defun my/gitlab-safe-title (title &optional max-length)
   "Sanitize TITLE for use in a filename, truncating to MAX-LENGTH (default 60)."
@@ -75,7 +79,7 @@ both the macOS and Linux roots; markdown keeps the plain path."
 
 (defun my/gitlab--issue-files ()
   "Return basenames of issue files in `my/gitlab-issues-dir', newest issue first."
-  (let ((issues-dir my/gitlab-issues-dir))
+  (let ((issues-dir (my/gitlab-issues-dir)))
     (when (file-directory-p issues-dir)
       (sort
        (directory-files
@@ -84,9 +88,10 @@ both the macOS and Linux roots; markdown keeps the plain path."
        #'string>))))
 
 (defvar my/gitlab--issues-index nil
-  "Cached alist of (DISPLAY . FILENAME) for local issue files.
-DISPLAY is the file's real `#+TITLE' so completion matches the full,
-unsanitized issue title.  Nil means not built; rebuilt on next use.
+  "Cached (DIRECTORY . ALIST) of local issue files, or nil when not built.
+ALIST maps DISPLAY -- the file's real `#+TITLE', so completion matches the
+full, unsanitized issue title -- to FILENAME.  Keying on DIRECTORY means a
+vault switch rebuilds instead of serving the previous vault's issues.
 Invalidated automatically when an issue file is written; refresh manually
 with `my/gitlab-refresh-issues-index' after external changes (e.g. git pull).")
 
@@ -101,7 +106,7 @@ with `my/gitlab-refresh-issues-index' after external changes (e.g. git pull).")
 (defun my/gitlab--build-issues-index ()
   "Scan `my/gitlab-issues-dir' and return an alist of (DISPLAY . FILENAME).
 DISPLAY is each file's `#+TITLE' (falling back to its basename)."
-  (let ((issues-dir my/gitlab-issues-dir))
+  (let ((issues-dir (my/gitlab-issues-dir)))
     (mapcar
      (lambda (f)
        (cons (or (my/gitlab--issue-file-title (expand-file-name f issues-dir))
@@ -110,9 +115,12 @@ DISPLAY is each file's `#+TITLE' (falling back to its basename)."
      (my/gitlab--issue-files))))
 
 (defun my/gitlab--issues-index ()
-  "Return the issue completion index, building and caching it on first use."
-  (or my/gitlab--issues-index
-      (setq my/gitlab--issues-index (my/gitlab--build-issues-index))))
+  "Return the issue completion index for the active vault, cached per directory."
+  (let ((dir (my/gitlab-issues-dir)))
+    (if (equal (car my/gitlab--issues-index) dir)
+        (cdr my/gitlab--issues-index)
+      (cdr (setq my/gitlab--issues-index
+                 (cons dir (my/gitlab--build-issues-index)))))))
 
 (defun my/gitlab-refresh-issues-index ()
   "Invalidate the cached issues index so the next pick re-scans the directory.
@@ -123,7 +131,7 @@ Use after files are added or renamed outside Emacs (e.g. a git pull)."
 
 (defun my/gitlab--existing-file-for-id (issue-id)
   "Return the basename of the local file for ISSUE-ID, or nil if none exists."
-  (let ((issues-dir my/gitlab-issues-dir))
+  (let ((issues-dir (my/gitlab-issues-dir)))
     (when (file-directory-p issues-dir)
       (car (directory-files
             issues-dir nil
@@ -132,7 +140,7 @@ Use after files are added or renamed outside Emacs (e.g. a git pull)."
 
 (defun my/gitlab--insert-issue-file-link (filename)
   "Insert a link at point to FILENAME (a basename in `my/gitlab-issues-dir')."
-  (let* ((filepath (expand-file-name filename my/gitlab-issues-dir))
+  (let* ((filepath (expand-file-name filename (my/gitlab-issues-dir)))
          (base (file-name-sans-extension filename))
          (display-text
           (if (string-match
@@ -177,7 +185,7 @@ Objects are hash-tables and arrays are lists.  Signals an error on failure."
 (defun my/gitlab--write-issue-file (issue-id json)
   "Create the local org file for ISSUE-ID from JSON (a hash-table).
 Return the filepath of the created file."
-  (let* ((issues-dir my/gitlab-issues-dir)
+  (let* ((issues-dir (my/gitlab-issues-dir))
          (title (gethash "title" json))
          (description (or (gethash "description" json) ""))
          (state (gethash "state" json))
@@ -314,7 +322,7 @@ Return the filepath of the created file."
 
 (defun my/gitlab--open-issue-file (filename)
   "Open the local issue file FILENAME (a basename in `my/gitlab-issues-dir')."
-  (find-file (expand-file-name filename my/gitlab-issues-dir))
+  (find-file (expand-file-name filename (my/gitlab-issues-dir)))
   (message "Opened: %s" filename))
 
 (defun my/gitlab--save-issue-object-and-open (issue-id json)
@@ -736,7 +744,7 @@ Preserves the Notes section. Only works on files in GITLAB_ISSUES_DIR."
   (interactive)
   (my/gitlab-check-config)
   (let* ((current-file (buffer-file-name))
-         (issues-dir my/gitlab-issues-dir)
+         (issues-dir (my/gitlab-issues-dir))
          (filename (when current-file (file-name-nondirectory current-file))))
 
     ;; :: Check if we're in the issues directory
@@ -848,7 +856,7 @@ Only works on files in GITLAB_ISSUES_DIR."
   (interactive)
   (my/gitlab-check-config)
   (let* ((current-file (buffer-file-name))
-         (issues-dir my/gitlab-issues-dir)
+         (issues-dir (my/gitlab-issues-dir))
          (filename (when current-file (file-name-nondirectory current-file))))
 
     ;; :: Check if we're in the issues directory

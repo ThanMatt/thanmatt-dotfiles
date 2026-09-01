@@ -99,10 +99,11 @@
 ;; ──────────────────────────────────────────────────────
 ;; :: These modules capture `my/notes-dir' in a top-level `defvar' at load time
 ;; :: (finance.el:4, todo-agenda.el:8, inventory.el:4, reminders.el:19,
-;; :: org-brain.el:3, schema.el:10, gitlab.el:35,934). They're correct at
+;; :: org-brain.el:3, schema.el:10, gitlab.el:937). They're correct at
 ;; :: startup -- this file loads first -- but go stale on a switch, so we
 ;; :: re-`setq' them. Add an entry here whenever a new module derives a path
-;; :: from `my/notes-dir' in a defvar.
+;; :: from `my/notes-dir' in a defvar. Paths resolved at call time instead
+;; :: (e.g. `my/gitlab-issues-dir') need no entry -- they can't go stale.
 (defvar my/vault-rebind-alist
   '((org-brain-notes-dir   . "")             ;; :: the vault root itself
     (finance-directory     . "finance/")
@@ -110,12 +111,8 @@
     (inventory-file        . "inventory.org")
     (my/reminders-file     . "reminders.org")
     (my/schema-file        . "schema.d.ts")
-    (my/gitlab-issues-dir  . my/gitlab-issues-relative-dir)
     (my/gitlab-mr-template-file . "templates/merge_request_template.md"))
-  ":: alist of (SYMBOL . PATH-RELATIVE-TO-VAULT) rebound on every vault switch.
-   PATH-RELATIVE-TO-VAULT is normally a string, but may be a 0-arg function
-   symbol for paths that depend on other state (e.g. the gitlab project name)
-   -- see `my/gitlab-issues-relative-dir' in modules/gitlab.el.")
+  ":: alist of (SYMBOL . PATH-RELATIVE-TO-VAULT) rebound on every vault switch.")
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Portable org links -- vault-relative, not machine-absolute
@@ -181,25 +178,14 @@
   (setq denote-journal-directory (expand-file-name "journal" denote-directory))
   ;; :: the load-time defvars other modules captured
   (dolist (cell my/vault-rebind-alist)
-    (let* ((sym (car cell))
-           (spec (cdr cell))
-           (rel (if (functionp spec) (funcall spec) spec)))
-      ;; :: $SCHEMA_FILE / $GITLAB_ISSUES_DIR outrank the vault -- see
-      ;; :: modules/schema.el:10 and modules/gitlab.el:29
+    (let ((sym (car cell))
+          (rel (cdr cell)))
+      ;; :: $SCHEMA_FILE outranks the vault -- see modules/schema.el:10
       (when (and (boundp sym)
-                 (not (and (eq sym 'my/schema-file) (getenv "SCHEMA_FILE")))
-                 (not (and (eq sym 'my/gitlab-issues-dir) (getenv "GITLAB_ISSUES_DIR"))))
+                 (not (and (eq sym 'my/schema-file) (getenv "SCHEMA_FILE"))))
         (set sym (if (string-empty-p rel)
                      my/notes-dir
                    (expand-file-name rel my/notes-dir))))))
-  ;; :: gitlab issue dir is derived, not in the rebind alist, because the project
-  ;; :: name is dynamic. $GITLAB_ISSUES_DIR outranks the vault -- see gitlab.el:31.
-  (when (and (boundp 'my/gitlab-issues-dir) (not (getenv "GITLAB_ISSUES_DIR")))
-    (setq my/gitlab-issues-dir
-          (expand-file-name
-           (format "projects/%s/issues"
-                   (or (bound-and-true-p my/gitlab-project-name) "mos"))
-           my/notes-dir)))
   ;; :: link abbreviations track the vault list
   (my/vault-refresh-link-abbrevs)
   ;; :: agenda is rebuilt from the new paths (and re-adds reminders.org, which

@@ -14,13 +14,12 @@
   (interactive)
   (find-file (expand-file-name "meetings.org" my/notes-dir)))
 
-;; :: Saved GitLab issue files. Set GITLAB_ISSUES_DIR to your real path (the
-;; :: same var gitlab.el reads); defaults to issues/ in the notes dir.
+;; :: Saved GitLab issue files -- `my/gitlab-issues-dir' resolves against the
+;; :: active vault, so this follows a vault switch.
 (defun my/open-gitlab-issues-directory ()
   "Open the GitLab issues directory in dired for navigation."
   (interactive)
-  (dired (expand-file-name (or (getenv "GITLAB_ISSUES_DIR")
-                               (expand-file-name "issues/" my/notes-dir)))))
+  (dired (my/gitlab-issues-dir)))
 
 (defun my/open-knowledgebase ()
   "Open the knowledgebase directory."
