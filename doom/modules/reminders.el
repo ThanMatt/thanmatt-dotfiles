@@ -25,18 +25,44 @@
 ;; ──────────────────────────────────────────────────────
 ;; :: Desktop notification -- cross-platform, replaces appt's Emacs popup
 ;; ──────────────────────────────────────────────────────
+(defun my/reminders--notify (title body &optional urgency)
+  ":: fire one desktop notification; returns the backend's exit code (0 = sent).
+   URGENCY (\"critical\") makes mako/dunst hold the popup until it's dismissed --
+   used for reminders missed while the machine was off."
+  (cond
+   ((eq system-type 'darwin)
+    (call-process "osascript" nil nil nil "-e"
+                  (format "display notification %S with title %S" body title)))
+   ((executable-find "notify-send")               ;; :: Linux (mako/dunst)
+    (apply #'call-process "notify-send" nil nil nil
+           (append (list "-a" "Emacs")
+                   (when urgency (list "-u" urgency))
+                   (list title body))))
+   (t (message "%s: %s" title body) 0)))
+
+(defvar my/reminders-deliver-retry-interval 20
+  ":: seconds between redelivery attempts (see `my/reminders--deliver')")
+
+(defvar my/reminders-deliver-max-attempts 15
+  ":: give up redelivering after this many tries -- ~5 min at the default interval")
+
+(defun my/reminders--deliver (title body &optional urgency attempt)
+  ":: notify, and keep retrying if it didn't land. At login Emacs can easily beat
+   the notification daemon out of the gate; `notify-send' then just exits
+   non-zero and the missed reminder would vanish silently. So retry until it
+   sticks (or we run out of patience)."
+  (let ((attempt (or attempt 1)))
+    (unless (eq 0 (my/reminders--notify title body urgency))
+      (when (< attempt my/reminders-deliver-max-attempts)
+        (run-at-time my/reminders-deliver-retry-interval nil
+                     #'my/reminders--deliver title body urgency (1+ attempt))))))
+
 (defun my/appt-notify--one (min _new msg)
   ":: fire one desktop notification MIN (a string) minutes ahead of MSG"
-  (let ((title (if (equal min "0")
-                   "Reminder (now)"
-                 (format "Reminder (in %s min)" min))))
-    (cond
-     ((eq system-type 'darwin)
-      (call-process "osascript" nil nil nil "-e"
-                    (format "display notification %S with title %S" msg title)))
-     ((executable-find "notify-send")              ;; :: Linux (mako/dunst)
-      (call-process "notify-send" nil nil nil "-a" "Emacs" title msg))
-     (t (message "%s: %s" title msg)))))
+  (my/reminders--notify (if (equal min "0")
+                            "Reminder (now)"
+                          (format "Reminder (in %s min)" min))
+                        msg))
 
 (defun my/appt-notify (min-to-app new-time msg)
   ":: appt display hook. appt hands all three args as parallel lists when several
@@ -64,8 +90,107 @@
   (org-agenda-to-appt t))
 
 ;; :: prime appt shortly after startup, then refresh each midnight for the new day
-(run-with-idle-timer 5 nil #'my/reminders-sync-appt)
+;; :: (`my/reminders--startup' below also runs the missed-reminder catch-up)
 (run-at-time "24:01" 86400 #'my/reminders-sync-appt)
+
+;; ──────────────────────────────────────────────────────
+;; :: Missed reminders -- catch up on anything that came due while we were off
+;; ──────────────────────────────────────────────────────
+;; :: `appt' only ever holds TODAY's list and drops entries whose time has already
+;; :: passed, so a reminder scheduled for 09:00 is lost forever if the machine was
+;; :: asleep/off at 09:00. Fix: persist a "last seen alive" heartbeat to disk, and
+;; :: on startup notify for every unfinished reminder scheduled inside the gap
+;; :: between that heartbeat and now. The window only ever moves forward, so
+;; :: nothing is announced twice and nothing appt already handled is repeated.
+
+(defvar my/reminders-state-file
+  (expand-file-name "reminders-state"
+                    (or (bound-and-true-p doom-data-dir) user-emacs-directory))
+  ":: file holding the last time Emacs was known to be running
+   (stamped by `my/reminders--heartbeat')")
+
+(defvar my/reminders-missed-max-age-days 7
+  ":: never announce a reminder missed longer ago than this -- coming back to the
+   machine after a month away shouldn't dump a quarter's worth of notifications")
+
+(defvar my/reminders-missed-max-notifications 5
+  ":: above this many missed reminders, send one summary notification instead")
+
+(defvar my/reminders-heartbeat-interval 60
+  ":: seconds between heartbeat writes; also the worst-case overlap of the missed
+   window, so keep it small enough that a just-fired appt isn't re-announced")
+
+(defun my/reminders--last-seen ()
+  ":: the persisted heartbeat, or nil the very first time we run"
+  (when (file-exists-p my/reminders-state-file)
+    (with-temp-buffer
+      (insert-file-contents my/reminders-state-file)
+      (ignore-errors (plist-get (read (current-buffer)) :last-seen)))))
+
+(defun my/reminders--heartbeat ()
+  ":: stamp \"Emacs was alive at this moment\" on disk"
+  (with-temp-file my/reminders-state-file
+    (let ((print-length nil) (print-level nil))
+      (prin1 (list :last-seen (current-time)) (current-buffer)))))
+
+(defun my/reminders--scheduled-between (from to)
+  ":: (TIME . LABEL) for every not-DONE reminder scheduled in [FROM, TO), oldest
+   first. Read in a throwaway buffer with mode hooks delayed so this never
+   touches -- or is confused by -- a live reminders.org buffer."
+  (when (file-exists-p my/reminders-file)
+    (let (hits)
+      (with-temp-buffer
+        (insert-file-contents my/reminders-file)
+        (delay-mode-hooks (org-mode))
+        (org-map-entries
+         (lambda ()
+           (let ((sched (org-get-scheduled-time nil)))
+             (when (and sched
+                        (not (org-entry-is-done-p))
+                        (time-less-p sched to)
+                        (not (time-less-p sched from)))
+               (push (cons sched
+                           (concat (format-time-string "%a %H:%M" sched)
+                                   " · " (org-get-heading t t t t)
+                                   (when-let ((desc (org-entry-get nil "DESC")))
+                                     (concat " -- " desc))))
+                     hits))))))
+      (sort hits (lambda (a b) (time-less-p (car a) (car b)))))))
+
+(defun my/reminders-check-missed (&optional full)
+  ":: announce reminders that came due while Emacs wasn't running. Called on
+   startup; interactively with \\[universal-argument] it re-scans the whole
+   `my/reminders-missed-max-age-days' window instead of just the gap, which is
+   the easy way to see that notifications actually work."
+  (interactive "P")
+  (let* ((now    (current-time))
+         (cutoff (time-subtract now (days-to-time my/reminders-missed-max-age-days)))
+         (since  (if full cutoff (or (my/reminders--last-seen) now)))
+         ;; :: clamp: a long absence shouldn't replay months of reminders
+         (since  (if (time-less-p since cutoff) cutoff since))
+         (missed (my/reminders--scheduled-between since now)))
+    (my/reminders--heartbeat)           ;; :: window closes here -- never replayed
+    (cond
+     ((null missed)
+      (when (called-interactively-p 'interactive) (message "No missed reminders")))
+     ((> (length missed) my/reminders-missed-max-notifications)
+      (my/reminders--deliver (format "%d missed reminders" (length missed))
+                             (mapconcat #'cdr missed "\n")
+                             "critical"))
+     (t (dolist (m missed)
+          (my/reminders--deliver "Missed reminder" (cdr m) "critical"))))))
+
+
+;; :: Startup: rebuild appt's list for today, then replay whatever was missed
+;; :: while we were off. Idle-delayed so notify-send meets a live session bus.
+(defun my/reminders--startup ()
+  (my/reminders-sync-appt)
+  (my/reminders-check-missed))
+
+(run-with-idle-timer 5 nil #'my/reminders--startup)
+(run-with-timer my/reminders-heartbeat-interval my/reminders-heartbeat-interval
+                #'my/reminders--heartbeat)
+(add-hook 'kill-emacs-hook #'my/reminders--heartbeat)
 
 ;; ──────────────────────────────────────────────────────
 ;; :: In-buffer commands
@@ -115,7 +240,8 @@
       :desc "Re-sort by date" "s" #'my/reminders-sort
       :desc "Toggle done"     "t" #'my/reminders-toggle
       :desc "Set/change date" "d" #'org-schedule
-      :desc "Set property"    "p" #'org-set-property)
+      :desc "Set property"    "p" #'org-set-property
+      :desc "Check missed"    "m" #'my/reminders-check-missed)
 
 (defun my/reminders ()
   ":: open (or create) reminders.org with the reminder keys live"

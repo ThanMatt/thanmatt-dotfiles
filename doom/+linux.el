@@ -7,7 +7,7 @@
 ;; :: Notes / org root (this machine) -- the container holding the vault dirs.
 ;; :: modules/vault.el derives `my/notes-dir' (the active vault) from this.
 ;; ──────────────────────────────────────────────────────
-(setq my/vaults-root (expand-file-name "~/org-notes/mos/"))
+(setq my/vaults-root (expand-file-name "~/org-notes/"))
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Font family (this machine)

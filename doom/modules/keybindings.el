@@ -12,7 +12,8 @@
                ;; :: Workspaces
                (:prefix ("w" . "workspace")
                 :desc "Frontend workspace" "f" #'my/workspace-frontend
-                :desc "Backend workspace"  "b" #'my/workspace-backend)
+                :desc "Backend workspace"  "b" #'my/workspace-backend
+                :desc "Notes workspace"    "n" #'my/notes-workspace)
 
                ;; :: Window zoom (tmux-ish: enlargen focus / re-balance)
                :desc "Enlargen window"    "Z" #'doom/window-enlargen

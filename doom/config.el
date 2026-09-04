@@ -16,6 +16,41 @@
       (setenv "PATH" (concat dir path-separator (getenv "PATH"))))))
 
 ;; ──────────────────────────────────────────────────────
+;; :: Two-instance split -- the "notes" scratchpad vs. the coding session
+;; ──────────────────────────────────────────────────────
+;; :: Two Emacsen run on this machine on purpose:
+;; ::   - "notes"  -- `emacs --daemon=notes', started by sway (see sway/config).
+;; ::                 The floating $mod+n scratchpad. Light: no lsp-mode, no
+;; ::                 vterm. Also what keeps `appt' alive for reminders.el.
+;; ::   - coding   -- a separate instance from the Noctalia launcher. Owns the
+;; ::                 LSP servers, vterms and Claude buffers.
+;; ::
+;; :: They run the same config out of one `.local', and EVERY file below is
+;; :: rewritten wholesale when Emacs exits -- not appended to. So without this
+;; :: split, whichever process quits LAST silently clobbers the other's recent
+;; :: files, minibuffer history, place marks, undo history and saved workspaces.
+;; :: (Symptom when it bites: `SPC q l' restores a two-workspace session because
+;; :: the scratchpad wrote `autosave' last.)
+;; ::
+;; :: Keyed on the daemon's NAME, not on `daemonp' alone, so this stays correct
+;; :: if either role is ever launched the other way round. The name is set in
+;; :: sway/config and sway/scripts/emacs-float.sh -- rename it in all three.
+(when (equal (daemonp) "notes")
+  ;; :: Doom sets these three at core load, i.e. BEFORE this file, so a plain
+  ;; :: `setq' here wins.
+  (setq recentf-save-file (concat doom-cache-dir "recentf-notes")
+        savehist-file     (concat doom-cache-dir "savehist-notes")
+        save-place-file   (concat doom-cache-dir "saveplace-notes"))
+  ;; :: These two are set in `use-package!' bodies that run AFTER this file
+  ;; :: (persp-mode on `doom-init-ui'), so they need `after!' or they'd be
+  ;; :: overwritten right back to the shared paths.
+  (after! persp-mode
+    (setq persp-save-dir (doom-profile-data-dir t "workspaces-notes/")))
+  (after! undo-fu-session
+    (setq undo-fu-session-directory
+          (concat doom-cache-dir "undo-fu-session-notes/"))))
+
+;; ──────────────────────────────────────────────────────
 ;; :: Notes / org root -- per-machine
 ;; ──────────────────────────────────────────────────────
 ;; :: Single source of truth for the org/notes tree: the ACTIVE VAULT. Everything
@@ -137,10 +172,38 @@ buffer impossible while the engine is web-mode."
 ;; :: (root tsconfig.json with `files: []` + `references`), which ts-ls does not
 ;; :: -- that fallback turns jsx off + implicit-any on and floods every <div>
 ;; :: with bogus diagnostics. lsp-vtsls (packages.el) registers at :priority -1,
-;; :: beating ts-ls (-2), so lsp-mode auto-selects it; the binary is found on
-;; :: PATH (asdf shim, added to exec-path above) via its :system dependency.
-;; :: Install the server if it's missing: M-x lsp-install-server RET vtsls.
-(use-package! lsp-vtsls :after lsp-mode)
+;; :: beating ts-ls (-2), so lsp-mode auto-selects it.
+;; ::
+;; :: The binary is NOT on PATH (there is no asdf shim for it) -- lsp-mode runs
+;; :: the copy it manages under `lsp-server-install-dir':
+;; ::   ~/.config/emacs/.local/etc/lsp/npm/@vtsls/language-server/bin/vtsls
+;; :: On a fresh machine install it with M-x lsp-install-server RET vtsls, then
+;; :: confirm with M-x lsp-describe-session: a .ts/.tsx buffer must show a
+;; :: `vtsls' workspace, not only `graphql-lsp' (see the graphql note below).
+(use-package! lsp-vtsls
+  :after lsp-mode
+  :init
+  ;; :: vtsls bundles its own TypeScript (5.9 as of vtsls 0.3.0). Projects pin
+  ;; :: newer (whitepapier: 6.0 via the pnpm catalog) and TS 6 changed defaults
+  ;; :: and deprecations, so the bundled compiler disagrees with `tsc'. Use the
+  ;; :: workspace's node_modules/typescript instead so in-buffer diagnostics
+  ;; :: match `pnpm typecheck'. vtsls falls back to its bundled copy if absent.
+  (setq lsp-vtsls-auto-use-workspace-tsdk t))
+
+;; :: graphql-lsp can MASK a missing TS server. lsp-mode's graphql client is an
+;; :: `add-on' whose default activation covers every .ts/.tsx/.js file (and
+;; :: typescript-mode), not just .graphql -- and graphql-language-service-cli is
+;; :: installed. lsp-mode only offers to install a missing main server when NO
+;; :: client with a present binary matches the buffer; with graphql-lsp matching
+;; :: it says "Connected to [graphql-lsp]", lights the modeline, installs
+;; :: `lsp-completion-at-point' -- and yields zero completions and zero
+;; :: diagnostics, since that server knows nothing about TypeScript. That was the
+;; :: "intellisense sometimes works" bug: only cape-file (paths after ./) and
+;; :: yasnippet ever produced candidates. None of our projects embed gql in TS,
+;; :: so confine the client to real GraphQL files.
+(after! lsp-graphql
+  (setq lsp-graphql-target-file-extensions '("graphql" "graphqls" "gql")
+        lsp-graphql-activated-modes '(graphql-mode)))
 
 ;; :: lsp-mode keys client activation + the language-id it sends off
 ;; :: `lsp-buffer-language', which it derives from `lsp-language-id-configuration'.
@@ -647,6 +710,62 @@ Paste the result into any org file; following the link jumps to that exact line.
 ;; :: just don't auto-load on startup. Save/load named workspaces: SPC TAB s / l.
 
 ;; ──────────────────────────────────────────────────────
+;; :: Workspace layout fixes -- why saved views came back wrong
+;; ──────────────────────────────────────────────────────
+;; :: Two independent bugs, both of which made a workspace restore with somebody
+;; :: else's windows in it. Kept together because the symptom is identical.
+
+(after! persp-mode
+  ;; :: FIX 1 -- child frames must not stand in for a real frame.
+  ;; ::
+  ;; :: persp-mode stores ONE window layout per workspace, and picks the frame to
+  ;; :: read it from with `find-other-frame-with-persp': the first frame on that
+  ;; :: perspective whose `persp-ignore-wconf' parameter is unset. It has no
+  ;; :: notion of child frames -- so corfu's completion popup (`EmacsCorfuGUI'),
+  ;; :: posframes, and any other childframe count as candidates. They inherit a
+  ;; :: perspective from `persp-set-last-persp-for-new-frames', linger invisible,
+  ;; :: and hold exactly one window showing something like ` *corfu*'.
+  ;; ::
+  ;; :: Net effect: saving the session (`SPC q s', or the autosave on exit) can
+  ;; :: overwrite a workspace's real layout with a single-window corfu popup, and
+  ;; :: switching back then restores that. Marking childframes `persp-ignore-wconf'
+  ;; :: is the flag persp-mode already checks, so it's enough to exclude them from
+  ;; :: both the save and the restore paths.
+  (defun my/persp-ignore-child-frames-h (frame)
+    ":: Keep FRAME out of persp-mode's window-layout bookkeeping if it's a
+child frame (a completion popup, posframe, etc.) rather than a real window."
+    (when (frame-parameter frame 'parent-frame)
+      (set-frame-parameter frame 'persp-ignore-wconf t)))
+
+  (add-hook 'after-make-frame-functions #'my/persp-ignore-child-frames-h)
+  ;; :: Retrofit the childframes that already exist at load time -- corfu's
+  ;; :: survives a `SPC h r r', so without this the fix wouldn't take until a
+  ;; :: full restart.
+  (mapc #'my/persp-ignore-child-frames-h (frame-list))
+
+  ;; :: FIX 2 -- `SPC TAB s' saved a stale layout, not what was on screen.
+  ;; ::
+  ;; :: persp-mode only refreshes a perspective's `persp-window-conf' when you
+  ;; :: switch AWAY from it. `persp-save-state-to-file' compensates by calling
+  ;; :: `persp-save-state' on every persp first -- but Doom's `+workspace-save'
+  ;; :: goes through `persp-save-to-file-by-names', which does NOT. So `SPC TAB s'
+  ;; :: persisted the layout as of your last switch-IN, losing every window change
+  ;; :: made since. (That's how a saved `mos-frontend' ended up holding the
+  ;; :: backend's magit buffer.) Refresh it first.
+  ;; ::
+  ;; :: Must run after FIX 1: `persp-save-state' resolves the frame to read
+  ;; :: through `find-other-frame-with-persp', so without the childframe guard
+  ;; :: this would just capture a corfu popup more reliably.
+  (defadvice! my/workspace-save-live-layout-a (name &rest _)
+    ":: Capture the workspace's CURRENT window layout before it's written to
+disk; `persp-save-to-file-by-names' (unlike `persp-save-state-to-file') skips
+`persp-save-state' entirely."
+    :before #'+workspace-save
+    (when-let* ((name (if (stringp name) name (persp-name name)))
+                (persp (+workspace-get name t)))
+      (persp-save-state persp))))
+
+;; ──────────────────────────────────────────────────────
 ;; :: Auto-workspace -- files under a directory open in their own workspace
 ;; ──────────────────────────────────────────────────────
 ;; :: Opening a file that lives under one of `my/workspace-dir-alist''s
@@ -678,16 +797,125 @@ WORKSPACE-NAME. First match wins; remove an entry to opt that tree out.")
               (after-init-time)              ; :: not while init/session restore runs
               (file buffer-file-name)
               (ws (my/workspace-for-file file))
-              ((not (string= ws (+workspace-current-name)))))
-    (let ((buf (current-buffer)))
+              (from (+workspace-current-name))
+              ((not (string= ws from))))
+    (let ((buf  (current-buffer))
+          (prev (+workspace-get from t)))
       (+workspace-switch ws t)
       ;; :: persp-mode only registers buffers it's told about (Doom does it from
       ;; :: `doom-switch-buffer-hook'); add + display explicitly so the buffer
       ;; :: lands in the new workspace no matter how it was opened.
       (persp-add-buffer buf (get-current-persp) nil)
+      ;; :: ...but ADD doesn't MOVE. `persp-add-or-not-on-find-file' runs earlier
+      ;; :: in `find-file-hook' (verified: it sits ~8 entries above this one) and
+      ;; :: has already claimed BUF for the workspace we're leaving, so without
+      ;; :: this the file ends up a member of BOTH -- which is how notes files
+      ;; :: kept turning up in the dev workspaces' buffer lists.
+      ;; ::
+      ;; :: Order matters: add to the new workspace FIRST. Doom sets
+      ;; :: `persp-autokill-buffer-on-remove' to `kill-weak', so removing a
+      ;; :: buffer that belongs to no other perspective KILLS it -- which is
+      ;; :: exactly what BUF would be if we removed before adding. Belt and
+      ;; :: braces, bind the auto-actions off for the removal anyway, and stop
+      ;; :: persp from helpfully switching the window to some other buffer.
+      (when prev
+        (let ((persp-autokill-buffer-on-remove nil)
+              (persp-autokill-persp-when-removed-last-buffer nil)
+              (persp-when-remove-buffer-switch-to-other-buffer nil))
+          (persp-remove-buffer buf prev nil nil nil nil)))
       (switch-to-buffer buf))))
 
 (add-hook 'find-file-hook #'my/workspace-auto-switch-h)
+
+(defun my/workspace-prune-duplicate-buffers (&optional report-only)
+  ":: Drop routed files from every workspace except the one they belong to.
+
+`my/workspace-auto-switch-h' used to ADD a file to its routed workspace without
+removing it from the one it was opened in, so anything under
+`my/workspace-dir-alist' could end up owned by two workspaces at once (notes
+files showing up in dev buffer lists). The hook no longer does that; this
+cleans up buffers that predate the fix, and is safe to re-run.
+
+Only touches files with an unambiguous home per `my/workspace-dir-alist'.
+Buffers that are multi-owned for other reasons -- a magit status buffer you
+genuinely visited from two workspaces, say -- are reported, not changed.
+With REPORT-ONLY (`C-u'), change nothing and just list what it would do."
+  (interactive "P")
+  (unless (bound-and-true-p persp-mode)
+    (user-error "persp-mode isn't on"))
+  (let ((pruned 0)
+        (ambiguous '()))
+    (dolist (buf (buffer-list))
+      (let* ((file  (buffer-file-name buf))
+             (home  (and file (my/workspace-for-file file)))
+             (owners (cl-remove-if-not
+                      (lambda (name)
+                        (when-let* ((p (+workspace-get name t)))
+                          (memq buf (persp-buffers p))))
+                      (+workspace-list-names))))
+        (when (cdr owners)                   ; :: owned by more than one
+          (if (and home (member home owners))
+              (dolist (name (remove home owners))
+                (cl-incf pruned)
+                (unless report-only
+                  ;; :: Same `kill-weak' hazard as in the hook: BUF stays in
+                  ;; :: HOME, so it's never left free, but bind the auto-actions
+                  ;; :: off regardless.
+                  (let ((persp-autokill-buffer-on-remove nil)
+                        (persp-autokill-persp-when-removed-last-buffer nil)
+                        (persp-when-remove-buffer-switch-to-other-buffer nil))
+                    (persp-remove-buffer buf (+workspace-get name t)
+                                         nil nil nil nil))))
+            (push (cons (buffer-name buf) owners) ambiguous)))))
+    (message "%s%d duplicate membership(s)%s%s"
+             (if report-only "Would prune " "Pruned ")
+             pruned
+             (if ambiguous (format "; %d left alone (no routed home): " (length ambiguous)) "")
+             (or (mapconcat (lambda (x) (format "%s %S" (car x) (cdr x)))
+                            ambiguous "; ")
+                 ""))))
+
+;; ──────────────────────────────────────────────────────
+;; :: The notes workspace -- `SPC d w n', and the sway $mod+n frame
+;; ──────────────────────────────────────────────────────
+;; :: The alist above already ROUTES notes files into a workspace called
+;; :: "notes"; this is the other half -- a way to get there deliberately,
+;; :: without having to open a file first.
+;; ::
+;; :: Also what sway's $mod+n calls (scripts/emacs-float.sh in the dotfiles
+;; :: repo): that pops a floating emacsclient frame and evals
+;; :: `my/notes-workspace' in it, so the frame lands in this workspace instead
+;; :: of inheriting whatever the last frame was on. Perspectives are per-FRAME
+;; :: (persp-mode keeps the current one in a frame parameter), so the notes
+;; :: frame sits on "notes" while your main frame stays on "main"/"backend"/etc.
+
+(defvar my/notes-workspace-name "notes"
+  ":: Workspace that notes files are routed to. Keep in sync with the workspace
+name used in `my/workspace-dir-alist'.")
+
+(defvar my/notes-workspace-seed-fn
+  (lambda () (dired my/notes-dir))
+  ":: Called once, the first time the notes workspace is created, to give it a
+starting buffer. Anything opened from there stays in the workspace, courtesy of
+`my/workspace-auto-switch-h'. Swap for e.g. #'my/vault-note or
+#'consult-denote-find to land somewhere else.")
+
+(defun my/notes-workspace ()
+  ":: Switch this frame to the notes workspace, creating it on first use."
+  (interactive)
+  (let ((prev  (+workspace-current-name))
+        (fresh (not (+workspace-exists-p my/notes-workspace-name))))
+    (+workspace-switch my/notes-workspace-name t)
+    ;; :: Doom hands every NEW frame its own numbered workspace ("#1", "#2", …)
+    ;; :: before our eval runs, so each $mod+n press would otherwise leave an
+    ;; :: empty orphan behind. Drop it once we've moved off -- but only if it's
+    ;; :: one of those auto-generated names AND still empty, so a real workspace
+    ;; :: is never collected.
+    (when (and (string-match-p "\\`#[0-9]+\\'" prev)
+               (+workspace-exists-p prev)
+               (null (+workspace-buffer-list (+workspace-get prev t))))
+      (+workspace-kill prev t))
+    (when fresh (funcall my/notes-workspace-seed-fn))))
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Shadow workspaces -- live preview while switching (SPC TAB .)
@@ -878,20 +1106,33 @@ AXIS is the split FN performs (`horizontal' for `SPC |', `vertical' for
       ;; :: duration of the call (binding `+popup--internal' isn't enough: it
       ;; :: still routes through `ignore-window-parameters', which side windows
       ;; :: reject outright).
+      ;; :: Doom's `evil-window-{v,}split' overrides finish with
+      ;; :: `(balance-windows (window-parent))', and `balance-windows' is
+      ;; :: `:around'-advised with `+popup-save-a' -- which closes EVERY popup
+      ;; :: first. That deletes the dock we just split (both panes), then hands
+      ;; :: the real `balance-windows' the now-dead parent: "Wrong type
+      ;; :: argument: window-valid-p". Balancing a side group is meaningless
+      ;; :: anyway (its size is pinned by the popup rule), so opt out.
       (let ((window-combination-resize 'side)
-            (split (window-parameter win 'split-window)))
+            (evil-auto-balance-windows nil)
+            (split (window-parameter win 'split-window))
+            (before (window-list)))
         (unwind-protect
             (progn (set-window-parameter win 'split-window nil)
                    (apply fn args))
           (when (window-live-p win)
-            (set-window-parameter win 'split-window split))))
-      ;; :: one vterm shown in two windows fights itself over the pty size, so
-      ;; :: hand the new pane another buffer and resync the dock that shrank
-      (when (eq (buffer-local-value 'major-mode buf) 'vterm-mode)
-        (unless (eq (selected-window) win)
-          (set-window-buffer (selected-window) (other-buffer buf)))
-        (when (fboundp 'my/vterm-resync-size)
-          (my/vterm-resync-size win)))))))
+            (set-window-parameter win 'split-window split)))
+        ;; :: one vterm shown in two windows fights itself over the pty size, so
+        ;; :: hand the new pane another buffer and resync the dock that shrank.
+        ;; :: Find the new pane by diffing rather than assuming it's selected:
+        ;; :: Doom's split overrides honour `evil-vsplit-window-right' /
+        ;; :: `evil-split-window-below', and with those nil (our case) they hop
+        ;; :: focus back to the original window.
+        (when (eq (buffer-local-value 'major-mode buf) 'vterm-mode)
+          (when-let* ((new (car (seq-difference (window-list) before))))
+            (set-window-buffer new (other-buffer buf)))
+          (when (fboundp 'my/vterm-resync-size)
+            (my/vterm-resync-size win))))))))
 
 (defadvice! my/side-window-vsplit-a (fn &rest args)
   ":: Let `SPC |' split a docked popup instead of erroring on its side window."
@@ -1196,6 +1437,7 @@ shrink (DELTA columns, default 10)."
 (load! "modules/docker")        ; :: SPC d D -- ps/dps, exec, logs (after web: uses its vterm helpers)
 (load! "modules/claude")        ; :: , c -- ask Claude about visual selection
 (load! "modules/hackernews")    ; :: SPC o h -- in-buffer Hacker News reader
+(load! "modules/reader")        ; :: SPC o w -- fetch a URL and read it as org
 
 (when (file-exists-p (expand-file-name "modules/worktree.el" doom-user-dir))
   (load! "modules/worktree"))

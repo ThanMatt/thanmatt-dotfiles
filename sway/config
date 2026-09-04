@@ -24,6 +24,12 @@ font pango:FiraCode Nerd Font Mono 8
 for_window [app_id="org.gnome.Nautilus"] floating enable
 for_window [app_id="qalculate-gtk"] floating enable
 
+# :: Floating emacsclient frame ($mod+n) -- see scripts/emacs-float.sh. That
+# :: script pins the frame's `title' parameter to "notes" so this rule has
+# :: something stable to match on; Doom's frame-title-format makes every other
+# :: Emacs frame's title identical, so app_id alone would float them all.
+for_window [app_id="emacs" title="^notes$"] floating enable, resize set 1100 750, move position center, border pixel 3
+
 ### Output configuration
 #
 # Default wallpaper (more resolutions are available in /usr/share/backgrounds/sway/)
@@ -81,6 +87,33 @@ include /etc/sway/config.d/*
 # :: Wrapped in session-env.sh so everything the launcher spawns inherits
 # :: PATH / GITLAB_* / ELECTRON_* — see that script for why.
 exec ~/.config/sway/scripts/session-env.sh noctalia -d
+
+# :: Emacs daemon at login -- this is what makes missed reminders work. Reminders
+# :: fire from `appt' inside a running Emacs (doom/modules/reminders.el), and
+# :: anything scheduled while the machine was off is replayed by that module's
+# :: catch-up sweep on startup. Neither happens if no Emacs is running, so start
+# :: one with the session rather than waiting for the launcher.
+# ::
+# :: Deliberately AFTER noctalia: it owns notifications, and a daemon that beats
+# :: it up would have its first `notify-send' rejected. (reminders.el retries for
+# :: ~5 min to cover that anyway, so the ordering here is belt-and-braces.)
+# ::
+# :: Wrapped in session-env.sh for the same reason noctalia is -- a bare sway
+# :: `exec' inherits the GDM session env, i.e. PATH=/usr/local/bin:/usr/bin and
+# :: no GITLAB_*, which modules/gitlab.el reads via getenv at startup.
+# ::
+# :: NOTE: `--daemon=notes' NAMES this instance. Two Emacsen run here on
+# :: purpose -- this one is the $mod+n scratchpad, and the Noctalia launcher
+# :: starts a separate, heavier one for coding. The name is what keeps them
+# :: apart: it fixes the socket at $XDG_RUNTIME_DIR/emacs/notes (so
+# :: emacs-float.sh can address it directly instead of guessing which process
+# :: grabbed the plain "server" name -- that was launch-order dependent, i.e. a
+# :: coin flip), and it makes `(daemonp)' return "notes" inside Emacs, which is
+# :: how doom/config.el gives this instance its own recentf / savehist /
+# :: saveplace / undo / workspace files. Without that split the two processes
+# :: share one set and whichever quits LAST clobbers the other's history.
+# :: Renaming this means renaming it in emacs-float.sh and doom/config.el too.
+exec ~/.config/sway/scripts/session-env.sh emacs --daemon=notes
 
 
 # :: Disabled — Noctalia handles idle/lock/screen-off/suspend (idle.enabled: true)
@@ -208,6 +241,7 @@ gaps outer 2px
 
 # bindsym $mod+t exec alacritty
 bindsym $mod+t exec kitty
+bindsym $mod+n exec ~/.config/sway/scripts/emacs-float.sh
 ### Key bindings
 #
 # Basics:
@@ -325,6 +359,13 @@ bindsym $mod+t exec kitty
     bindsym $mod+alt+f exec ~/.config/sway/scripts/chill-mode.sh toggle
 
     # Swap focus between the tiling area and the floating area
+    # :: $mod+Tab, matching hyprland.lua's SUPER+Tab. The directional focus
+    # :: binds ($mod+hjkl) never cross the tile/float boundary, so once a
+    # :: scratchpad window is on screen there is no way to reach the tiled
+    # :: layout under it from the keyboard. `focus mode_toggle` hops between
+    # :: the two layers and sway remembers the last-focused container in each,
+    # :: so pressing it again lands back on the same scratchpad window.
+    bindsym $mod+Tab focus mode_toggle
     # bindsym $mod+space focus mode_toggle
 
     # Move focus to the parent container
@@ -353,16 +394,16 @@ mode "resize" {
         # Pressing right will grow the window’s width.
         # Pressing up will shrink the window’s height.
         # Pressing down will grow the window’s height.
-        bindsym h resize shrink width 30 px or 5 ppt
-        bindsym j resize grow height 30 px or 5 ppt
-        bindsym k resize shrink height 30 px or 5 ppt
-        bindsym l resize grow width 30 px or 5 ppt
+        bindsym h resize shrink width 60 px or 10 ppt
+        bindsym j resize grow height 60 px or 10 ppt
+        bindsym k resize shrink height 60 px or 10 ppt
+        bindsym l resize grow width 60 px or 10 ppt
 
         # same bindings, but for the arrow keys (finer steps)
-        bindsym Left resize shrink width 10 px or 2 ppt
-        bindsym Down resize grow height 10 px or 2 ppt
-        bindsym Up resize shrink height 10 px or 2 ppt
-        bindsym Right resize grow width 10 px or 2 ppt
+        bindsym Left resize shrink width 30 px or 5 ppt
+        bindsym Down resize grow height 30 px or 5 ppt
+        bindsym Up resize shrink height 30 px or 5 ppt
+        bindsym Right resize grow width 30 px or 5 ppt
 
         # back to normal: Enter or Escape or $mod+r
         bindsym Return mode "default"
