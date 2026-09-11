@@ -750,8 +750,8 @@ child frame (a completion popup, posframe, etc.) rather than a real window."
   ;; :: `persp-save-state' on every persp first -- but Doom's `+workspace-save'
   ;; :: goes through `persp-save-to-file-by-names', which does NOT. So `SPC TAB s'
   ;; :: persisted the layout as of your last switch-IN, losing every window change
-  ;; :: made since. (That's how a saved `mos-frontend' ended up holding the
-  ;; :: backend's magit buffer.) Refresh it first.
+  ;; :: made since. (That's how a saved workspace ended up restoring a magit
+  ;; :: buffer from a different repo entirely.) Refresh it first.
   ;; ::
   ;; :: Must run after FIX 1: `persp-save-state' resolves the frame to read
   ;; :: through `find-other-frame-with-persp', so without the childframe guard
@@ -763,7 +763,145 @@ disk; `persp-save-to-file-by-names' (unlike `persp-save-state-to-file') skips
     :before #'+workspace-save
     (when-let* ((name (if (stringp name) name (persp-name name)))
                 (persp (+workspace-get name t)))
-      (persp-save-state persp))))
+      (persp-save-state persp)))
+
+  ;; :: FIX 3 -- closing the last window must not destroy the workspace.
+  ;; ::
+  ;; :: Doom remaps both window-delete commands to
+  ;; :: `+workspace/close-window-or-workspace'. With more than one window open
+  ;; :: that just deletes the window, but on the LAST one it calls
+  ;; :: `+workspace/kill' -> `+workspace-kill' -> `(persp-kill name nil)' --
+  ;; :: `dont-kill-buffers' nil, so it takes the branch that KILLS every buffer
+  ;; :: in the workspace. Combined with `persp-kill-foreign-buffer-behaviour'
+  ;; :: being `kill', one stray `C-w c' silently destroyed a workspace's work.
+  ;; ::
+  ;; :: Binding a [remap ...] entry to nil removes the remap rather than
+  ;; :: shadowing it, so the plain commands run again. Emacs simply refuses to
+  ;; :: delete a sole window, which is the harmless outcome. Workspaces now only
+  ;; :: die when explicitly killed (`SPC TAB k').
+  (define-key persp-mode-map [remap delete-window] nil)
+  (define-key persp-mode-map [remap evil-window-delete] nil))
+
+;; ──────────────────────────────────────────────────────
+;; :: One workspace per project
+;; ──────────────────────────────────────────────────────
+;; :: Doom's default `projectile-switch-project-action' is
+;; :: `+workspaces-switch-to-project-h', and it mangles hand-named workspaces two
+;; :: different ways. From a workspace WITH buffers it forks a NEW one named
+;; :: `(doom-project-name)' and drags you into it; from an EMPTY one it silently
+;; :: RENAMES the workspace you're standing in. And it can never reuse a
+;; :: workspace whose name isn't literally the project directory's name, because
+;; :: it looks workspaces up BY NAME and only then checks the root:
+;; ::
+;; ::   (ws (+workspace-get pname t))                       ; pname = "frontend"
+;; ::   (ws (if (and ws (file-equal-p (persp-parameter ...) proot)) ws ...))
+;; ::
+;; :: So a workspace you named yourself is invisible to it: every `SPC p p'
+;; :: abandoned it and rebuilt it under the project's own directory name. Rename
+;; :: it back by hand and
+;; :: the parameter it matches on is gone again -- which is the loop that made
+;; :: buffers seem to vanish at random.
+;; ::
+;; :: The replacement below is deterministic: a project root always maps to the
+;; :: same workspace NAME, so switching to a project you've opened before puts
+;; :: you back where you were. Nothing is ever renamed, and
+;; :: `+workspaces-on-switch-project-behavior' no longer applies (this doesn't
+;; :: consult it -- there is no "reuse the current workspace" mode to configure).
+
+;; :: NOTE: both lists below ship EMPTY on purpose. This repo is public, so the
+;; :: trees they describe -- employer directory layouts, checkout names -- live in
+;; :: `+local.el' (gitignored; see `+local.el.example'), which is loaded at the
+;; :: bottom of this file. The defaults here are the generic behaviour: every
+;; :: project gets a workspace named after its own directory.
+
+(defvar my/workspace-project-exclude-rules nil
+  ":: Regexps for project roots that get NO workspace of their own. Switching to
+one opens the file where you already are and moves nothing -- for trees full of
+short-lived throwaway checkouts, where a workspace apiece would bury the ones
+that matter. Set in `+local.el'.")
+
+(defvar my/workspace-project-name-rules nil
+  ":: Optional ((REGEXP . FUNCTION) ...) consulted by
+`my/workspace-project-name' before it falls back to the project directory's own
+name. REGEXP is matched against the absolute, slash-terminated root; FUNCTION is
+called with that root and its basename and returns the workspace name, with
+REGEXP's match data still live (so `match-string' works).
+
+Needed where a bare directory name would collide -- e.g. a main checkout and a
+worktree of the same repo are both called \"frontend\", and Doom breaks that tie
+by whichever you opened FIRST, so names drift between sessions. Set in
+`+local.el'.")
+
+(defun my/workspace-project-excluded-p (root)
+  ":: Non-nil if ROOT is opted out of per-project workspaces."
+  (let ((root (expand-file-name root)))
+    (seq-some (lambda (re) (string-match-p re root))
+              my/workspace-project-exclude-rules)))
+
+(defun my/workspace-project-name (root)
+  ":: Stable workspace name for project ROOT.
+Same root always yields the same name, which is what lets
+`my/workspaces-switch-to-project-h' put you back in the workspace you left
+rather than forking a new one."
+  (let* ((root (file-name-as-directory (expand-file-name root)))
+         (base (file-name-nondirectory (directory-file-name root))))
+    (cond
+     ;; :: Defer to the find-file routing table first, so the two can't disagree.
+     ;; :: The notes vault is a known projectile project (see the `after!
+     ;; :: projectile' block above), so without this `SPC p p' into it would open
+     ;; :: a workspace named after the vault directory while every note opened by
+     ;; :: path went to "notes".
+     ((my/workspace-for-file root))
+     ;; :: machine-local disambiguation rules, if any
+     ((cl-loop for (re . fn) in my/workspace-project-name-rules
+               when (string-match re root)
+               return (funcall fn root base)))
+     ;; :: default: a project is named after its own directory
+     (t base))))
+
+(defun my/workspaces-switch-to-project-h (&optional dir)
+  ":: Open DIR's project in ITS workspace, creating it on first visit.
+
+Drop-in replacement for `+workspaces-switch-to-project-h' as
+`projectile-switch-project-action'. Roots matching
+`my/workspace-project-exclude-rules' skip the workspace step entirely and just
+open a file wherever you already are.
+
+`C-u' suppresses the file prompt (same as Doom's), leaving you in the workspace."
+  (let* ((root (file-truename (or dir default-directory)))
+         (name (my/workspace-project-name root)))
+    (if (or (not (bound-and-true-p persp-mode))
+            (my/workspace-project-excluded-p root))
+        (unless current-prefix-arg
+          (funcall +workspaces-switch-project-function root))
+      (+workspace-switch name t)
+      ;; :: Record the root the same way Doom's own handler does, so a workspace
+      ;; :: made here is introspectable by anything that reads the parameter.
+      (when-let* ((ws (+workspace-get name t)))
+        (set-persp-parameter '+workspace-project root ws))
+      ;; :: An empty workspace shows `doom-fallback-buffer'; pointing its
+      ;; :: `default-directory' at the root is what makes `SPC p f' / `SPC p s'
+      ;; :: work before any file is open.
+      (with-current-buffer (doom-fallback-buffer)
+        (setq-local default-directory root)
+        (hack-dir-local-variables-non-file-buffer))
+      (unless current-prefix-arg
+        (funcall +workspaces-switch-project-function root))
+      (+workspace-message (format "Project workspace '%s'" name) 'success))))
+
+;; :: Both features, because Doom sets `projectile-switch-project-action' inside
+;; :: the workspaces module's `use-package! persp-mode' `:config' block -- so
+;; :: waiting on projectile alone can lose the race.
+(after! (persp-mode projectile)
+  (setq projectile-switch-project-action #'my/workspaces-switch-to-project-h))
+
+(defun my/workspace-switch-to-project (dir)
+  ":: Interactively jump to DIR's project workspace, then pick a file."
+  (interactive "DProject: ")
+  (let ((dir (expand-file-name dir)))
+    (unless (file-directory-p dir)
+      (user-error "No such directory: %s" dir))
+    (my/workspaces-switch-to-project-h dir)))
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Auto-workspace -- files under a directory open in their own workspace
@@ -1443,6 +1581,22 @@ shrink (DELTA columns, default 10)."
   (load! "modules/worktree"))
 
 (load! "modules/keybindings")   ; :: keep this last
+
+;; ──────────────────────────────────────────────────────
+;; :: Machine-local overrides -- NOT in the repo
+;; ──────────────────────────────────────────────────────
+;; :: This repo is public, so anything that would name an employer's directory
+;; :: layout, project or checkout lives here instead of inline. `+local.el' is
+;; :: gitignored; `+local.el.example' (tracked) documents what it can set.
+;; ::
+;; :: Loaded LAST, on purpose: everything it overrides is a `defvar' consulted at
+;; :: RUNTIME (workspace naming rules, quick-jump project dirs), so every one of
+;; :: them already exists by now and a plain `setq' wins. Don't move values that
+;; :: are read at LOAD time here -- those belong in `+linux.el' / `+macos.el',
+;; :: which run early (`my/vaults-root' is the example).
+(let ((local (expand-file-name "+local.el" doom-user-dir)))
+  (when (file-exists-p local)
+    (load local nil t)))
 
 ;; :: Terminal cursor shape in `emacs -nw' (no-op in GUI on either OS).
 (unless (display-graphic-p)

@@ -1,0 +1,62 @@
+;;; +local.el.example --- machine-local overrides -*- lexical-binding: t; -*-
+
+;; :: Copy to `+local.el' (same directory) and edit. `+local.el' is gitignored:
+;; :: this repo is public, so anything naming an employer's directory layout,
+;; :: project or checkout belongs here rather than inline in config.el.
+;; ::
+;; :: Loaded at the very END of config.el, so every variable below already
+;; :: exists and a plain `setq' wins. Values read at LOAD time (e.g.
+;; :: `my/vaults-root') must go in `+linux.el' / `+macos.el' instead -- those
+;; :: run early enough for the modules that capture them.
+;; ::
+;; :: Everything here is optional. With no `+local.el' at all the config behaves
+;; :: generically: every project gets a workspace named after its own directory.
+
+;;; ──────────────────────────────────────────────────────
+;;; :: Quick-jump projects -- `SPC d w f' / `SPC d w b'
+;;; ──────────────────────────────────────────────────────
+;; :: The two projects you switch between most. Both commands go through the
+;; :: per-project workspace switcher, so they land in the same workspace
+;; :: `SPC p p' would. Unset (nil) and the commands just tell you to set them.
+
+;; (setq my/project-frontend-dir "~/code/acme/web"
+;;       my/project-backend-dir  "~/code/acme/api")
+
+;;; ──────────────────────────────────────────────────────
+;;; :: Workspace naming -- disambiguating colliding directory names
+;;; ──────────────────────────────────────────────────────
+;; :: By default a project's workspace is named after its own directory, which
+;; :: is fine until two checkouts share a basename: a main repo at
+;; :: `acme/web' and a worktree at `acme-wt/wt1/web' are BOTH called "web".
+;; :: Doom's own handler breaks that tie by whichever you opened first, so the
+;; :: names drift between sessions and `SPC p p' stops finding the workspace it
+;; :: made last time.
+;; ::
+;; :: Each rule is (REGEXP . FUNCTION). REGEXP is matched against the absolute,
+;; :: slash-terminated project root. FUNCTION receives that root and its
+;; :: basename and returns the workspace name; REGEXP's match data is still
+;; :: live, so `match-string' works. First match wins.
+
+;; (setq my/workspace-project-name-rules
+;;       (list
+;;        ;; :: ~/code/acme-wt/wt1/api  ->  acme-api-wt1
+;;        (cons "/code/acme-wt/wt\\([0-9]+\\)/[^/]+/\\'"
+;;              (lambda (root base)
+;;                (format "acme-%s-wt%s" base (match-string 1 root))))
+;;        ;; :: ~/code/acme/api  ->  acme-api
+;;        (cons "/code/acme/[^/]+/\\'"
+;;              (lambda (_root base)
+;;                (format "acme-%s" base)))))
+
+;;; ──────────────────────────────────────────────────────
+;;; :: Trees that should NOT get a workspace
+;;; ──────────────────────────────────────────────────────
+;; :: Regexps for project roots to skip. Switching to one of these opens a file
+;; :: wherever you already are and moves nothing -- for directories full of
+;; :: short-lived throwaway checkouts, where a workspace apiece would bury the
+;; :: workspaces that matter.
+
+;; (setq my/workspace-project-exclude-rules
+;;       '("/code/acme/worktrees/"))
+
+;;; +local.el.example ends here

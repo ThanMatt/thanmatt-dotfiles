@@ -1,0 +1,18 @@
+# :: Copy to `session-env.local.sh' (same directory) and edit. That file is
+# :: gitignored: this repo is public, so an employer's GitLab project id and
+# :: short name must not be committed inline.
+# ::
+# :: Consumed by BOTH compositors, from this one file:
+# ::   - sway:     session-env.sh sources it
+# ::   - hyprland: ../../hypr-new/hyprland.lua parses `export KEY=VALUE' lines
+# ::               out of it and feeds them to hl.env()
+# ::
+# :: doom/modules/gitlab.el reads these via getenv at Emacs startup, and Emacs is
+# :: spawned by the launcher rather than an interactive fish shell, so `set -Ux'
+# :: in fish never reaches it -- hence exporting at session level.
+# ::
+# :: Absent this file both compositors start fine; gitlab.el just falls back to
+# :: its own defaults (gitlab.com / "project") and its commands stay unused.
+
+export GITLAB_PROJECT_ID=00000000
+export GITLAB_PROJECT_NAME="myproject"

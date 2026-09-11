@@ -43,9 +43,10 @@ output * adaptive_sync on
 output * enable
 
 # :: Display layout — DP-2 center, laptop eDP-1 right (vertically centered on DP-2)
-output DP-1 mode 2560x1440@120.000Hz position 0,0
-output DP-2 mode 2560x1440@120.000Hz position 0,0
-output eDP-1 mode 1920x1080 position 2560,180
+output DP-1 mode 2560x1440@165.000Hz position 0,0
+# output DP-1 mode 2560x1440@120.000Hz position 0,0
+# output DP-2 mode 2560x1440@120.000Hz position 0,0
+# output eDP-1 mode 1920x1080 position 2560,180
 
 # :: Scale eDP-1 up only while an external display is connected (it's on a stand,
 # :: farther away). Daemon watches output hotplug events and toggles the scale.
@@ -171,6 +172,12 @@ input type:pointer {
     accel_profile flat
     pointer_accel -0.5
 }
+
+# :: Put the pointer back to the speed set just above and clear the gaming-mode
+# :: state file, so an ON left over from the last session can't outlive it --
+# :: sway re-applies the block above on every start, but the state file is on
+# :: disk. (chill-mode.sh does the same thing inside its daemon branch.)
+exec ~/.config/sway/scripts/gaming-mode.sh reset
 
 input "type:touch" {
     events disabled
@@ -357,6 +364,12 @@ bindsym $mod+n exec ~/.config/sway/scripts/emacs-float.sh
     # :: Chill mode: make floating the default for every window opened from now
     # :: on (hyprland.lua binds the same $mod+alt+f to ChillModeToggle).
     bindsym $mod+alt+f exec ~/.config/sway/scripts/chill-mode.sh toggle
+
+    # :: Gaming mode: bump pointer sensitivity (accel_profile stays flat, so
+    # :: this is raw speed, no curve). Same toggle as the `gaming-mode` fish
+    # :: function -- see scripts/gaming-mode.sh, and keep its normal_accel in
+    # :: step with `pointer_accel` in the input block above.
+    bindsym $mod+alt+g exec ~/.config/sway/scripts/gaming-mode.sh toggle
 
     # Swap focus between the tiling area and the floating area
     # :: $mod+Tab, matching hyprland.lua's SUPER+Tab. The directional focus

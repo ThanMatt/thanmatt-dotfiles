@@ -17,11 +17,16 @@
 PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
 export PATH
 
-# :: doom/modules/gitlab.el reads these via getenv at Emacs startup, and Emacs is
-# :: spawned by the launcher, not an interactive fish shell -- `set -Ux` in fish
-# :: never reaches it.
-export GITLAB_PROJECT_ID=53733314
-export GITLAB_PROJECT_NAME=mos
+# :: doom/modules/gitlab.el reads GITLAB_* via getenv at Emacs startup, and Emacs
+# :: is spawned by the launcher, not an interactive fish shell -- `set -Ux` in
+# :: fish never reaches it.
+# ::
+# :: The values name a private GitLab project, so they live in a gitignored file
+# :: rather than inline (this repo is public). See session-env.local.sh.example;
+# :: absent the file the session still starts and gitlab.el uses its defaults.
+if [ -r "${0%/*}/session-env.local.sh" ]; then
+  . "${0%/*}/session-env.local.sh"
+fi
 
 # :: Safe everywhere, no condition needed.
 export ELECTRON_OZONE_PLATFORM_HINT=wayland

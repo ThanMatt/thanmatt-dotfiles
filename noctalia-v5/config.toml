@@ -235,6 +235,14 @@ font_family = "FiraCode Nerd Font"
         [shell.launcher.providers.windows]
         global = true
 
+        [shell.launcher.dmenu.entry.namewindow]
+        label = "Name window"
+        prefix = "name"
+        glyph = "tag"
+        global = false
+        freeform = true
+        exec = "~/.config/sway/scripts/name-window.sh \"{query}\""
+
     [shell.panel]
     open_near_click_control_center = true
 

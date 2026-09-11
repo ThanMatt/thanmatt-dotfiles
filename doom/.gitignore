@@ -6,6 +6,10 @@
 .env.local
 env.fish
 
+# :: Machine-local Doom overrides -- employer paths / project names, i.e. the
+# :: things that must not reach a public repo. +local.el.example IS tracked.
++local.el
+
 # :: Backup / auto-generated files
 *.backup
 *~

@@ -98,11 +98,31 @@ hl.env("HYPRCURSOR_SIZE", "24")
 local home = os.getenv("HOME")
 hl.env("PATH", home .. "/.cargo/bin:" .. home .. "/.local/bin:" .. os.getenv("PATH"))
 
--- :: Same problem, different variable: modules/gitlab.el reads these via
+-- :: Same problem, different variable: modules/gitlab.el reads GITLAB_* via
 -- :: getenv at Emacs startup, but Emacs is spawned by Hyprland/the launcher,
 -- :: not an interactive fish shell -- `set -Ux` in fish never reaches it.
-hl.env("GITLAB_PROJECT_ID", "53733314")
-hl.env("GITLAB_PROJECT_NAME", "mos")
+-- ::
+-- :: The values name a private GitLab project, so they live in a gitignored file
+-- :: shared with sway rather than inline (this repo is public). Single source of
+-- :: truth: ../sway/scripts/session-env.local.sh, which sway's session-env.sh
+-- :: sources and we parse here. See its .example; absent the file we set nothing
+-- :: and gitlab.el falls back to its own defaults.
+local function load_session_env(path)
+	local fh = io.open(path, "r")
+	if not fh then
+		return
+	end
+	for line in fh:lines() do
+		-- :: `export KEY=VALUE', tolerating optional quotes around VALUE
+		local key, value = line:match('^%s*export%s+([%w_]+)=%s*"?([^"\n]*)"?%s*$')
+		if key then
+			hl.env(key, value)
+		end
+	end
+	fh:close()
+end
+
+load_session_env(home .. "/.config/sway/scripts/session-env.local.sh")
 
 -----------------------
 ---- LOOK AND FEEL ----
@@ -124,7 +144,7 @@ hl.config({
 		},
 
 		resize_on_border = false,
-		allow_tearing = false,
+		allow_tearing = true,
 		layout = "dwindle",
 	},
 
@@ -587,6 +607,15 @@ hl.window_rule({
 	name = "suppress-maximize-events",
 	match = { class = ".*" },
 	suppress_event = "maximize",
+})
+
+-- Let tearing (allow_tearing above) actually kick in: Hyprland only tears a
+-- window that opts in via "immediate" presentation, so match any fullscreen
+-- window (games) rather than hardcoding a class list.
+hl.window_rule({
+	name = "tearing-fullscreen",
+	match = { fullscreen = true },
+	immediate = true,
 })
 
 -- xdg-desktop-portal-hyprland spawns hyprland-share-picker (used by OBS/any

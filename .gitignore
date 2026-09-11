@@ -2,3 +2,18 @@ fish/conf.d/*
 
 **/.DS_Store
 fish/fish_variables
+
+# :: Machine-local session env (employer GitLab ids) -- .example IS tracked.
+sway/scripts/session-env.local.sh
+
+# :: herdr runtime state. session.json and the logs record real working-directory
+# :: paths (i.e. employer project names), and the .sock files aren't committable
+# :: at all. Only config.toml belongs in a public repo.
+herdr/*
+!herdr/config.toml
+
+# :: Patch/merge artifacts. A .rej holds the hunks that FAILED to apply, i.e. a
+# :: verbatim copy of pre-edit content -- which is how a scrubbed string gets
+# :: republished. `git add -A' picks them up silently.
+*.rej
+*.orig

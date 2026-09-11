@@ -730,15 +730,40 @@ Skips the \"buffer has a running process\" prompt — the pick is explicit."
 ;; ──────────────────────────────────────────────────────
 
 (defun my/workspace-switch (name)
-  ":: Switch to named workspace, creating it if it doesn't exist."
+  ":: Switch to named workspace, creating it if it doesn't exist.
+NOTE: creating is silent, so a NAME that doesn't exist yields a new EMPTY
+workspace rather than an error -- which looks exactly like \"my buffers
+vanished\". Prefer `my/workspace-switch-to-project' for anything project-shaped;
+it derives the name from the path so it can't drift."
   (if (fboundp '+workspace-switch)
       (+workspace-switch name t)
     (message "Enable ':ui workspaces' in init.el for workspace support.")))
 
+;; :: `SPC d w f' / `SPC d w b' -- jump straight to the two projects you live in.
+;; :: They route through the project switcher, so they land in exactly the
+;; :: workspace `SPC p p' would (`my/workspace-project-name' derives it from the
+;; :: path) instead of minting a new empty one.
+;; ::
+;; :: nil here because this repo is public -- set the paths in `+local.el'
+;; :: (gitignored; see `+local.el.example').
+(defvar my/project-frontend-dir nil
+  ":: Directory `my/workspace-frontend' (`SPC d w f') jumps to. Set in `+local.el'.")
+
+(defvar my/project-backend-dir nil
+  ":: Directory `my/workspace-backend' (`SPC d w b') jumps to. Set in `+local.el'.")
+
+(defun my/workspace--jump-to-project (dir var)
+  ":: Jump to DIR's project workspace, or say which variable needs setting."
+  (if dir
+      (my/workspace-switch-to-project dir)
+    (user-error "Set `%s' in +local.el (see +local.el.example)" var)))
+
 (defun my/workspace-frontend ()
-  ":: Switch to the frontend workspace."
-  (interactive) (my/workspace-switch "frontend"))
+  ":: Jump to the frontend project's workspace."
+  (interactive)
+  (my/workspace--jump-to-project my/project-frontend-dir 'my/project-frontend-dir))
 
 (defun my/workspace-backend ()
-  ":: Switch to the backend workspace."
-  (interactive) (my/workspace-switch "backend"))
+  ":: Jump to the backend project's workspace."
+  (interactive)
+  (my/workspace--jump-to-project my/project-backend-dir 'my/project-backend-dir))

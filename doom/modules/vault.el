@@ -117,11 +117,12 @@
 ;; ──────────────────────────────────────────────────────
 ;; :: Portable org links -- vault-relative, not machine-absolute
 ;; ──────────────────────────────────────────────────────
-;; :: `~/notes/' (macOS) and `~/org-notes/mos/' (Linux) are the same Syncthing
-;; :: folder, so an absolute `file:' link written on one box is dead on the other.
-;; :: Every vault gets an `org-link-abbrev-alist' entry named after itself, so a
-;; :: link is stored as `work:projects/mos/issues/foo.org' and resolved against
-;; :: whatever the root is on this machine.
+;; :: The vault root differs per machine (`~/notes/' on macOS, `~/org-notes/<vault>/'
+;; :: on Linux) while being the same Syncthing folder, so an absolute `file:' link
+;; :: written on one box is dead on the other. Every vault gets an
+;; :: `org-link-abbrev-alist' entry named after itself, so a link is stored as
+;; :: `work:projects/acme/issues/foo.org' and resolved against whatever the root
+;; :: is on this machine.
 ;; ::
 ;; :: Deliberately one tag PER VAULT rather than a single "notes:" bound to the
 ;; :: active vault -- the latter would silently resolve to a different file after
