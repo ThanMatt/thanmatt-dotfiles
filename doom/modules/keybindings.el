@@ -2,7 +2,8 @@
       (:prefix ("d" . "dev")
 
                ;; :: Project commands (.dev.el)
-               ;; :: NOTE: avoid `r' (reminders), `s' (sql prefix), `c'/`t' etc.
+               ;; :: NOTE: avoid `r' (reminders), `s' (sql prefix), `R' (redis prefix),
+               ;; :: `c'/`t' etc.
                :desc "Run command"        "d" #'my/project-run
                :desc "Stop server"        "S" #'my/project-stop
                :desc "Logs"               "l" #'my/project-logs
@@ -39,6 +40,18 @@
                 :desc "dps (short ps)"     "d" #'my/dps
                 :desc "Exec into container" "e" #'my/docker-exec
                 :desc "Follow logs"        "l" #'my/docker-logs)
+
+               ;; :: Redis (modules/redis*.el) -- same shape as the SQL prefix
+               (:prefix ("R" . "redis")
+                :desc "Browse keys"        "b" #'my/redis-browse
+                :desc "INFO dashboard"     "i" #'my/redis-info
+                :desc "Redis scratch"      "s" #'my/redis-scratch
+                :desc "Redis REPL (vterm)" "c" #'my/redis-repl
+                :desc "Reload connections" "r" #'my/redis-reload-connections
+                :desc "Save command"       "w" #'my/redis-save-command
+                :desc "Saved commands"     "q" #'my/redis-run-saved
+                :desc "Delete saved"       "d" #'my/redis-delete-saved
+                :desc "Kill all Redis buffers" "K" #'my/redis-kill-all-buffers)
 
                ;; :: Tools
                :desc "Toggle TSX engine"  "x" #'my/tsx-toggle-treesit

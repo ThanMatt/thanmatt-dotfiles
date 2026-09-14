@@ -84,10 +84,32 @@
 (after! org
   (add-to-list 'org-agenda-files my/reminders-file))
 
+;; :: Declared, not defined: org.el owns this (it's the log `org-submit-bug-report'
+;; :: attaches). This file is lexical-binding, so without the declaration the
+;; :: `let' below would bind it lexically -- i.e. do nothing at all.
+(defvar org--warnings)
+
 (defun my/reminders-sync-appt ()
   ":: rebuild appt's schedule from the agenda (run on save + daily rollover)"
   (interactive)
-  (org-agenda-to-appt t))
+  ;; :: This runs UNATTENDED -- idle timer at startup, midnight rollover, on save
+  ;; :: -- and `org-agenda-to-appt' reaches `org-element-cache-map', which fires
+  ;; :: `org-element--cache-warn' once PER ELEMENT while the cache is
+  ;; :: inconsistent. That macro writes to `*Warnings*' AND pushes onto
+  ;; :: `org--warnings', neither bounded, so one stale cache turned a background
+  ;; :: sync into a daemon pinned at 100% CPU and growing ~9MB/s.
+  ;; ::
+  ;; :: Cap both sinks for the duration. `:error' as the LOG level is the one
+  ;; :: that matters: `display-warning' tests `warning-minimum-log-level' before
+  ;; :: it creates the buffer, so a `:warning' never allocates anything.
+  ;; :: `org--warnings' is rebound so its pushes are discarded on exit. appt is
+  ;; :: still rebuilt exactly as before -- a parse fault just can't take the
+  ;; :: session with it now. The cache corruption ITSELF is addressed in
+  ;; :: config.el, via `org-element-cache-persistent'.
+  (let ((warning-minimum-log-level :error)
+        (warning-minimum-level     :error)
+        (org--warnings             nil))
+    (org-agenda-to-appt t)))
 
 ;; :: prime appt shortly after startup, then refresh each midnight for the new day
 ;; :: (`my/reminders--startup' below also runs the missed-reminder catch-up)

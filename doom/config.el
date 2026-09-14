@@ -96,7 +96,7 @@
 ;; :: `+global-word-wrap-mode' already skips `special-mode' buffers and the db
 ;; :: result/colsel modes derive from special-mode, so listing them is belt-and-
 ;; :: suspenders -- kept for clarity and in case a viewer stops being special.
-(dolist (mode '(my/sql-result-mode my/sql-colsel-mode))
+(dolist (mode '(my/sql-result-mode my/sql-colsel-mode my/redis-result-mode))
   (add-to-list '+word-wrap-disabled-modes mode))
 (+global-word-wrap-mode +1)
 
@@ -322,6 +322,19 @@ buffer impossible while the engine is web-mode."
 (menu-bar-mode -1)
 (setq org-image-actual-width '(400))
 ;; :: org-agenda-files is set in modules/org-agenda.el (single source of truth).
+
+;; :: Don't persist the org-element cache between sessions. `my/notes-dir' lives
+;; :: in a Syncthing folder, and Doom deliberately skips `global-auto-revert-mode'
+;; :: (see `doom-editor.el') -- only VISIBLE buffers revert -- so a buried
+;; :: tasks.org can drift from the file on disk and leave the cache inconsistent.
+;; :: Persisting that state means a restart RESTORES the corruption rather than
+;; :: clearing it, and the damage is not a one-off warning: `org-agenda-to-appt'
+;; :: (reminders.el, on a timer) warns from inside `org-element-cache-map''s
+;; :: per-element loop, and `org-element--cache-warn' both pushes onto
+;; :: `org--warnings' and writes to `*Warnings*' -- so the daemon pins a core and
+;; :: grows without bound. Rebuilding the cache each session costs a beat on the
+;; :: first agenda; a wedged daemon costs the session.
+(setq org-element-cache-persistent nil)
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Shell / vterm
@@ -1449,7 +1462,8 @@ shrink (DELTA columns, default 10)."
         ;; :: Never resize these -- the db table viewers render fixed-width,
         ;; :: column-aligned output (they keep `truncate-lines'), and the
         ;; :: minibuffer/echo area must stay put.
-        zoom-ignored-major-modes '(my/sql-result-mode my/sql-colsel-mode)
+        zoom-ignored-major-modes '(my/sql-result-mode my/sql-colsel-mode
+                                   my/redis-result-mode)
         zoom-ignored-buffer-name-regexps '("^ \\*")
         ;; :: Don't zoom while a which-key/transient/minibuffer popup is up.
         zoom-ignore-predicates (list (lambda () (> (minibuffer-depth) 0)))))
@@ -1573,6 +1587,9 @@ shrink (DELTA columns, default 10)."
 (load! "modules/db-write")      ; :: edit/delete rows + transactions (after db-browser)
 (load! "modules/web")
 (load! "modules/docker")        ; :: SPC d D -- ps/dps, exec, logs (after web: uses its vterm helpers)
+(load! "modules/redis")         ; :: SPC d R -- runner + scratch (after docker: REPL uses web.el's vterm helpers)
+(load! "modules/redis-browser") ; :: key grid, inspector, writes, INFO
+(load! "modules/redis-saved")   ; :: saved commands (after redis-browser)
 (load! "modules/claude")        ; :: , c -- ask Claude about visual selection
 (load! "modules/hackernews")    ; :: SPC o h -- in-buffer Hacker News reader
 (load! "modules/reader")        ; :: SPC o w -- fetch a URL and read it as org
