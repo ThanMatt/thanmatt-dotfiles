@@ -273,9 +273,10 @@ hl.config({
 
 		follow_mouse = 1,
 
-		-- :: Sway pointer: `accel_profile flat`, `pointer_accel -0.5`, `natural_scroll enabled`
+		-- :: Sway pointer: `accel_profile flat`, `pointer_accel 0.4`, `natural_scroll enabled`
+		-- :: 0.4 was the old gaming-mode speed; it is the everyday default now.
 		accel_profile = "flat",
-		sensitivity = -0.5, -- :: pointer_accel -0.5
+		sensitivity = 0.4, -- :: pointer_accel 0.4
 		natural_scroll = true, -- :: mouse natural scroll
 
 		-- :: Sway keyboard: repeat_delay 300, repeat_rate 50
@@ -293,7 +294,7 @@ hl.config({
 
 -- :: Trackpad speed. `input.touchpad` has NO sensitivity option — touchpad speed
 -- :: comes from `input.sensitivity` / `input.accel_profile`, which above are set
--- :: for the mouse (flat, -0.5) and would otherwise make the trackpad crawl.
+-- :: for the mouse (flat, 0.4) and would otherwise send the trackpad flying.
 -- :: So override just the trackpad per-device (name from `hyprctl devices`).
 -- :: sensitivity range is -1.0 .. 1.0; adaptive re-enables pointer acceleration,
 -- :: which feels much better than `flat` on a touchpad. Tune 0.2 -> 0.6 to taste.

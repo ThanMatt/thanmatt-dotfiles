@@ -69,6 +69,37 @@ variable cannot pin issues to a tree outside the vault."
         (funcall (plist-get (car auth-info) :secret))
       (error "GitLab token not found in auth-source. Please add it to ~/.authinfo.gpg"))))
 
+(defun my/gitlab--decode-body (raw)
+  "Return RAW decoded as UTF-8, whichever representation the buffer used."
+  (cond
+   ((not (multibyte-string-p raw)) (decode-coding-string raw 'utf-8))
+   ;; :: Multibyte, but no character above a byte value -- still raw bytes
+   ((not (string-match-p "[^\000-\377]" raw))
+    (decode-coding-string (encode-coding-string raw 'latin-1) 'utf-8))
+   (t raw)))
+
+(defun my/gitlab--read-json-body ()
+  "Parse the JSON body of the `url-retrieve' response in the current buffer.
+Objects become hash-tables and arrays lists.
+
+The response buffer holds *undecoded bytes*, so calling `json-read' on it
+directly turns every multi-byte UTF-8 character into one character per
+byte -- that is where the `\u00e2' and `\u00f0' in older issue filenames came
+from.  Decoding the body as UTF-8 first keeps em dashes and emoji intact."
+  (let ((body (my/gitlab--decode-body
+               (buffer-substring-no-properties
+                (if (markerp url-http-end-of-headers)
+                    (marker-position url-http-end-of-headers)
+                  url-http-end-of-headers)
+                (point-max)))))
+    (with-temp-buffer
+      (insert body)
+      (goto-char (point-min))
+      (let ((json-object-type 'hash-table)
+            (json-array-type 'list)
+            (json-key-type 'string))
+        (json-read)))))
+
 (defun my/gitlab--issue-link-text (filepath display-text)
   "Return an org or markdown link to FILEPATH with DISPLAY-TEXT for the current buffer.
 Org links use the vault abbreviation (`work:projects/...') so they resolve on
@@ -159,7 +190,7 @@ Use after files are added or renamed outside Emacs (e.g. a git pull)."
   (lambda (string pred action)
     (if (eq action 'metadata)
         '(metadata (display-sort-function . identity)
-                   (cycle-sort-function . identity))
+          (cycle-sort-function . identity))
       (complete-with-action action candidates string pred))))
 
 (defun my/gitlab--api-get-sync (path query-string)
@@ -271,11 +302,7 @@ Return the filepath of the created file."
                   (lambda (status)
                     (if (plist-get status :error)
                         (message "Error fetching issue: %s" (plist-get status :error))
-                      (goto-char url-http-end-of-headers)
-                      (let* ((json-object-type 'hash-table)
-                             (json-array-type 'list)
-                             (json-key-type 'string)
-                             (json (json-read))
+                      (let* ((json (my/gitlab--read-json-body))
                              (filepath (my/gitlab--write-issue-file issue-id json))
                              (filename (file-name-nondirectory filepath))
                              (display-text (format "%s#%s - %s"
@@ -350,11 +377,7 @@ Return the filepath of the created file."
                   (lambda (status)
                     (if (plist-get status :error)
                         (message "Error fetching issue: %s" (plist-get status :error))
-                      (goto-char url-http-end-of-headers)
-                      (let* ((json-object-type 'hash-table)
-                             (json-array-type 'list)
-                             (json-key-type 'string)
-                             (json (json-read))
+                      (let* ((json (my/gitlab--read-json-body))
                              (filepath (my/gitlab--write-issue-file issue-id json)))
                         (find-file filepath)
                         (message "Created and opened issue #%s - %s"
@@ -575,8 +598,8 @@ Keybindings:
   (interactive)
   (let* ((token (my/gitlab-get-token))
          (api-url (concat (format "%s/api/v4/todos?per_page=100" my/gitlab-url)
-                         (when type-filter (format "&type=%s" type-filter))
-                         (when state-filter (format "&state=%s" state-filter))))
+                          (when type-filter (format "&type=%s" type-filter))
+                          (when state-filter (format "&state=%s" state-filter))))
          (url-request-extra-headers
           `(("PRIVATE-TOKEN" . ,token)))
          (url-request-method "GET"))
@@ -585,21 +608,17 @@ Keybindings:
                   (lambda (status)
                     (if (plist-get status :error)
                         (message "Error fetching todos: %s" (plist-get status :error))
-                      (goto-char url-http-end-of-headers)
-                      (let* ((json-object-type 'hash-table)
-                             (json-array-type 'list)
-                             (json-key-type 'string)
-                             (todos (json-read))
+                      (let* ((todos (my/gitlab--read-json-body))
                              (buf (get-buffer-create "*GitLab Todos*")))
 
                         (with-current-buffer buf
                           (let ((inhibit-read-only t)
                                 (filter-desc (cond
-                                             ((and type-filter state-filter)
-                                              (format " [%s, %s]" type-filter state-filter))
-                                             (type-filter (format " [%s]" type-filter))
-                                             (state-filter (format " [%s]" state-filter))
-                                             (t ""))))
+                                              ((and type-filter state-filter)
+                                               (format " [%s, %s]" type-filter state-filter))
+                                              (type-filter (format " [%s]" type-filter))
+                                              (state-filter (format " [%s]" state-filter))
+                                              (t ""))))
                             (erase-buffer)
                             (insert (propertize (format "GitLab Todos%s\n" filter-desc) 'face 'bold))
                             (insert (propertize (format "Total: %d\n" (length todos)) 'face 'font-lock-comment-face))
@@ -624,7 +643,7 @@ Keybindings:
 
                                   ;; :: Insert todo entry
                                   (insert (propertize (format "• [%s] " state)
-                                                     'face (if (string= state "pending") 'warning 'success)))
+                                                      'face (if (string= state "pending") 'warning 'success)))
                                   (insert (propertize (format "%s" action) 'face 'bold))
                                   (when target-title
                                     (insert (format ": %s" target-title)))
@@ -636,14 +655,14 @@ Keybindings:
                                     (insert (format "  Author: %s\n" author-name)))
                                   (when target-created-at
                                     (insert (format "  Date: %s\n"
-                                                   (format-time-string "%Y-%m-%d %H:%M"
-                                                                      (date-to-time target-created-at)))))
+                                                    (format-time-string "%Y-%m-%d %H:%M"
+                                                                        (date-to-time target-created-at)))))
                                   (when target-url
                                     (insert "  URL: ")
                                     (insert-text-button target-url
-                                                       'action (lambda (_) (browse-url target-url))
-                                                       'follow-link t
-                                                       'help-echo "Click to open in browser")
+                                                        'action (lambda (_) (browse-url target-url))
+                                                        'follow-link t
+                                                        'help-echo "Click to open in browser")
                                     (insert "\n"))
                                   (insert "\n")
 
@@ -722,11 +741,7 @@ Inserts in the format: [PROJECT_NAME#<id>] <title>"
                   (lambda (status)
                     (if (plist-get status :error)
                         (message "Error fetching issue: %s" (plist-get status :error))
-                      (goto-char url-http-end-of-headers)
-                      (let* ((json-object-type 'hash-table)
-                             (json-array-type 'list)
-                             (json-key-type 'string)
-                             (json (json-read))
+                      (let* ((json (my/gitlab--read-json-body))
                              (title (gethash "title" json))
                              (ref (format "[%s#%s] %s" my/gitlab-project-name issue-id title)))
                         (if (buffer-live-p target-buffer)
@@ -778,11 +793,7 @@ Preserves the Notes section. Only works on files in GITLAB_ISSUES_DIR."
                     (lambda (status)
                       (if (plist-get status :error)
                           (message "Error fetching issue: %s" (plist-get status :error))
-                        (goto-char url-http-end-of-headers)
-                        (let* ((json-object-type 'hash-table)
-                               (json-array-type 'list)
-                               (json-key-type 'string)
-                               (json (json-read))
+                        (let* ((json (my/gitlab--read-json-body))
                                (title (gethash "title" json))
                                (description (or (gethash "description" json) ""))
                                (state (gethash "state" json))
@@ -819,24 +830,24 @@ Preserves the Notes section. Only works on files in GITLAB_ISSUES_DIR."
                                 (insert (format "- *Author:* %s\n" (gethash "name" author))))
                               (when labels
                                 (insert (format "- *Labels:* %s\n"
-                                              (mapconcat 'identity labels ", "))))
+                                                (mapconcat 'identity labels ", "))))
                               (when milestone
                                 (insert (format "- *Milestone:* %s\n"
-                                              (gethash "title" milestone))))
+                                                (gethash "title" milestone))))
                               (when assignees
                                 (insert (format "- *Assignees:* %s\n"
-                                              (mapconcat (lambda (a) (gethash "name" a))
-                                                        assignees ", "))))
+                                                (mapconcat (lambda (a) (gethash "name" a))
+                                                           assignees ", "))))
                               (insert (format "- *Created:* %s\n"
-                                            (format-time-string "%Y-%m-%d %H:%M"
-                                                              (date-to-time created-at))))
+                                              (format-time-string "%Y-%m-%d %H:%M"
+                                                                  (date-to-time created-at))))
                               (insert (format "- *Updated:* %s\n"
-                                            (format-time-string "%Y-%m-%d %H:%M"
-                                                              (date-to-time updated-at))))
+                                              (format-time-string "%Y-%m-%d %H:%M"
+                                                                  (date-to-time updated-at))))
                               (when closed-at
                                 (insert (format "- *Closed:* %s\n"
-                                              (format-time-string "%Y-%m-%d %H:%M"
-                                                                (date-to-time closed-at)))))
+                                                (format-time-string "%Y-%m-%d %H:%M"
+                                                                    (date-to-time closed-at)))))
                               (insert "\n* Description\n\n")
                               (insert org-description)
                               (insert "\n\n* Notes\n\n")
@@ -883,12 +894,7 @@ Only works on files in GITLAB_ISSUES_DIR."
                     (lambda (status)
                       (if (plist-get status :error)
                           (message "Error fetching MRs: %s" (plist-get status :error))
-                        (goto-char url-http-end-of-headers)
-                        (let* ((json-object-type 'hash-table)
-                               (json-array-type 'list)
-                               (json-key-type 'string)
-                               (mrs (json-read)))
-
+                        (let* ((mrs (my/gitlab--read-json-body)))
                           (if (zerop (length mrs))
                               (message "No linked merge requests found for issue #%s" issue-id)
                             (with-current-buffer (find-file-noselect current-file)
@@ -928,13 +934,13 @@ Only works on files in GITLAB_ISSUES_DIR."
                                             (insert (format "  - Author: %s\n" mr-author-name)))
                                           (when created-at
                                             (insert (format "  - Created: %s\n"
-                                                          (format-time-string "%Y-%m-%d %H:%M"
-                                                                            (date-to-time created-at)))))
+                                                            (format-time-string "%Y-%m-%d %H:%M"
+                                                                                (date-to-time created-at)))))
                                           (insert "\n")))
                                       (insert "\n")
                                       (save-buffer)
                                       (message "Added %d merge request(s) to Notes section" (length mrs))))
-                                  (error "No Notes section found in current file")))))))
+                                (error "No Notes section found in current file")))))))
                     nil t))))
 
 ;; :: ============================================================
@@ -1204,6 +1210,986 @@ to save or \\[my/gitlab-mr-cancel] to abort."
       :desc "GitLab Copy MR Link" "g y" #'my/gitlab-copy-mr-link
       :desc "GitLab Edit MR" "g e" #'my/gitlab-edit-mr
       :desc "GitLab Browse Remote" "g b" #'my/gitlab-browse-remote)
+
+
+
+;; :: ============================================================
+;; :: Dashboards: my merge requests / my assigned issues
+;; :: ============================================================
+;;
+;; :: `my/gitlab-my-merge-requests' (SPC o g p) and `my/gitlab-my-issues'
+;; :: (SPC o g a) list your work one line each, newest first, so pending MRs
+;; :: and tickets can be checked without going to Slack or GitLab.
+;; ::
+;; :: Both share `my/gitlab-dash--*': paging, state/scope/sort cycling and
+;; :: refresh live in one place, and each dashboard supplies its own renderer
+;; :: and its own RET action.
+
+(defvar my/gitlab-dash-per-page 20
+  "How many items each GitLab dashboard fetches per page.")
+
+;; :: ------------------------------------------------------------
+;; :: Small shared helpers
+;; :: ------------------------------------------------------------
+
+(defun my/gitlab--truthy (value)
+  "Return non-nil when VALUE is JSON true.
+`json-read' decodes false as `:json-false', which is itself truthy in
+elisp -- every boolean field from the API has to go through here."
+  (and value (not (eq value :json-false))))
+
+(defun my/gitlab--has-key (table key)
+  "Return non-nil when hash-table TABLE actually carries KEY.
+Distinguishes \"field absent from this GitLab version\" from \"field is
+false/empty\" -- both decode to nil otherwise."
+  (and (hash-table-p table)
+       (not (eq 'missing (gethash key table 'missing)))))
+
+(defun my/gitlab--truncate (string width)
+  "Pad or ellipsise STRING to exactly WIDTH display columns."
+  (truncate-string-to-width (or string "") width nil ?\s "…"))
+
+(defun my/gitlab--relative-time (iso)
+  "Return a compact age (e.g. \"3d\") for the ISO 8601 timestamp ISO."
+  (if (not iso)
+      "?"
+    (let ((secs (float-time (time-subtract (current-time) (date-to-time iso)))))
+      (cond
+       ((< secs 3600) (format "%dm" (max 1 (floor (/ secs 60)))))
+       ((< secs 86400) (format "%dh" (floor (/ secs 3600))))
+       ((< secs 2592000) (format "%dd" (floor (/ secs 86400))))
+       (t (format "%dmo" (floor (/ secs 2592000))))))))
+
+(defun my/gitlab--md-to-org (markdown)
+  "Convert MARKDOWN to org via pandoc, returning MARKDOWN unchanged if absent."
+  (cond
+   ((or (null markdown) (string-empty-p markdown)) "")
+   ((not (executable-find "pandoc")) markdown)
+   (t (with-temp-buffer
+        (insert markdown)
+        (shell-command-on-region
+         (point-min) (point-max) "pandoc -f markdown -t org" (current-buffer) t)
+        (buffer-string)))))
+
+(defun my/gitlab--indent-block (text prefix)
+  "Prefix every line of TEXT with PREFIX."
+  (mapconcat (lambda (line) (concat prefix line))
+             (split-string (or text "") "\n")
+             "\n"))
+
+(defun my/gitlab--scoped-label (labels scope)
+  "Return the value of the first SCOPE:: scoped label in LABELS, or nil.
+GitLab scoped labels (`stage::refine', `priority::high') are where the
+real workflow status lives, so they get their own dashboard columns."
+  (let ((prefix (concat scope "::")))
+    (seq-some (lambda (label)
+                (and (string-prefix-p prefix label)
+                     (substring label (length prefix))))
+              labels)))
+
+(defun my/gitlab--api-request-async (method path query-string callback)
+  "Send METHOD to /api/v4/PATH?QUERY-STRING and call CALLBACK with parsed JSON.
+Objects are hash-tables, arrays are lists.  CALLBACK receives nil when the
+request itself fails; HTTP-level errors arrive as a payload carrying a
+\"message\" key, so callers that care should check for the fields they need."
+  (let* ((token (my/gitlab-get-token))
+         (url (format "%s/api/v4/%s%s" my/gitlab-url path
+                      (if (and query-string (not (string-empty-p query-string)))
+                          (concat "?" query-string)
+                        "")))
+         (url-request-method method)
+         (url-request-extra-headers `(("PRIVATE-TOKEN" . ,token))))
+    (url-retrieve
+     url
+     (lambda (status)
+       (if (plist-get status :error)
+           (progn (message "GitLab request failed: %s" (plist-get status :error))
+                  (funcall callback nil))
+         (funcall callback (my/gitlab--read-json-body))))
+     nil t)))
+
+(defun my/gitlab--api-get-async (path query-string callback)
+  "GET /api/v4/PATH?QUERY-STRING and call CALLBACK with the parsed JSON."
+  (my/gitlab--api-request-async "GET" path query-string callback))
+
+;; :: ------------------------------------------------------------
+;; :: Shared dashboard layer
+;; :: ------------------------------------------------------------
+
+(defvar-local my/gitlab-dash--refetch nil
+  "Function of (PAGE STATE SCOPE SORT) that redraws this dashboard.")
+(defvar-local my/gitlab-dash--page 1
+  "Page currently displayed.")
+(defvar-local my/gitlab-dash--state "opened"
+  "State filter currently displayed.")
+(defvar-local my/gitlab-dash--scope "created_by_me"
+  "Scope filter currently displayed.")
+(defvar-local my/gitlab-dash--sort "created_at"
+  "Field the current listing is ordered by.")
+(defvar-local my/gitlab-dash--items nil
+  "Objects currently displayed, in render order.")
+(defvar-local my/gitlab-dash--states nil
+  "States `my/gitlab-dash-cycle-state' rotates through in this buffer.")
+(defvar-local my/gitlab-dash--scopes nil
+  "Scopes `my/gitlab-dash-cycle-scope' rotates through in this buffer.")
+(defvar-local my/gitlab-dash--sorts nil
+  "Sort fields `my/gitlab-dash-cycle-sort' rotates through in this buffer.")
+
+(defun my/gitlab-dash--next-in (value list)
+  "Return the entry after VALUE in LIST, wrapping around."
+  (or (cadr (member value list)) (car list)))
+
+(defun my/gitlab-dash--go (&rest overrides)
+  "Re-fetch this dashboard.
+OVERRIDES is a plist of :page, :state, :scope and :sort; anything absent
+keeps the buffer's current value."
+  (unless (functionp my/gitlab-dash--refetch)
+    (user-error "Not a GitLab dashboard buffer"))
+  (funcall my/gitlab-dash--refetch
+           (or (plist-get overrides :page) my/gitlab-dash--page)
+           (or (plist-get overrides :state) my/gitlab-dash--state)
+           (or (plist-get overrides :scope) my/gitlab-dash--scope)
+           (or (plist-get overrides :sort) my/gitlab-dash--sort)))
+
+(defun my/gitlab-dash-refresh ()
+  "Re-fetch the current page."
+  (interactive)
+  (my/gitlab-dash--go))
+
+(defun my/gitlab-dash-next-page ()
+  "Show the next page."
+  (interactive)
+  (if (< (length my/gitlab-dash--items) my/gitlab-dash-per-page)
+      (message "Already on the last page")
+    (my/gitlab-dash--go :page (1+ my/gitlab-dash--page))))
+
+(defun my/gitlab-dash-prev-page ()
+  "Show the previous page."
+  (interactive)
+  (if (<= my/gitlab-dash--page 1)
+      (message "Already on the first page")
+    (my/gitlab-dash--go :page (1- my/gitlab-dash--page))))
+
+(defun my/gitlab-dash-cycle-state ()
+  "Cycle the state filter, returning to page 1."
+  (interactive)
+  (my/gitlab-dash--go
+   :page 1 :state (my/gitlab-dash--next-in my/gitlab-dash--state my/gitlab-dash--states)))
+
+(defun my/gitlab-dash-cycle-scope ()
+  "Cycle the scope filter, returning to page 1."
+  (interactive)
+  (if (< (length my/gitlab-dash--scopes) 2)
+      (message "Only one scope for this view")
+    (my/gitlab-dash--go
+     :page 1 :scope (my/gitlab-dash--next-in my/gitlab-dash--scope my/gitlab-dash--scopes))))
+
+(defun my/gitlab-dash-cycle-sort ()
+  "Cycle the sort field, returning to page 1."
+  (interactive)
+  (my/gitlab-dash--go
+   :page 1 :sort (my/gitlab-dash--next-in my/gitlab-dash--sort my/gitlab-dash--sorts)))
+
+(defun my/gitlab-dash--at-point ()
+  "Return the object on the current line, or signal an error."
+  (or (get-text-property (point) 'gitlab-item)
+      (save-excursion
+        (beginning-of-line)
+        (get-text-property (point) 'gitlab-item))
+      (user-error "Nothing on this line")))
+
+(defun my/gitlab-dash-browse-at-point ()
+  "Open the item on the current line in the browser."
+  (interactive)
+  (browse-url (gethash "web_url" (my/gitlab-dash--at-point))))
+
+(defun my/gitlab-dash-copy-url-at-point ()
+  "Copy the URL of the item on the current line."
+  (interactive)
+  (let ((url (gethash "web_url" (my/gitlab-dash--at-point))))
+    (kill-new url)
+    (message "Copied: %s" url)))
+
+(defun my/gitlab-dash--sort-label (sort)
+  "Return a short human label for the SORT field."
+  (if (equal sort "updated_at") "recently updated" "newest"))
+
+(defun my/gitlab-dash--insert-header (title scope-label state sort page count columns help)
+  "Insert the common dashboard header into the current buffer."
+  (insert (propertize (format "%s — %s · %s · %s · page %d\n"
+                              title scope-label state
+                              (my/gitlab-dash--sort-label sort) page)
+                      'face 'bold))
+  (insert (propertize (format "%d shown%s\n" count
+                              (if (< count my/gitlab-dash-per-page) " (last page)" ""))
+                      'face 'font-lock-comment-face))
+  (insert (propertize (concat help "\n\n") 'face 'font-lock-comment-face))
+  (insert (propertize columns 'face 'font-lock-keyword-face)))
+
+(defun my/gitlab-dash--finish (page state scope sort items states scopes sorts)
+  "Record the dashboard's filter state as buffer-local variables."
+  (setq my/gitlab-dash--page page
+        my/gitlab-dash--state state
+        my/gitlab-dash--scope scope
+        my/gitlab-dash--sort sort
+        my/gitlab-dash--items items
+        my/gitlab-dash--states states
+        my/gitlab-dash--scopes scopes
+        my/gitlab-dash--sorts sorts))
+
+(defun my/gitlab-dash--bind (map open-fn)
+  "Populate MAP with the shared dashboard keys, using OPEN-FN for RET/o."
+  (define-key map (kbd "RET") open-fn)
+  (define-key map (kbd "o") open-fn)
+  (define-key map (kbd "b") 'my/gitlab-dash-browse-at-point)
+  (define-key map (kbd "y") 'my/gitlab-dash-copy-url-at-point)
+  (define-key map (kbd "n") 'my/gitlab-dash-next-page)
+  (define-key map (kbd "p") 'my/gitlab-dash-prev-page)
+  (define-key map (kbd "s") 'my/gitlab-dash-cycle-state)
+  (define-key map (kbd "t") 'my/gitlab-dash-cycle-scope)
+  (define-key map (kbd "S") 'my/gitlab-dash-cycle-sort)
+  (define-key map (kbd "r") 'my/gitlab-dash-refresh)
+  (define-key map (kbd "q") 'quit-window)
+  map)
+
+(defun my/gitlab-dash--evil-bind (mode-map open-fn)
+  "Mirror the shared dashboard keys into evil normal state for MODE-MAP.
+Uses `evil-define-key*', the function form.  `evil-define-key' is a macro:
+given the symbol of a lexical variable it defers the bindings to a global
+keymap variable of that name, which never exists here -- so nothing binds
+and evil's own RET/b/y/n/p keep winning."
+  (evil-define-key* 'normal mode-map
+    (kbd "RET") open-fn
+    (kbd "o") open-fn
+    (kbd "b") 'my/gitlab-dash-browse-at-point
+    (kbd "y") 'my/gitlab-dash-copy-url-at-point
+    (kbd "n") 'my/gitlab-dash-next-page
+    (kbd "p") 'my/gitlab-dash-prev-page
+    (kbd "s") 'my/gitlab-dash-cycle-state
+    (kbd "t") 'my/gitlab-dash-cycle-scope
+    (kbd "S") 'my/gitlab-dash-cycle-sort
+    (kbd "r") 'my/gitlab-dash-refresh
+    (kbd "gr") 'my/gitlab-dash-refresh
+    (kbd "q") 'quit-window))
+
+(defconst my/gitlab-dash-help
+  "RET/o: open  b: browser  y: copy URL  n/p: page  s: state  t: scope  S: sort  r: refresh  q: quit"
+  "Help line shown at the top of every GitLab dashboard.")
+
+;; :: ------------------------------------------------------------
+;; :: Merge request dashboard
+;; :: ------------------------------------------------------------
+
+(defvar my/gitlab-mrs-buffer-name "*GitLab My MRs*"
+  "Buffer name for the merge request dashboard.")
+
+(defvar-local my/gitlab-mrs--approvals nil
+  "Hash of MR key (see `my/gitlab-mrs--key') to its approvals payload.")
+
+(defun my/gitlab-mrs--key (mr)
+  "Return a stable key for MR, unique across projects on the same page."
+  (format "%s!%s" (gethash "project_id" mr) (gethash "iid" mr)))
+
+(defun my/gitlab-mrs--scope-label (scope)
+  "Return a human label for SCOPE."
+  (if (string= scope "assigned_to_me") "assigned to me" "created by me"))
+
+(defun my/gitlab--clean-title (title)
+  "Return TITLE with any Draft:/WIP: prefix stripped.
+The prefix is redundant -- draft state gets its own column."
+  (replace-regexp-in-string "\\`\\(\\[?Draft\\]?\\|\\[?WIP\\]?\\):[ \t]*" ""
+                            (or title "")))
+
+(defun my/gitlab-mrs--status (mr)
+  "Return (LABEL . FACE) describing the overall status of MR."
+  (let ((state (gethash "state" mr))
+        (draft (or (my/gitlab--truthy (gethash "draft" mr))
+                   (my/gitlab--truthy (gethash "work_in_progress" mr))))
+        (conflicts (my/gitlab--truthy (gethash "has_conflicts" mr))))
+    (cond
+     ((equal state "merged") (cons "merged" 'success))
+     ((equal state "closed") (cons "closed" 'error))
+     ((equal state "locked") (cons "locked" 'warning))
+     (conflicts (cons "conflict" 'error))
+     (draft (cons "draft" 'font-lock-comment-face))
+     (t (cons "open" 'warning)))))
+
+(defun my/gitlab-mrs--approvals-payload-p (data)
+  "Return DATA when it looks like an approvals response rather than an error."
+  (and (my/gitlab--has-key data "approved_by") data))
+
+(defun my/gitlab-mrs--approval-cell (mr approvals)
+  "Return (TEXT . FACE) for MR's approval count, from the APPROVALS hash.
+Shows \"…\" while the per-MR approvals request is still in flight."
+  (let ((data (and approvals (gethash (my/gitlab-mrs--key mr) approvals))))
+    (if (null data)
+        (cons "…" 'shadow)
+      (let* ((count (length (gethash "approved_by" data)))
+             (required (gethash "approvals_required" data))
+             (text (if (and (numberp required) (> required 0))
+                       (format "%d/%d" count required)
+                     (format "%d" count))))
+        (cons text (if (> count 0) 'success 'shadow))))))
+
+(defun my/gitlab-mrs--threads-cell (mr)
+  "Return (TEXT . FACE) summarising review activity on MR.
+A trailing `!' means at least one thread is still unresolved."
+  (let* ((notes (or (gethash "user_notes_count" mr) 0))
+         (unresolved (and (my/gitlab--has-key mr "blocking_discussions_resolved")
+                          (not (my/gitlab--truthy
+                                (gethash "blocking_discussions_resolved" mr))))))
+    (cond
+     ((and (zerop notes) (not unresolved)) (cons "-" 'shadow))
+     (unresolved (cons (format "%d!" notes) 'warning))
+     (t (cons (format "%d" notes) 'default)))))
+
+(defun my/gitlab--project-of (item)
+  "Return ITEM's `group/project' path from its references block."
+  (let ((refs (gethash "references" item)))
+    (if refs
+        (replace-regexp-in-string "[!#].*\\'" "" (or (gethash "full" refs) ""))
+      "")))
+
+(defun my/gitlab-mrs--render (buf mrs page state scope sort approvals)
+  "Draw MRS into BUF, recording the filter state for the shared commands."
+  (with-current-buffer buf
+    (let ((inhibit-read-only t)
+          (line (line-number-at-pos)))
+      (erase-buffer)
+      (my/gitlab-dash--insert-header
+       "GitLab Merge Requests" (my/gitlab-mrs--scope-label scope) state sort page
+       (length mrs)
+       (format "%-7s %-46s %-6s %-8s %-9s %-5s %s\n"
+               "MR" "Title" "Appr" "Threads" "Status" "Age" "Project")
+       my/gitlab-dash-help)
+      (if (null mrs)
+          (insert "\nNo merge requests found.\n")
+        (dolist (mr mrs)
+          (let* ((start (point))
+                 (status (my/gitlab-mrs--status mr))
+                 (appr (my/gitlab-mrs--approval-cell mr approvals))
+                 (threads (my/gitlab-mrs--threads-cell mr)))
+            (insert (propertize (format "%-7s " (format "!%s" (gethash "iid" mr)))
+                                'face 'font-lock-constant-face))
+            (insert (format "%s " (my/gitlab--truncate
+                                   (my/gitlab--clean-title (gethash "title" mr)) 46)))
+            (insert (propertize (format "%-6s " (car appr)) 'face (cdr appr)))
+            (insert (propertize (format "%-8s " (car threads)) 'face (cdr threads)))
+            (insert (propertize (format "%-9s " (car status)) 'face (cdr status)))
+            (insert (format "%-5s " (my/gitlab--relative-time (gethash "created_at" mr))))
+            (insert (propertize (my/gitlab--project-of mr) 'face 'font-lock-comment-face))
+            (insert "\n")
+            ;; :: The whole line carries the MR so point anywhere on it works
+            (put-text-property start (point) 'gitlab-item mr))))
+      (goto-char (point-min))
+      (forward-line (1- line)))
+    (unless (derived-mode-p 'gitlab-mrs-mode)
+      (gitlab-mrs-mode))
+    (setq my/gitlab-mrs--approvals approvals
+          my/gitlab-dash--refetch #'my/gitlab-mrs--fetch)
+    (my/gitlab-dash--finish page state scope sort mrs
+                            '("opened" "merged" "closed" "all")
+                            '("created_by_me" "assigned_to_me")
+                            '("created_at" "updated_at"))))
+
+(defun my/gitlab-mrs--fetch-approvals (mrs approvals buf page state scope sort)
+  "Fetch approvals for each of MRS into APPROVALS, then re-render BUF.
+The list renders immediately with a placeholder; this fills the column in
+once every per-MR request has come back, so nothing blocks on N round trips."
+  (let ((pending (length mrs)))
+    (dolist (mr mrs)
+      (my/gitlab--api-get-async
+       (format "projects/%s/merge_requests/%s/approvals"
+               (gethash "project_id" mr) (gethash "iid" mr))
+       ""
+       (lambda (data)
+         (when (my/gitlab-mrs--approvals-payload-p data)
+           (puthash (my/gitlab-mrs--key mr) data approvals))
+         (setq pending (1- pending))
+         (when (and (<= pending 0) (buffer-live-p buf))
+           (my/gitlab-mrs--render buf mrs page state scope sort approvals)))))))
+
+(defun my/gitlab-mrs--fetch (page state scope sort)
+  "Fetch and display page PAGE of merge requests matching STATE, SCOPE and SORT."
+  (message "Fetching merge requests (%s, %s, page %d)..."
+           (my/gitlab-mrs--scope-label scope) state page)
+  (my/gitlab--api-get-async
+   "merge_requests"
+   (format "scope=%s&state=%s&order_by=%s&sort=desc&per_page=%d&page=%d"
+           scope state sort my/gitlab-dash-per-page page)
+   (lambda (mrs)
+     ;; :: A hash rather than a list: the approval callbacks land out of order
+     (let ((approvals (make-hash-table :test 'equal))
+           (buf (get-buffer-create my/gitlab-mrs-buffer-name)))
+       (if (and mrs (hash-table-p mrs))
+           (message "GitLab error: %s" (gethash "message" mrs))
+         (my/gitlab-mrs--render buf mrs page state scope sort approvals)
+         (pop-to-buffer buf)
+         (message "Fetched %d merge request(s)" (length mrs))
+         (when mrs
+           (my/gitlab-mrs--fetch-approvals mrs approvals buf page state scope sort)))))))
+
+;;;###autoload
+(defun my/gitlab-my-merge-requests ()
+  "Show your merge requests, newest opened first, in a dashboard buffer.
+
+Each line shows the MR title, how many approvals it has, how many review
+comments (with `!' when threads are still unresolved), its status and age.
+
+Keybindings:
+  RET / o - Open the MR in an org buffer
+  b       - Open the MR in the browser
+  y       - Copy the MR URL
+  n / p   - Next / previous page
+  s       - Cycle state filter (opened, merged, closed, all)
+  t       - Toggle scope (created by me / assigned to me)
+  S       - Toggle sort (newest / recently updated)
+  r / gr  - Refresh
+  q       - Quit window"
+  (interactive)
+  (my/gitlab-mrs--fetch 1 "opened" "created_by_me" "created_at"))
+
+(defun my/gitlab-mrs-open-at-point ()
+  "Open the merge request on the current line in an org buffer."
+  (interactive)
+  (let ((mr (my/gitlab-dash--at-point)))
+    (my/gitlab-mr-view (gethash "project_id" mr) (gethash "iid" mr))))
+
+(defvar gitlab-mrs-mode-map
+  (my/gitlab-dash--bind (make-sparse-keymap) 'my/gitlab-mrs-open-at-point)
+  "Keymap for the GitLab merge request dashboard.")
+
+(define-derived-mode gitlab-mrs-mode special-mode "GitLab-MRs"
+  "Major mode for the GitLab merge request dashboard.
+\\{gitlab-mrs-mode-map}"
+  (setq truncate-lines t))
+
+(with-eval-after-load 'evil
+  (evil-set-initial-state 'gitlab-mrs-mode 'normal)
+  (my/gitlab-dash--evil-bind gitlab-mrs-mode-map 'my/gitlab-mrs-open-at-point))
+
+;; :: ------------------------------------------------------------
+;; :: Single MR view (throwaway org buffer)
+;; :: ------------------------------------------------------------
+
+(defvar-local my/gitlab-mr-view--url nil
+  "Web URL of the merge request rendered in this buffer.")
+(defvar-local my/gitlab-mr-view--project nil
+  "Project ID of the merge request rendered in this buffer.")
+(defvar-local my/gitlab-mr-view--iid nil
+  "IID of the merge request rendered in this buffer.")
+
+(defun my/gitlab-mr-view-browse ()
+  "Open the merge request shown in this buffer in the browser."
+  (interactive)
+  (if my/gitlab-mr-view--url
+      (browse-url my/gitlab-mr-view--url)
+    (user-error "No merge request in this buffer")))
+
+(defun my/gitlab-mr-view-copy-url ()
+  "Copy the URL of the merge request shown in this buffer."
+  (interactive)
+  (if my/gitlab-mr-view--url
+      (progn (kill-new my/gitlab-mr-view--url)
+             (message "Copied: %s" my/gitlab-mr-view--url))
+    (user-error "No merge request in this buffer")))
+
+(defun my/gitlab-mr-view-refresh ()
+  "Re-fetch the merge request shown in this buffer."
+  (interactive)
+  (if (and my/gitlab-mr-view--project my/gitlab-mr-view--iid)
+      (my/gitlab-mr-view my/gitlab-mr-view--project my/gitlab-mr-view--iid)
+    (user-error "No merge request in this buffer")))
+
+(defun my/gitlab--names (objects)
+  "Return a comma separated list of the `name' fields of OBJECTS."
+  (when objects
+    (mapconcat (lambda (o) (or (gethash "name" o) (gethash "username" o))) objects ", ")))
+
+(defun my/gitlab-mr-view--insert-discussions (discussions)
+  "Insert DISCUSSIONS as an org `Review Threads' section.
+System notes (label changes, pushes) are dropped -- only human review
+comments are worth reading here."
+  (insert "\n* Review Threads\n\n")
+  (let ((shown 0))
+    (dolist (discussion discussions)
+      (let* ((notes (seq-remove (lambda (n) (my/gitlab--truthy (gethash "system" n)))
+                                (or (gethash "notes" discussion) nil)))
+             (first (car notes)))
+        (when first
+          (setq shown (1+ shown))
+          (let* ((resolvable (my/gitlab--truthy (gethash "resolvable" first)))
+                 (resolved (my/gitlab--truthy (gethash "resolved" first)))
+                 (position (gethash "position" first))
+                 (path (and position (or (gethash "new_path" position)
+                                         (gethash "old_path" position))))
+                 (line (and position (or (gethash "new_line" position)
+                                         (gethash "old_line" position))))
+                 (tag (cond ((and resolvable resolved) "RESOLVED")
+                            (resolvable "UNRESOLVED")
+                            (t "COMMENT"))))
+            (insert (format "** %s%s\n" tag
+                            (if path (format " — %s%s" path
+                                             (if line (format ":%s" line) ""))
+                              "")))
+            (dolist (note notes)
+              (let ((author (gethash "author" note)))
+                (insert (format "- *%s* — %s\n"
+                                (if author (gethash "name" author) "unknown")
+                                (format-time-string
+                                 "%Y-%m-%d %H:%M"
+                                 (date-to-time (gethash "created_at" note))))))
+              (insert (my/gitlab--indent-block
+                       (string-trim (or (gethash "body" note) "")) "  "))
+              (insert "\n"))
+            (insert "\n")))))
+    (when (zerop shown)
+      (insert "No review comments yet.\n"))))
+
+(defun my/gitlab-mr-view--render (mr approvals discussions)
+  "Render MR (plus APPROVALS and DISCUSSIONS) into a throwaway org buffer."
+  (let* ((iid (gethash "iid" mr))
+         (project (my/gitlab--project-of mr))
+         (web-url (gethash "web_url" mr))
+         (status (my/gitlab-mrs--status mr))
+         (pipeline (gethash "head_pipeline" mr))
+         (approved (and approvals (gethash "approved_by" approvals)))
+         (buf (get-buffer-create (format "*GitLab MR !%s*" iid))))
+    (with-current-buffer buf
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (insert (format "#+TITLE: !%s - %s\n" iid
+                        (my/gitlab--clean-title (gethash "title" mr))))
+        (insert (format "#+DATE: %s\n\n" (format-time-string "%Y-%m-%d")))
+        (insert "* Merge Request\n\n")
+        (insert (format "- *Status:* %s\n" (car status)))
+        (insert (format "- *URL:* [[%s][GitLab MR !%s]]\n" web-url iid))
+        (unless (string-empty-p project)
+          (insert (format "- *Project:* %s\n" project)))
+        (when-let* ((author (gethash "author" mr)))
+          (insert (format "- *Author:* %s\n" (gethash "name" author))))
+        (insert (format "- *Branches:* %s → %s\n"
+                        (gethash "source_branch" mr) (gethash "target_branch" mr)))
+        (insert (format "- *Approvals:* %d%s%s\n"
+                        (length approved)
+                        (let ((required (and approvals (gethash "approvals_required" approvals))))
+                          (if (and (numberp required) (> required 0))
+                              (format "/%d" required) ""))
+                        (if approved
+                            (format " — %s" (my/gitlab--names
+                                             (mapcar (lambda (a) (gethash "user" a)) approved)))
+                          "")))
+        (when-let* ((reviewers (my/gitlab--names (gethash "reviewers" mr))))
+          (insert (format "- *Reviewers:* %s\n" reviewers)))
+        (when-let* ((assignees (my/gitlab--names (gethash "assignees" mr))))
+          (insert (format "- *Assignees:* %s\n" assignees)))
+        (when-let* ((labels (gethash "labels" mr)))
+          (insert (format "- *Labels:* %s\n" (mapconcat #'identity labels ", "))))
+        (when pipeline
+          (insert (format "- *Pipeline:* %s\n" (gethash "status" pipeline))))
+        (when-let* ((changes (gethash "changes_count" mr)))
+          (insert (format "- *Changes:* %s file(s)\n" changes)))
+        (insert (format "- *Comments:* %s%s\n"
+                        (or (gethash "user_notes_count" mr) 0)
+                        (if (and (my/gitlab--has-key mr "blocking_discussions_resolved")
+                                 (not (my/gitlab--truthy
+                                       (gethash "blocking_discussions_resolved" mr))))
+                            " (unresolved threads)" "")))
+        (when (my/gitlab--truthy (gethash "has_conflicts" mr))
+          (insert "- *Conflicts:* yes\n"))
+        (insert (format "- *Created:* %s\n"
+                        (format-time-string "%Y-%m-%d %H:%M"
+                                            (date-to-time (gethash "created_at" mr)))))
+        (insert (format "- *Updated:* %s\n"
+                        (format-time-string "%Y-%m-%d %H:%M"
+                                            (date-to-time (gethash "updated_at" mr)))))
+        (when-let* ((merged-at (gethash "merged_at" mr)))
+          (insert (format "- *Merged:* %s\n"
+                          (format-time-string "%Y-%m-%d %H:%M" (date-to-time merged-at)))))
+        (when-let* ((closed-at (gethash "closed_at" mr)))
+          (insert (format "- *Closed:* %s\n"
+                          (format-time-string "%Y-%m-%d %H:%M" (date-to-time closed-at)))))
+        (insert "\n* Description\n\n")
+        (insert (my/gitlab--md-to-org (gethash "description" mr)))
+        (insert "\n")
+        (my/gitlab-mr-view--insert-discussions discussions)
+        (goto-char (point-min)))
+      (org-mode)
+      (setq my/gitlab-mr-view--url web-url
+            my/gitlab-mr-view--project (gethash "project_id" mr)
+            my/gitlab-mr-view--iid iid)
+      (setq buffer-read-only t)
+      (setq header-line-format
+            (format " !%s  %s   |   C-c C-b: browser   C-c C-y: copy URL   C-c C-r: refresh   q: quit"
+                    iid (car status)))
+      ;; :: org-mode is already on, so this copies its map without needing it loaded
+      (use-local-map (copy-keymap (current-local-map)))
+      (local-set-key (kbd "C-c C-b") #'my/gitlab-mr-view-browse)
+      (local-set-key (kbd "C-c C-y") #'my/gitlab-mr-view-copy-url)
+      (local-set-key (kbd "C-c C-r") #'my/gitlab-mr-view-refresh)
+      (local-set-key (kbd "q") #'quit-window)
+      ;; :: Evil normal state shadows the local map for q/b/y, so bind there too
+      (when (fboundp 'evil-local-set-key)
+        (evil-local-set-key 'normal (kbd "q") #'quit-window)
+        (evil-local-set-key 'normal (kbd "gb") #'my/gitlab-mr-view-browse)
+        (evil-local-set-key 'normal (kbd "gy") #'my/gitlab-mr-view-copy-url)
+        (evil-local-set-key 'normal (kbd "gr") #'my/gitlab-mr-view-refresh)))
+    (pop-to-buffer buf)))
+
+(defun my/gitlab-mr-view (project-id iid)
+  "Open merge request IID of PROJECT-ID in a throwaway org buffer.
+Fetches the MR, its approvals and its discussions, then renders all three
+into one read-only org buffer.  C-c C-b (or `gb') opens it in the browser."
+  (interactive "sProject ID: \nsMR IID: ")
+  (message "Fetching MR !%s..." iid)
+  (my/gitlab--api-get-async
+   (format "projects/%s/merge_requests/%s" project-id iid) ""
+   (lambda (mr)
+     (if (or (null mr) (null (gethash "iid" mr)))
+         (message "Could not fetch MR !%s%s" iid
+                  (if (and mr (gethash "message" mr))
+                      (format ": %s" (gethash "message" mr)) ""))
+       (my/gitlab--api-get-async
+        (format "projects/%s/merge_requests/%s/approvals" project-id iid) ""
+        (lambda (approvals)
+          (my/gitlab--api-get-async
+           (format "projects/%s/merge_requests/%s/discussions" project-id iid)
+           "per_page=100"
+           (lambda (discussions)
+             (my/gitlab-mr-view--render
+              mr
+              (my/gitlab-mrs--approvals-payload-p approvals)
+              (and (listp discussions) discussions))
+             (message "Opened MR !%s" iid)))))))))
+
+;; :: ------------------------------------------------------------
+;; :: Assigned issue dashboard
+;; :: ------------------------------------------------------------
+;;
+;; :: NOTE on ordering: GitLab exposes no "assigned to me at" timestamp, so
+;; :: there is no way to sort by when a ticket landed on you.  `updated_at' is
+;; :: the closest proxy -- assigning an issue bumps it, so fresh assignments
+;; :: surface at the top -- and it is the default here.  `S' switches to
+;; :: `created_at' (newest ticket) when that is what you actually want.
+
+(defvar my/gitlab-issues-buffer-name "*GitLab My Issues*"
+  "Buffer name for the assigned issue dashboard.")
+
+(defun my/gitlab-issues--scope-label (scope)
+  "Return a human label for SCOPE."
+  (if (string= scope "created_by_me") "created by me" "assigned to me"))
+
+(defun my/gitlab-issues--state-cell (issue)
+  "Return (TEXT . FACE) for ISSUE's open/closed state."
+  (if (equal (gethash "state" issue) "closed")
+      (cons "closed" 'success)
+    (cons "open" 'warning)))
+
+(defun my/gitlab-issues--priority-face (priority)
+  "Return a face matching the PRIORITY scoped-label value."
+  (cond
+   ((null priority) 'shadow)
+   ((member priority '("urgent" "critical" "high")) 'error)
+   ((equal priority "medium") 'warning)
+   (t 'shadow)))
+
+(defun my/gitlab--own-project-p (project-id)
+  "Return non-nil when PROJECT-ID is the project `my/gitlab-project-id' names.
+The local issue-file helpers key filenames off `my/gitlab-project-name',
+so they only make sense for that one project."
+  (and my/gitlab-project-id
+       (equal (format "%s" project-id) (format "%s" my/gitlab-project-id))))
+
+(defun my/gitlab-issues--render (buf issues page state scope sort)
+  "Draw ISSUES into BUF, recording the filter state for the shared commands."
+  (with-current-buffer buf
+    (let ((inhibit-read-only t)
+          (line (line-number-at-pos)))
+      (erase-buffer)
+      (my/gitlab-dash--insert-header
+       "GitLab Issues" (my/gitlab-issues--scope-label scope) state sort page
+       (length issues)
+       (format "%-7s %-42s %-7s %-16s %-7s %-11s %-4s %s\n"
+               "Issue" "Title" "State" "Stage" "Prio" "Milestone" "Cmt" "Age")
+       my/gitlab-dash-help)
+      (if (null issues)
+          (insert "\nNo issues found.\n")
+        (dolist (issue issues)
+          (let* ((start (point))
+                 (labels (gethash "labels" issue))
+                 (st (my/gitlab-issues--state-cell issue))
+                 (stage (my/gitlab--scoped-label labels "stage"))
+                 (priority (my/gitlab--scoped-label labels "priority"))
+                 (milestone (gethash "milestone" issue))
+                 (notes (or (gethash "user_notes_count" issue) 0)))
+            (insert (propertize (format "%-7s " (format "#%s" (gethash "iid" issue)))
+                                'face 'font-lock-constant-face))
+            (insert (format "%s " (my/gitlab--truncate (gethash "title" issue) 42)))
+            (insert (propertize (format "%-7s " (car st)) 'face (cdr st)))
+            (insert (propertize (format "%-16s " (my/gitlab--truncate (or stage "-") 16))
+                                'face (if stage 'font-lock-type-face 'shadow)))
+            (insert (propertize (format "%-7s " (my/gitlab--truncate (or priority "-") 7))
+                                'face (my/gitlab-issues--priority-face priority)))
+            (insert (propertize
+                     (format "%-11s " (my/gitlab--truncate
+                                       (if milestone (gethash "title" milestone) "-") 11))
+                     'face (if milestone 'default 'shadow)))
+            (insert (propertize (format "%-4s " (if (zerop notes) "-" (number-to-string notes)))
+                                'face (if (zerop notes) 'shadow 'default)))
+            ;; :: Age tracks whichever field the list is ordered by, so the
+            ;; :: column always explains the row's position in the list
+            (insert (my/gitlab--relative-time (gethash sort issue)))
+            (insert "\n")
+            (put-text-property start (point) 'gitlab-item issue))))
+      (goto-char (point-min))
+      (forward-line (1- line)))
+    (unless (derived-mode-p 'gitlab-issues-mode)
+      (gitlab-issues-mode))
+    (setq my/gitlab-dash--refetch #'my/gitlab-issues--fetch)
+    (my/gitlab-dash--finish page state scope sort issues
+                            '("opened" "closed" "all")
+                            '("assigned_to_me" "created_by_me")
+                            '("updated_at" "created_at"))))
+
+(defun my/gitlab-issues--fetch (page state scope sort)
+  "Fetch and display page PAGE of issues matching STATE, SCOPE and SORT."
+  (message "Fetching issues (%s, %s, page %d)..."
+           (my/gitlab-issues--scope-label scope) state page)
+  (my/gitlab--api-get-async
+   "issues"
+   (format "scope=%s&state=%s&order_by=%s&sort=desc&per_page=%d&page=%d"
+           scope state sort my/gitlab-dash-per-page page)
+   (lambda (issues)
+     (let ((buf (get-buffer-create my/gitlab-issues-buffer-name)))
+       (if (and issues (hash-table-p issues))
+           (message "GitLab error: %s" (gethash "message" issues))
+         (my/gitlab-issues--render buf issues page state scope sort)
+         (pop-to-buffer buf)
+         (message "Fetched %d issue(s)" (length issues)))))))
+
+;;;###autoload
+(defun my/gitlab-my-issues ()
+  "Show the issues assigned to you, most recently touched first.
+
+Ordered by `updated_at' because GitLab exposes no assignment timestamp --
+assigning a ticket bumps that field, so new assignments rise to the top.
+Press `S' to order by creation date instead.
+
+Each line shows the ticket title, open/closed state, its `stage::' and
+`priority::' scoped labels, milestone, comment count and age.
+
+RET opens the ticket through the usual local-org-file flow (the same file
+`my/gitlab-lookup-issue' uses, Notes section preserved) when it belongs to
+`my/gitlab-project-name'; issues from other projects open in the browser.
+
+Keybindings:
+  RET / o - Open the ticket's local org file
+  b       - Open the ticket in the browser
+  y       - Copy the ticket URL
+  n / p   - Next / previous page
+  s       - Cycle state filter (opened, closed, all)
+  t       - Toggle scope (assigned to me / created by me)
+  S       - Toggle sort (recently updated / newest)
+  r / gr  - Refresh
+  q       - Quit window"
+  (interactive)
+  (my/gitlab-issues--fetch 1 "opened" "assigned_to_me" "updated_at"))
+
+(defun my/gitlab-issues-open-at-point ()
+  "Open the issue on the current line.
+Reuses the local org file when the issue belongs to the configured
+project, so the Notes section survives; otherwise falls back to the
+browser, since the local filenames are keyed to one project."
+  (interactive)
+  (let* ((issue (my/gitlab-dash--at-point))
+         (iid (number-to-string (gethash "iid" issue))))
+    (if (my/gitlab--own-project-p (gethash "project_id" issue))
+        (my/gitlab--save-issue-object-and-open iid issue)
+      (message "Issue #%s is in %s, not %s -- opening in the browser"
+               iid (my/gitlab--project-of issue) my/gitlab-project-name)
+      (browse-url (gethash "web_url" issue)))))
+
+(defvar gitlab-issues-mode-map
+  (my/gitlab-dash--bind (make-sparse-keymap) 'my/gitlab-issues-open-at-point)
+  "Keymap for the GitLab assigned issue dashboard.")
+
+(define-derived-mode gitlab-issues-mode special-mode "GitLab-Issues"
+  "Major mode for the GitLab assigned issue dashboard.
+\\{gitlab-issues-mode-map}"
+  (setq truncate-lines t))
+
+(with-eval-after-load 'evil
+  (evil-set-initial-state 'gitlab-issues-mode 'normal)
+  (my/gitlab-dash--evil-bind gitlab-issues-mode-map 'my/gitlab-issues-open-at-point))
+
+(map! :leader
+      :prefix "o"
+      :desc "GitLab My MRs" "g p" #'my/gitlab-my-merge-requests
+      :desc "GitLab My Issues" "g a" #'my/gitlab-my-issues)
+
+;; :: ------------------------------------------------------------
+;; :: Editing an issue's labels from its org file
+;; :: ------------------------------------------------------------
+;;
+;; :: `my/gitlab-issue-toggle-label' (SPC o g L) works inside any issue file in
+;; :: `my/gitlab-issues-dir'.  It offers every label the project can use --
+;; :: project *and* inherited group labels, rendered in their own colours --
+;; :: with the ones already on the issue marked and listed first.  Picking one
+;; :: toggles it: applied labels come off, unapplied ones go on.
+;; ::
+;; :: Scoped labels (`stage::refine') need no special handling -- GitLab drops
+;; :: the previous label in a scope when a new one is added, so picking
+;; :: `stage::dev_review' replaces `stage::refine' server-side.
+
+(defvar my/gitlab-labels-max-pages 10
+  "Safety cap on how many pages of labels `my/gitlab--fetch-all-labels' walks.")
+
+(defun my/gitlab-issue--current-id ()
+  "Return the issue IID for the current buffer's file.
+Signals an error unless the buffer visits a `PROJECT#<ID> - ....org' file
+inside `my/gitlab-issues-dir', the same guard the other issue-file
+commands use."
+  (let* ((file (buffer-file-name))
+         (issues-dir (my/gitlab-issues-dir))
+         (filename (and file (file-name-nondirectory file))))
+    (unless (and file (string-prefix-p issues-dir (expand-file-name file)))
+      (user-error "This command only works on files in %s" issues-dir))
+    (unless (string-match (format "^%s#\\([0-9]+\\)" (regexp-quote my/gitlab-project-name))
+                          filename)
+      (user-error "Filename must start with %s#<ID>" my/gitlab-project-name))
+    (match-string 1 filename)))
+
+(defun my/gitlab--label-face (label)
+  "Return a face plist painting LABEL in its own GitLab colours.
+Falls back to no styling when the API gives no usable hex colour."
+  (let ((bg (gethash "color" label))
+        (fg (gethash "text_color" label)))
+    (if (and (stringp bg) (string-match-p "\\`#[0-9a-fA-F]\\{6\\}\\'" bg))
+        (list :background bg
+              :foreground (if (and (stringp fg)
+                                   (string-match-p "\\`#[0-9a-fA-F]\\{6\\}\\'" fg))
+                              fg
+                            "#ffffff"))
+      'default)))
+
+(defun my/gitlab--fetch-all-labels (callback &optional page acc)
+  "Collect every label available to the project, then call CALLBACK with them.
+Walks pagination -- the project inherits group labels, so one page is not
+enough -- stopping at `my/gitlab-labels-max-pages'."
+  (let ((page (or page 1)))
+    (my/gitlab--api-get-async
+     (format "projects/%s/labels" (url-hexify-string my/gitlab-project-id))
+     (format "per_page=100&page=%d&with_counts=false" page)
+     (lambda (labels)
+       (if (not (and labels (listp labels)))
+           (funcall callback acc)
+         (let ((all (append acc labels)))
+           (if (and (= (length labels) 100) (< page my/gitlab-labels-max-pages))
+               (my/gitlab--fetch-all-labels callback (1+ page) all)
+             (funcall callback all))))))))
+
+(defun my/gitlab--label-candidates (labels current)
+  "Return an alist of (DISPLAY . NAME) for LABELS, CURRENT ones marked and first.
+DISPLAY carries the label's colours as text properties, so the completion
+UI shows the same chips GitLab does."
+  (let (on off)
+    (dolist (label labels)
+      (unless (my/gitlab--truthy (gethash "archived" label))
+        (let* ((name (gethash "name" label))
+               (applied (member name current))
+               (display (concat (if applied "✓ " "  ")
+                                (propertize (format " %s " name)
+                                            'face (my/gitlab--label-face label)))))
+          (if applied (push (cons display name) on) (push (cons display name) off)))))
+    (append (nreverse on) (nreverse off))))
+
+(defun my/gitlab-issue--update-labels-line (labels)
+  "Rewrite the `- *Labels:*' line of the current buffer to LABELS.
+Removes the line when LABELS is empty; inserts one after Author (or URL)
+when the issue had no labels at the time the file was written."
+  (save-excursion
+    (let ((text (and labels
+                     (format "- *Labels:* %s\n" (mapconcat #'identity labels ", ")))))
+      (goto-char (point-min))
+      (cond
+       ((re-search-forward "^- \\*Labels:\\* .*\n" nil t)
+        ;; :: LITERAL, so `\\' and `&' inside a label name stay literal
+        (replace-match (or text "") t t))
+       ((null text) nil)
+       (t (goto-char (point-min))
+          (when (or (re-search-forward "^- \\*Author:\\* .*\n" nil t)
+                    (progn (goto-char (point-min))
+                           (re-search-forward "^- \\*URL:\\* .*\n" nil t)))
+            (insert text)))))))
+
+(defun my/gitlab-issue--apply-label (issue-id name addp buffer)
+  "Add (ADDP non-nil) or remove label NAME on ISSUE-ID, then refresh BUFFER."
+  (my/gitlab--api-request-async
+   "PUT"
+   (format "projects/%s/issues/%s"
+           (url-hexify-string my/gitlab-project-id) issue-id)
+   (format "%s=%s" (if addp "add_labels" "remove_labels") (url-hexify-string name))
+   (lambda (issue)
+     (cond
+      ((or (null issue) (null (gethash "iid" issue)))
+       (message "Could not %s label %s%s"
+                (if addp "add" "remove") name
+                (if (and issue (gethash "message" issue))
+                    (format ": %s" (gethash "message" issue)) "")))
+      ((not (buffer-live-p buffer))
+       (message "Label %s %s, but the buffer is gone" name (if addp "added" "removed")))
+      (t
+       (let ((labels (gethash "labels" issue)))
+         (with-current-buffer buffer
+           (my/gitlab-issue--update-labels-line labels)
+           (when (buffer-file-name) (save-buffer)))
+         (message "%s %s — now: %s"
+                  (if addp "Added" "Removed") name
+                  (if labels (mapconcat #'identity labels ", ") "(none)"))))))))
+
+;;;###autoload
+(defun my/gitlab-issue-toggle-label ()
+  "Toggle a GitLab label on the issue this buffer is visiting.
+
+Offers every label the project can use -- its own and the ones inherited
+from the group -- each rendered in its GitLab colour.  Labels already on
+the issue are marked with a check and sorted to the top, so the same
+command adds and removes.  The `- *Labels:*' line is rewritten from the
+API's response and the file saved, so what you see matches the server.
+
+Scoped labels need no care: picking `stage::dev_review' makes GitLab drop
+`stage::refine' on its own."
+  (interactive)
+  (my/gitlab-check-config)
+  (let ((issue-id (my/gitlab-issue--current-id))
+        (buffer (current-buffer)))
+    (message "Fetching labels...")
+    (my/gitlab--fetch-all-labels
+     (lambda (labels)
+       (if (null labels)
+           (message "No labels found for this project")
+         (my/gitlab--api-get-async
+          (format "projects/%s/issues/%s"
+                  (url-hexify-string my/gitlab-project-id) issue-id)
+          ""
+          (lambda (issue)
+            (if (or (null issue) (null (gethash "iid" issue)))
+                (message "Could not read issue #%s" issue-id)
+              (let* ((current (gethash "labels" issue))
+                     (candidates (my/gitlab--label-candidates labels current))
+                     (choice (completing-read
+                              (format "Label for #%s (%d on, %d available): "
+                                      issue-id (length current) (length candidates))
+                              (my/gitlab--completion-table candidates) nil t))
+                     (name (cdr (assoc choice candidates))))
+                (if (null name)
+                    (message "No label selected")
+                  (my/gitlab-issue--apply-label
+                   issue-id name (not (member name current)) buffer))))))))) ))
+
+(map! :leader
+      :prefix "o"
+      :desc "GitLab Toggle Issue Label" "g L" #'my/gitlab-issue-toggle-label)
 
 (provide 'gitlab)
 ;;; gitlab.el ends here

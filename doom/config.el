@@ -1560,6 +1560,7 @@ shrink (DELTA columns, default 10)."
 ;; ──────────────────────────────────────────────────────
 (load! "modules/org-agenda")
 (load! "modules/denote")        ; :: reference notes + journal (denote)
+(load! "modules/fonts")       ; :: repairs the font shrink after `doom/reload'
 (load! "modules/gitlab")
 (load! "modules/dashboard")     ; :: after gitlab -- it references gitlab functions
 (load! "modules/snippet")
