@@ -83,3 +83,31 @@
           (lambda ()
             (when (string-match-p "\\.heic\\'" (or (buffer-file-name) ""))
               (my/open-heic-externally))))
+
+;; ──────────────────────────────────────────────────────
+;; :: Sway workspace passthrough -- Ctrl+Super+h/l walks Doom workspaces
+;; ──────────────────────────────────────────────────────
+;; :: Sway owns Ctrl+Super+h/l and runs sway/scripts/ws-passthrough.sh, which
+;; :: calls this over emacsclient when an Emacs window is focused. Returning
+;; :: `pass' at either end of the workspace list is what makes sway and Doom
+;; :: workspaces one continuous strip: the next press past the last Doom
+;; :: workspace moves sway instead, so Emacs can never trap you.
+;; ::
+;; :: PID is the focused sway window's process. Anything that isn't THIS Emacs
+;; :: (e.g. the "notes" daemon's floating frame) is passed straight back.
+(defun my/sway-workspace-passthrough (dir pid)
+  ":: Step the focused frame's Doom workspace in DIR (`prev' or `next').
+Return `handled', or `pass' to let sway switch its own workspace instead."
+  (if (not (and (eql pid (emacs-pid)) (bound-and-true-p persp-mode)))
+      'pass
+    (let ((frame (or (seq-find (lambda (f) (and (not (frame-parent f))
+                                                (eq (frame-focus-state f) t)))
+                               (frame-list))
+                     (selected-frame))))
+      (with-selected-frame frame
+        (let* ((names (+workspace-list-names))
+               (i (cl-position (+workspace-current-name) names :test #'equal))
+               (j (and i (if (eq dir 'next) (1+ i) (1- i)))))
+          (if (and j (>= j 0) (< j (length names)))
+              (progn (+workspace/switch-to j) 'handled)
+            'pass))))))

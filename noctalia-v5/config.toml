@@ -243,6 +243,27 @@ font_family = "FiraCode Nerd Font"
         freeform = true
         exec = "~/.config/sway/scripts/name-window.sh \"{query}\""
 
+        # /notif -- the notification history, i.e. what the bell widget opens.
+        # v5 has no standalone notifications panel (panel-open knows launcher,
+        # clipboard, control-center, session, wallpaper, tray-drawer, polkit),
+        # so this opens the Control Center with its notifications tab as the
+        # context argument, the same way $mod+period opens `launcher /emo`.
+        #
+        # :: `command` is what turns a prefix into a one-shot action. A dmenu
+        # :: entry with neither `command` nor `freeform` has nothing to select
+        # :: and just renders "No results found", so the single line printed
+        # :: here IS the entry's only result, and picking it runs `exec`.
+        # :: `global = true` additionally floats that result into an unprefixed
+        # :: launcher search, so plain "notif" reaches it in one keystroke less.
+        [shell.launcher.dmenu.entry.notifications]
+        label = "Notifications"
+        prefix = "notif"
+        glyph = "bell"
+        global = true
+        freeform = false
+        command = "echo 'Open notifications'"
+        exec = "noctalia msg panel-open control-center notifications"
+
     [shell.panel]
     open_near_click_control_center = true
 

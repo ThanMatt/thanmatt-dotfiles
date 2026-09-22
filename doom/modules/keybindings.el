@@ -58,6 +58,9 @@
                ;; :: carry-over daily agenda retired -> denote journal (see backlog.md)
                :desc "Journal (today)"    "a" #'my/vault-journal
                :desc "Reminders"          "r" #'my/reminders
+               ;; :: prompted capture -- title, date/time, details; never opens
+               ;; :: the file, so it is usable from the middle of anything
+               :desc "New reminder"       "n" #'my/reminders-add
                :desc "Magit status"       "g" #'magit-status
                :desc "Claude Code"        "c" #'my/claude-code
                :desc "Spawn Claude agent" "C" #'my/claude-spawn

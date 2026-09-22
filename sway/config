@@ -218,8 +218,14 @@ bindsym $mod+alt+r exec ~/.config/sway/scripts/wf-record.sh output audio
 
 
 
-bindsym Ctrl+$mod+l workspace next_on_output
-bindsym Ctrl+$mod+h workspace prev_on_output
+# :: Prev/next workspace. When the coding Emacs is focused these walk its Doom
+# :: workspaces first, and fall through to sway past the first/last one -- see
+# :: scripts/ws-passthrough.sh.
+bindsym Ctrl+$mod+l exec ~/.config/sway/scripts/ws-passthrough.sh next
+bindsym Ctrl+$mod+h exec ~/.config/sway/scripts/ws-passthrough.sh prev
+# :: Sway-only variants: skip straight past Emacs' workspaces.
+bindsym Ctrl+$mod+Shift+l workspace next_on_output
+bindsym Ctrl+$mod+Shift+h workspace prev_on_output
 
 # :: Mouse-wheel workspace switching over any part of a window, matching
 # :: hyprland.lua's $mod+mouse_down / $mod+mouse_up. button5 = scroll down.

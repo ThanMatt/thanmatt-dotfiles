@@ -19,23 +19,43 @@
 (defvar my/reminders-file (expand-file-name "reminders.org" my/notes-dir)
   ":: the one file all reminders live in")
 
+(defconst my/reminders-file-header "#+TITLE: Reminders\n#+STARTUP: showall\n\n"
+  ":: written when reminders.org is created. Shared by `my/reminders' and
+   `my/reminders-add' so whichever one happens to make the file first leaves it
+   looking the same.")
+
 (defvar my/reminders-warn-minutes 10
   ":: how many minutes before a reminder's time to fire the desktop notification")
 
 ;; ──────────────────────────────────────────────────────
 ;; :: Desktop notification -- cross-platform, replaces appt's Emacs popup
 ;; ──────────────────────────────────────────────────────
+(defvar my/reminders-notification-timeout 0
+  ":: milliseconds a reminder popup stays on screen; 0 = until it is dismissed
+   by hand. This -- not the urgency -- is what makes a reminder wait for you:
+   noctalia, the daemon that owns notifications here, reads the freedesktop
+   expire timeout literally and retires even a `critical' popup on its own
+   ~5s default. (Checked against noctalia v5.0.1; mako and dunst read -t the
+   same way, so this stays correct if the daemon is ever swapped out.)")
+
 (defun my/reminders--notify (title body &optional urgency)
   ":: fire one desktop notification; returns the backend's exit code (0 = sent).
-   URGENCY (\"critical\") makes mako/dunst hold the popup until it's dismissed --
-   used for reminders missed while the machine was off."
+   URGENCY (\"critical\") raises the popup's priority -- on noctalia that is the
+   red-bordered style and the top of the notification list -- while how long it
+   lingers is `my/reminders-notification-timeout'. Neither survives Do Not
+   Disturb: noctalia suppresses critical along with everything else."
   (cond
    ((eq system-type 'darwin)
+    ;; :: Deliberately not given a lifetime: a macOS banner always auto-retires,
+    ;; :: and the one thing that does persist -- `display alert' -- is a modal
+    ;; :: dialog that blocks THIS Emacs until it is clicked. Better to leave the
+    ;; :: platform honest than to pretend the timeout applies.
     (call-process "osascript" nil nil nil "-e"
                   (format "display notification %S with title %S" body title)))
-   ((executable-find "notify-send")               ;; :: Linux (mako/dunst)
+   ((executable-find "notify-send")               ;; :: Linux (noctalia/mako/dunst)
     (apply #'call-process "notify-send" nil nil nil
-           (append (list "-a" "Emacs")
+           (append (list "-a" "Emacs"
+                         "-t" (number-to-string my/reminders-notification-timeout))
                    (when urgency (list "-u" urgency))
                    (list title body))))
    (t (message "%s: %s" title body) 0)))
@@ -58,11 +78,16 @@
                      #'my/reminders--deliver title body urgency (1+ attempt))))))
 
 (defun my/appt-notify--one (min _new msg)
-  ":: fire one desktop notification MIN (a string) minutes ahead of MSG"
+  ":: fire one desktop notification MIN (a string) minutes ahead of MSG.
+   `critical' so a reminder outranks the chat/mail noise it lands in, and it
+   holds the screen until dismissed -- see `my/reminders-notification-timeout'.
+   Missed reminders already announce themselves this way; a reminder that
+   arrives on time is the one you actually have to act on, so it gets no less."
   (my/reminders--notify (if (equal min "0")
                             "Reminder (now)"
                           (format "Reminder (in %s min)" min))
-                        msg))
+                        msg
+                        "critical"))
 
 (defun my/appt-notify (min-to-app new-time msg)
   ":: appt display hook. appt hands all three args as parallel lists when several
@@ -241,6 +266,69 @@
   (message "Reminders sorted by date"))
 
 ;; ──────────────────────────────────────────────────────
+;; :: Capture -- prompted, from anywhere
+;; ──────────────────────────────────────────────────────
+;; :: `my/reminders-insert' above is the in-buffer half: it drops a bare heading
+;; :: and leaves the date to `, d'. This is the other half -- ask for the three
+;; :: fields up front and write the whole entry -- so a reminder can be made in
+;; :: the middle of something else without opening the file or losing the frame.
+
+(defvar my/reminders-default-time "09:00"
+  ":: time given to a reminder entered as a bare date. `appt' only ever notifies
+   for a SCHEDULED stamp that carries a time, so a date-only reminder would sit
+   in the file looking fine and never once fire -- this is what prevents that.")
+
+(defun my/reminders--read-when ()
+  ":: prompt for the date/time, as a string `org-schedule' can take.
+   `org-read-date' is doing the work, so everything it accepts works here --
+   \"fri\", \"+3d\", \"tue 14:00\", \"sep 12 9:30\" -- with its calendar
+   popped up alongside. A date entered without a time gets
+   `my/reminders-default-time' rather than a stamp that never notifies."
+  (let ((when (org-read-date t nil nil "Reminder when? ")))
+    (if (string-match-p "[0-9]\\{1,2\\}:[0-9]\\{2\\}" when)
+        when
+      (concat when " " my/reminders-default-time))))
+
+(defun my/reminders-add (title when &optional desc)
+  ":: TITLE, WHEN (anything `org-read-date' understands) and an optional DESC,
+   appended to `my/reminders-file' as a scheduled TODO.
+   Visits the file in the background rather than showing it: the window layout
+   you called this from is the one you get back. The save and the appt rebuild
+   happen here too, so the reminder is armed by the time the echo area clears --
+   no round trip through the file, no `, d', nothing left half-entered."
+  (interactive
+   (let ((title (string-trim (read-string "Reminder: "))))
+     (when (string-empty-p title)
+       (user-error "Reminder needs a title"))
+     (list title
+           (my/reminders--read-when)
+           (let ((desc (string-trim (read-string "Details (optional): "))))
+             (unless (string-empty-p desc) desc)))))
+  (with-current-buffer (find-file-noselect my/reminders-file)
+    (save-excursion
+      (when (= (point-min) (point-max))
+        (insert my/reminders-file-header))
+      (goto-char (point-max))
+      (skip-chars-backward "\n")
+      (delete-region (point) (point-max))   ;; :: same trim as `my/reminders-insert'
+      ;; :: No trailing newline: point has to stay ON the heading, because that
+      ;; :: is the entry `org-schedule' and `org-entry-put' act on. They also
+      ;; :: own the formatting -- the planning line and the drawer come out in
+      ;; :: org's canonical shape instead of a hand-built timestamp.
+      (insert "\n\n* TODO " title)
+      (org-schedule nil when)
+      (when desc (org-entry-put nil "DESC" desc)))
+    ;; :: Writes the whole buffer, so an edit left unsaved in an open
+    ;; :: reminders.org rides along. That is the lesser surprise: the
+    ;; :: alternative is a new reminder that only exists in memory.
+    (save-buffer))
+  (my/reminders-sync-appt)
+  (message "Reminder set for %s: %s"
+           (format-time-string "%a %d %b %H:%M" (org-time-string-to-time when))
+           title))
+
+
+;; ──────────────────────────────────────────────────────
 ;; :: Minor mode -- carries the buffer-local keys + appt-on-save hook
 ;; ──────────────────────────────────────────────────────
 (defvar my/reminders-mode-map (make-sparse-keymap)
@@ -258,6 +346,7 @@
       :n "RET"    #'my/reminders-toggle
       :n [return] #'my/reminders-toggle
       :localleader
+      :desc "Add reminder (prompted)" "a" #'my/reminders-add
       :desc "Insert reminder" "i" #'my/reminders-insert
       :desc "Re-sort by date" "s" #'my/reminders-sort
       :desc "Toggle done"     "t" #'my/reminders-toggle
@@ -271,7 +360,7 @@
   (let ((new (not (file-exists-p my/reminders-file))))
     (find-file my/reminders-file)
     (when new
-      (insert "#+TITLE: Reminders\n#+STARTUP: showall\n\n")
+      (insert my/reminders-file-header)
       (save-buffer))
     (my/reminders-mode 1)))
 
