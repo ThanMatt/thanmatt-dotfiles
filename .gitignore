@@ -17,3 +17,9 @@ herdr/*
 # :: republished. `git add -A' picks them up silently.
 *.rej
 *.orig
+
+# :: Work fish functions -- AWS profile names, RDS hostnames and a per-employer
+# :: Claude config dir. Also in the global git ignore, but that file isn't part
+# :: of this repo, so a fresh clone (or `git add -f') wouldn't be protected.
+fish/functions/ssm-*.fish
+fish/functions/claude-*.fish

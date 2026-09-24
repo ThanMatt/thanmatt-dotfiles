@@ -9,7 +9,8 @@
 ;; :: Secrets / source of truth -- ~/.authinfo.gpg.
 ;; :: sql-mode does NOT read ~/.authinfo.gpg by default (it uses sql-wallet.gpg),
 ;; :: so point it there explicitly. Entries use a server/database host key,
-;; :: with an optional `name' token for a friendly display alias:
+;; :: with an optional `name' token for a friendly display alias
+;; :: (without it, the label is "db - PORT", e.g. "bukasstore - 5432"):
 ;; ::   machine localhost/bukasstore port 5432 login bukasstore_user \
 ;; ::     password SECRET name bukasstore-db
 ;; ──────────────────────────────────────────────────────
@@ -41,21 +42,22 @@
 (defun my/sql--connections-from-authinfo ()
   ":: build sql-connection-alist from ~/.authinfo.gpg entries whose machine is
    host/db. non-db secrets (email, tokens, bare-host entries) are skipped via the
-   `/' heuristic. Label prefers the optional `name' token, else falls back to host/db."
+   `/' heuristic. Label prefers the optional `name' token, else falls back to
+   \"db - PORT\" so same-db entries on different ports stay distinct."
   (let (alist)
     (dolist (e (auth-source-netrc-parse-all
                 (expand-file-name (car sql-password-wallet))))
       (let ((machine (cdr (assoc "machine" e))))
         (when (and machine (string-match "\\`\\([^/]+\\)/\\(.+\\)\\'" machine))
-          (let ((server (match-string 1 machine))
-                (db     (match-string 2 machine))
-                (port   (cdr (assoc "port"  e)))
-                (user   (cdr (assoc "login" e)))
-                (alias  (cdr (assoc "name"  e))))   ;; :: optional friendly label
-            (push (list (intern (or alias machine)) ;; :: alias if present, else host/db
+          (let* ((server (match-string 1 machine))
+                 (db     (match-string 2 machine))
+                 (port   (or (cdr (assoc "port" e)) "5432"))
+                 (user   (cdr (assoc "login" e)))
+                 (alias  (cdr (assoc "name"  e))))   ;; :: optional friendly label
+            (push (list (intern (or alias (format "%s - %s" db port)))
                         (list 'sql-product ''postgres)
                         (list 'sql-server server)
-                        (list 'sql-port (if port (string-to-number port) 5432))
+                        (list 'sql-port (string-to-number port))
                         (list 'sql-database db)      ;; :: real db name, always
                         (list 'sql-user user))
                   alist)))))

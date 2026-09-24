@@ -35,7 +35,12 @@
 ;; :: Keyed on the daemon's NAME, not on `daemonp' alone, so this stays correct
 ;; :: if either role is ever launched the other way round. The name is set in
 ;; :: sway/config and sway/scripts/emacs-float.sh -- rename it in all three.
-(when (equal (daemonp) "notes")
+(defvar my/notes-instance-p (equal (daemonp) "notes")
+  ":: Non-nil inside the \"notes\" scratchpad daemon. Also gates which modules
+load (the dev tooling is skipped there -- see the `load!'s at the bottom) and
+which instance owns reminders (reminders.el) and pipeline polling (gitlab.el).")
+
+(when my/notes-instance-p
   ;; :: Doom sets these three at core load, i.e. BEFORE this file, so a plain
   ;; :: `setq' here wins.
   (setq recentf-save-file (concat doom-cache-dir "recentf-notes")
@@ -1564,13 +1569,10 @@ shrink (DELTA columns, default 10)."
 (load! "modules/gitlab")
 (load! "modules/dashboard")     ; :: after gitlab -- it references gitlab functions
 (load! "modules/snippet")
-(load! "modules/org-brain")     ; :: second-brain query interface
 (load! "modules/schema")        ; :: API schema endpoint navigation
 
 (map! :leader
       :prefix "n"
-      :desc "Query second brain"   "q" #'org-brain-query
-      :desc "Re-run last query"    "Q" #'org-brain-rerun
       :desc "Insert schema endpoint link" "e" #'my/schema-insert-endpoint-link)
 
 ;; ──────────────────────────────────────────────────────
@@ -1581,22 +1583,26 @@ shrink (DELTA columns, default 10)."
 (load! "modules/todo-agenda")
 (load! "modules/uuid")          ; :: SPC i u -- insert a v4 UUID
 (load! "modules/reminders")     ; :: SPC d r -- reminders.org + appt notifications
-;; :: db modules: sql connections + templates, table browser, saved queries
-(load! "modules/db")
-(load! "modules/db-browser")
-(load! "modules/db-saved")
-(load! "modules/db-write")      ; :: edit/delete rows + transactions (after db-browser)
-(load! "modules/web")
-(load! "modules/docker")        ; :: SPC d D -- ps/dps, exec, logs (after web: uses its vterm helpers)
-(load! "modules/redis")         ; :: SPC d R -- runner + scratch (after docker: REPL uses web.el's vterm helpers)
-(load! "modules/redis-browser") ; :: key grid, inspector, writes, INFO
-(load! "modules/redis-saved")   ; :: saved commands (after redis-browser)
-(load! "modules/claude")        ; :: , c -- ask Claude about visual selection
+(load! "modules/web")           ; :: always: todo-agenda.el uses its side-window helpers
 (load! "modules/hackernews")    ; :: SPC o h -- in-buffer Hacker News reader
 (load! "modules/reader")        ; :: SPC o w -- fetch a URL and read it as org
 
-(when (file-exists-p (expand-file-name "modules/worktree.el" doom-user-dir))
-  (load! "modules/worktree"))
+;; :: Dev tooling -- coding instance only. The "notes" daemon is meant to stay
+;; :: light (see the two-instance split at the top), so it skips these. Their
+;; :: `SPC d ...' keys still show in which-key there but won't run.
+(unless my/notes-instance-p
+  ;; :: db modules: sql connections + templates, table browser, saved queries
+  (load! "modules/db")
+  (load! "modules/db-browser")
+  (load! "modules/db-saved")
+  (load! "modules/db-write")      ; :: edit/delete rows + transactions (after db-browser)
+  (load! "modules/docker")        ; :: SPC d D -- ps/dps, exec, logs (after web: uses its vterm helpers)
+  (load! "modules/redis")         ; :: SPC d R -- runner + scratch (after docker: REPL uses web.el's vterm helpers)
+  (load! "modules/redis-browser") ; :: key grid, inspector, writes, INFO
+  (load! "modules/redis-saved")   ; :: saved commands (after redis-browser)
+  (load! "modules/claude")        ; :: SPC d A -- ask Claude about the selection
+  (when (file-exists-p (expand-file-name "modules/worktree.el" doom-user-dir))
+    (load! "modules/worktree")))
 
 (load! "modules/keybindings")   ; :: keep this last
 

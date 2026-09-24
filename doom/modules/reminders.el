@@ -15,6 +15,7 @@
 
 (require 'cl-lib)
 (require 'appt)
+(require 'server)
 
 (defvar my/reminders-file (expand-file-name "reminders.org" my/notes-dir)
   ":: the one file all reminders live in")
@@ -60,6 +61,19 @@
                    (list title body))))
    (t (message "%s: %s" title body) 0)))
 
+;; :: Two Emacsen load this file (see the two-instance split in config.el), and
+;; :: each runs its own `appt' and timers -- so without an owner every reminder
+;; :: would pop twice. The "notes" daemon owns them; any other instance only
+;; :: takes over while no "notes" server is up (always the case on macOS, or if
+;; :: the daemon died). Checked when each timer FIRES, not at load, so it stays
+;; :: right whichever instance started first.
+(defun my/reminders-owner-p ()
+  ":: non-nil if THIS Emacs should notify for reminders and stamp the heartbeat.
+   A `server-running-p' answer of `:other' (can't tell) counts as no daemon --
+   a duplicate popup beats a missed one."
+  (or (bound-and-true-p my/notes-instance-p)
+      (not (eq t (server-running-p "notes")))))
+
 (defvar my/reminders-deliver-retry-interval 20
   ":: seconds between redelivery attempts (see `my/reminders--deliver')")
 
@@ -92,9 +106,10 @@
 (defun my/appt-notify (min-to-app new-time msg)
   ":: appt display hook. appt hands all three args as parallel lists when several
    reminders fire at once, or as scalars for a single one -- handle both."
-  (if (listp min-to-app)
-      (cl-mapc #'my/appt-notify--one min-to-app new-time msg)
-    (my/appt-notify--one min-to-app new-time msg)))
+  (when (my/reminders-owner-p)
+    (if (listp min-to-app)
+        (cl-mapc #'my/appt-notify--one min-to-app new-time msg)
+      (my/appt-notify--one min-to-app new-time msg))))
 
 (setq appt-message-warning-time my/reminders-warn-minutes
       appt-display-interval     my/reminders-warn-minutes  ;; :: nag once, not every few min
@@ -175,10 +190,13 @@
       (ignore-errors (plist-get (read (current-buffer)) :last-seen)))))
 
 (defun my/reminders--heartbeat ()
-  ":: stamp \"Emacs was alive at this moment\" on disk"
-  (with-temp-file my/reminders-state-file
-    (let ((print-length nil) (print-level nil))
-      (prin1 (list :last-seen (current-time)) (current-buffer)))))
+  ":: stamp \"Emacs was alive at this moment\" on disk -- owner only, so a
+   non-owning instance can't slide the missed window past reminders the owner
+   never got to announce"
+  (when (my/reminders-owner-p)
+    (with-temp-file my/reminders-state-file
+      (let ((print-length nil) (print-level nil))
+        (prin1 (list :last-seen (current-time)) (current-buffer))))))
 
 (defun my/reminders--scheduled-between (from to)
   ":: (TIME . LABEL) for every not-DONE reminder scheduled in [FROM, TO), oldest
@@ -232,7 +250,8 @@
 ;; :: while we were off. Idle-delayed so notify-send meets a live session bus.
 (defun my/reminders--startup ()
   (my/reminders-sync-appt)
-  (my/reminders-check-missed))
+  (when (my/reminders-owner-p)
+    (my/reminders-check-missed)))
 
 (run-with-idle-timer 5 nil #'my/reminders--startup)
 (run-with-timer my/reminders-heartbeat-interval my/reminders-heartbeat-interval

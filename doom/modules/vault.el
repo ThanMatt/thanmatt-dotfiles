@@ -4,7 +4,7 @@
 ;; :: `my/vaults-root' -- ~/org-notes/Work/, ~/org-notes/Personal/, ... Exactly one
 ;; :: vault is active at a time and `my/notes-dir' points at it, so EVERYTHING
 ;; :: derived from `my/notes-dir' (denote notes, journal, agenda, projects,
-;; :: finance, snippets, schema, org-brain) becomes vault-scoped for free.
+;; :: finance, snippets, schema) becomes vault-scoped for free.
 ;; ::
 ;; :: This file MUST load before config.el sets `org-directory' and before every
 ;; :: other module -- several of them capture `my/notes-dir' in a top-level
@@ -99,14 +99,13 @@
 ;; ──────────────────────────────────────────────────────
 ;; :: These modules capture `my/notes-dir' in a top-level `defvar' at load time
 ;; :: (finance.el:4, todo-agenda.el:8, inventory.el:4, reminders.el:19,
-;; :: org-brain.el:3, schema.el:10, gitlab.el:937). They're correct at
+;; :: schema.el:10, gitlab.el:937). They're correct at
 ;; :: startup -- this file loads first -- but go stale on a switch, so we
 ;; :: re-`setq' them. Add an entry here whenever a new module derives a path
 ;; :: from `my/notes-dir' in a defvar. Paths resolved at call time instead
 ;; :: (e.g. `my/gitlab-issues-dir') need no entry -- they can't go stale.
 (defvar my/vault-rebind-alist
-  '((org-brain-notes-dir   . "")             ;; :: the vault root itself
-    (finance-directory     . "finance/")
+  '((finance-directory     . "finance/")
     (todo-agenda-directory . "agendas/")
     (inventory-file        . "inventory.org")
     (my/reminders-file     . "reminders.org")

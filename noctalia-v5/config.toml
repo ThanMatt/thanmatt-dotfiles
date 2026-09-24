@@ -264,6 +264,16 @@ font_family = "FiraCode Nerd Font"
         command = "echo 'Open notifications'"
         exec = "noctalia msg panel-open control-center notifications"
 
+
+        [shell.launcher.dmenu.entry.nightlight]
+        label = "Toggle nightlight"
+        prefix = "nightlight"
+        glyph = "moon"
+        global = true
+        freeform = false
+        command = "echo 'Toggle nightlight'"
+        exec = "fish -c nightlight"
+
     [shell.panel]
     open_near_click_control_center = true
 

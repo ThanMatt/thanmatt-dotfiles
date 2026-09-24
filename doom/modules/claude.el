@@ -1,10 +1,9 @@
 ;;; modules/claude.el -*- lexical-binding: t; -*-
 
 (defvar my/claude-models
-  '("claude-sonnet-4-6"
-    "claude-opus-4-8"
-    "claude-haiku-4-5-20251001")
-  ":: Available Claude models for selection.")
+  '("sonnet" "opus" "haiku")
+  ":: Model aliases for `claude --model'. The CLI resolves each alias to the
+current model in that family, so this list never goes stale.")
 
 (defvar my/claude-efforts
   '("low" "medium" "high" "xhigh" "max")
@@ -19,7 +18,7 @@ Runs: claude --model <model> --effort <effort> \"$(cat tmpfile)\""
   (let* ((code   (buffer-substring-no-properties start end))
          (file   (or (buffer-file-name) (buffer-name)))
          (line   (line-number-at-pos start))
-         (model  (completing-read "Model: " my/claude-models nil t nil nil "claude-sonnet-4-6"))
+         (model  (completing-read "Model: " my/claude-models nil t nil nil "sonnet"))
          (effort (completing-read "Effort: " my/claude-efforts nil t nil nil "medium"))
          (input  (read-string "Ask Claude (RET to explain): "))
          (query  (if (string-blank-p input) "Explain this snippet." input))
@@ -41,7 +40,3 @@ Runs: claude --model <model> --effort <effort> \"$(cat tmpfile)\""
                                    (shell-quote-argument effort)
                                    (shell-quote-argument tmp)))
                           (vterm-send-return)))))))
-
-(map! :leader
-      :prefix "d"
-      :desc "Ask Claude about selection" "C" #'my/claude-ask-region)

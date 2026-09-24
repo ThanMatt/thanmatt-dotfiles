@@ -10,6 +10,10 @@ env.fish
 # :: things that must not reach a public repo. +local.el.example IS tracked.
 +local.el
 
+# :: Employer worktree tooling (project name, checkout paths, port layout).
+# :: Loaded only if present -- see the `file-exists-p' guard in config.el.
+modules/worktree.el
+
 # :: Backup / auto-generated files
 *.backup
 *~
