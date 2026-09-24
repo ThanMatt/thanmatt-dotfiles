@@ -27,7 +27,7 @@
 ;; ::   2. `gR' (or a C-u prefix on the command) forces raw mode by hand, for
 ;; ::      when the guard's judgement and yours differ.
 ;; ::
-;; :: Requires `pandoc' on PATH (already a dependency of modules/gitlab.el).
+;; :: Requires `pandoc' on PATH (already a dependency of modules/gitlab/).
 
 (require 'cl-lib)
 (require 'dom)

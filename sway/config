@@ -101,7 +101,7 @@ exec ~/.config/sway/scripts/session-env.sh noctalia -d
 # ::
 # :: Wrapped in session-env.sh for the same reason noctalia is -- a bare sway
 # :: `exec' inherits the GDM session env, i.e. PATH=/usr/local/bin:/usr/bin and
-# :: no GITLAB_*, which modules/gitlab.el reads via getenv at startup.
+# :: no GITLAB_*, which modules/gitlab/core.el reads via getenv at startup.
 # ::
 # :: NOTE: `--daemon=notes' NAMES this instance. Two Emacsen run here on
 # :: purpose -- this one is the $mod+n scratchpad, and the Noctalia launcher

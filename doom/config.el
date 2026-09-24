@@ -38,7 +38,7 @@
 (defvar my/notes-instance-p (equal (daemonp) "notes")
   ":: Non-nil inside the \"notes\" scratchpad daemon. Also gates which modules
 load (the dev tooling is skipped there -- see the `load!'s at the bottom) and
-which instance owns reminders (reminders.el) and pipeline polling (gitlab.el).")
+which instance owns reminders (reminders.el) and pipeline polling (gitlab/pipelines.el).")
 
 (when my/notes-instance-p
   ;; :: Doom sets these three at core load, i.e. BEFORE this file, so a plain
@@ -1566,7 +1566,7 @@ shrink (DELTA columns, default 10)."
 (load! "modules/org-agenda")
 (load! "modules/denote")        ; :: reference notes + journal (denote)
 (load! "modules/fonts")       ; :: repairs the font shrink after `doom/reload'
-(load! "modules/gitlab")
+(load! "modules/gitlab/gitlab") ; :: entry point -- loads the rest of modules/gitlab/
 (load! "modules/dashboard")     ; :: after gitlab -- it references gitlab functions
 (load! "modules/snippet")
 (load! "modules/schema")        ; :: API schema endpoint navigation

@@ -99,7 +99,7 @@
 ;; ──────────────────────────────────────────────────────
 ;; :: These modules capture `my/notes-dir' in a top-level `defvar' at load time
 ;; :: (finance.el:4, todo-agenda.el:8, inventory.el:4, reminders.el:19,
-;; :: schema.el:10, gitlab.el:937). They're correct at
+;; :: schema.el:10, gitlab/mr.el:7). They're correct at
 ;; :: startup -- this file loads first -- but go stale on a switch, so we
 ;; :: re-`setq' them. Add an entry here whenever a new module derives a path
 ;; :: from `my/notes-dir' in a defvar. Paths resolved at call time instead

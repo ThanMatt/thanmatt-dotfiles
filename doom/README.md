@@ -89,7 +89,7 @@ doom reload  # or SPC h r r in Emacs
 ├── packages.el            # Package declarations
 ├── custom.el              # Emacs custom settings
 ├── dashboard.el           # Dashboard customizations
-├── gitlab.el              # GitLab integration
+├── modules/gitlab/        # GitLab integration (gitlab.el is the entry point)
 └── org-agenda.el          # Org-mode and agenda config
 ```
 
