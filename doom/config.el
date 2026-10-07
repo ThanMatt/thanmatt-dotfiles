@@ -474,7 +474,8 @@ and the description is the file's basename with [ and ] escaped."
 (defalias '+org/insert-file-link #'link-file)
 
 ;; :: Copy highlighted region as an org-mode file link with line number.
-;; :: Link format: [[file:/abs/path::LINE][description]]
+;; :: Link format: [[file:~/path::LINE][description]] -- `~'-relative so the
+;; :: link resolves on both Linux and macOS (different home dirs).
 (defun my/copy-region-as-org-link ()
   "Copy the selected region as an org-mode link pointing to its file and line.
 Paste the result into any org file; following the link jumps to that exact line."
@@ -485,7 +486,7 @@ Paste the result into any org file; following the link jumps to that exact line.
          (_ (unless file (user-error "Buffer is not visiting a file")))
          (line (line-number-at-pos (region-beginning)))
          (description (format "%s:%d" (file-name-nondirectory file) line))
-         (link (format "[[file:%s::%d][%s]]" file line description)))
+         (link (format "[[file:%s::%d][%s]]" (abbreviate-file-name file) line description)))
     (kill-new link)
     (gui-set-selection 'CLIPBOARD link)
     (message "Copied → %s" link)))
@@ -559,7 +560,7 @@ Paste the result into any org file; following the link jumps to that exact line.
                 "Select file: "
                 (projectile-project-files project-dir)))
          (file-path (expand-file-name file project-dir)))
-    (insert (format "[[file:%s][%s]]" file-path (file-name-nondirectory file)))))
+    (insert (format "[[file:%s][%s]]" (abbreviate-file-name file-path) (file-name-nondirectory file)))))
 
 (defun my/find-file-in-notes ()
   "Find file recursively in the notes directory."
@@ -1549,7 +1550,8 @@ shrink (DELTA columns, default 10)."
       :desc "Grep notes (consult)" "g" #'consult-denote-grep
       :desc "Journal (today)"      "j" #'my/vault-journal
       :desc "Insert link to note"  "i" #'denote-link
-      :desc "Link or create note"  "I" #'denote-link-or-create)
+      :desc "Link or create note"  "I" #'denote-link-or-create
+      :desc "Copy link to note"    "L" #'my/denote-copy-link)
 
 (map! :leader
       :prefix "f"

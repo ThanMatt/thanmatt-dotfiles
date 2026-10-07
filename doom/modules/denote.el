@@ -17,6 +17,24 @@
   ;; :: buffer name shows the note title instead of the timestamp filename
   (denote-rename-buffer-mode 1))
 
+;; :: `denote-link' only inserts. This copies a [[denote:ID][Title]] link to the
+;; :: kill ring + CLIPBOARD (same pairing as `my/copy-region-as-org-link') for
+;; :: pasting into another note. Always Org syntax, since that's where it lands.
+(defun my/denote-copy-link (&optional pick)
+  "Copy an Org denote: link to the current note.
+When the buffer isn't a Denote note, or with prefix arg PICK, prompt for one.
+An active region becomes the link description."
+  (interactive "P")
+  (require 'denote)
+  (let* ((current (buffer-file-name))
+         (file (if (and (not pick) current (denote-file-is-note-p current))
+                   current
+                 (denote-file-prompt nil "Copy link to note")))
+         (link (denote-format-link file (denote-get-link-description file) 'org nil)))
+    (kill-new link)
+    (gui-set-selection 'CLIPBOARD link)
+    (message "Copied → %s" link)))
+
 (use-package! consult-denote
   :after denote
   :config (consult-denote-mode 1))
