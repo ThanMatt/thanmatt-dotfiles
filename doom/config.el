@@ -317,6 +317,33 @@ buffer impossible while the engine is web-mode."
 (setq doom-gruvbox-dark-variant "medium")
 (setq doom-theme 'doom-gruvbox)
 
+;; :: Emacs 31 signals an error on a cyclic face `:inherit' instead of quietly
+;; :: tolerating it. gnus.el defines `gnus-group-news-low' as
+;; :: `:inherit gnus-group-news-low-empty', while doom-themes-base.el points the
+;; :: -empty face straight back at it -- applying the theme closes a two-face loop
+;; :: and `load-theme' dies partway through with
+;; ::   Face inheritance results in inheritance cycle: gnus-group-news-low
+;; :: `custom-enabled-themes' then stays nil and every face the theme had not
+;; :: reached yet is left unrealized, which is where the endless
+;; ::   Invalid face reference: doom-modeline-buffer-major-mode
+;; :: came from -- the modeline segments below (workspace, and vault.el's) name a
+;; :: doom-modeline face that was never built.
+;; ::
+;; :: Cut gnus' half of the edge by declaring the face here, first, without the
+;; :: `:inherit' -- the theme supplies its own for news-low, so nothing is lost.
+;; :: `custom-declare-face' is a no-op for a face that already has a
+;; :: `face-defface-spec', so gnus' own `defface' quietly stands down later and
+;; :: this holds whether gnus loads before or after us. It has to be a real
+;; :: `defface' rather than a bare `put': the `put' would ALSO suppress the
+;; :: `face-spec-set' that brings the face into existence, and the theme then
+;; :: fails on `Invalid face: gnus-group-news-low' instead. MUST run before the
+;; :: theme is applied.
+(defface gnus-group-news-low '((t (:weight bold)))
+  "Low level newsgroup face (`:inherit' dropped -- see comment above)."
+  :group 'gnus-group)
+(when (facep 'gnus-group-news-low)
+  (set-face-attribute 'gnus-group-news-low nil :inherit 'unspecified))
+
 ;; :: Relative line numbers (set to nil to disable, t for absolute).
 (setq display-line-numbers-type 'relative)
 
