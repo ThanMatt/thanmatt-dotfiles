@@ -1,0 +1,5 @@
+# :: swappy -- the annotate-then-save step behind $mod+Shift+s (see sway/config).
+# :: Without this file swappy saves to $XDG_DESKTOP_DIR (~/Desktop). Point it at
+# :: the same folder $mod+Shift+Print already writes to.
+[Default]
+save_dir=$HOME/Pictures/Screenshots

@@ -271,8 +271,8 @@ end
 
 # :: Arch flutter config
 set -gx PATH $PATH ~/develop/flutter/bin
-set -gx ANDROID_HOME $HOME/Android/Sdk
-set -gx PATH $PATH $ANDROID_HOME/cmdline-tools/latest/bin $ANDROID_HOME/platform-tools
+# set -gx ANDROID_HOME $HOME/Android/Sdk
+# set -gx PATH $PATH $ANDROID_HOME/cmdline-tools/latest/bin $ANDROID_HOME/platform-tools
 
 # :: Windows Config
 # set --export WSL_HOST (tail -1 /etc/resolv.conf | cut -d' ' -f2)

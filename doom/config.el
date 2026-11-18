@@ -1616,6 +1616,8 @@ shrink (DELTA columns, default 10)."
 (load! "modules/web")           ; :: always: todo-agenda.el uses its side-window helpers
 (load! "modules/hackernews")    ; :: SPC o h -- in-buffer Hacker News reader
 (load! "modules/reader")        ; :: SPC o w -- fetch a URL and read it as org
+;; :: always: its `#+session:' resume is for org notes, which open in "notes"
+(load! "modules/claude")        ; :: SPC d A -- ask Claude about the selection
 
 ;; :: Dev tooling -- coding instance only. The "notes" daemon is meant to stay
 ;; :: light (see the two-instance split at the top), so it skips these. Their
@@ -1630,7 +1632,6 @@ shrink (DELTA columns, default 10)."
   (load! "modules/redis")         ; :: SPC d R -- runner + scratch (after docker: REPL uses web.el's vterm helpers)
   (load! "modules/redis-browser") ; :: key grid, inspector, writes, INFO
   (load! "modules/redis-saved")   ; :: saved commands (after redis-browser)
-  (load! "modules/claude")        ; :: SPC d A -- ask Claude about the selection
   (when (file-exists-p (expand-file-name "modules/worktree.el" doom-user-dir))
     (load! "modules/worktree")))
 

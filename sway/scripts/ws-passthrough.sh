@@ -16,10 +16,13 @@
 # ::
 # :: Wrinkles:
 # ::
-# :: 1. The coding Emacs holds the default "server" socket (Doom starts it in
-# ::    GUI sessions); the notes daemon holds "notes" -- see emacs-float.sh. The
-# ::    notes frame (title "notes") is skipped here without a round trip, and
-# ::    Emacs double-checks the window's PID against its own anyway.
+# :: 1. Each GUI Emacs has its own socket: the first holds "server" (Doom
+# ::    starts it), any later one "server<PID>" (doom/+linux.el, and magit's
+# ::    with-editor uses the same name). So look up "server<PID>" for the
+# ::    focused window first and fall back to "server". The notes daemon holds
+# ::    "notes" -- see emacs-float.sh; its frame (title "notes") is skipped
+# ::    here without a round trip, and Emacs double-checks the window's PID
+# ::    against its own anyway.
 # ::
 # :: 2. `timeout' so a blocked Emacs (long GC, synchronous LSP call) can't eat
 # ::    the keypress -- after 0.3 s sway handles it. The queued eval may still
@@ -36,12 +39,15 @@ case "${1:-}" in
     *)    echo "usage: $0 prev|next" >&2; exit 2 ;;
 esac
 
-socket="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/emacs/server"
+dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/emacs"
 
 pid=$(swaymsg -t get_tree | jq -r '
     recurse(.nodes[]?, .floating_nodes[]?)
     | select(.focused and .app_id == "emacs" and .name != "notes")
     | .pid' 2>/dev/null)
+
+socket="$dir/server$pid"
+[ -S "$socket" ] || socket="$dir/server"
 
 if [ -n "$pid" ] && [ -S "$socket" ]; then
     verdict=$(timeout 0.3 emacsclient -s "$socket" \

@@ -93,6 +93,18 @@
 ;; :: workspaces one continuous strip: the next press past the last Doom
 ;; :: workspace moves sway instead, so Emacs can never trap you.
 ;; ::
+;; :: Every GUI Emacs needs its OWN server for the script to reach it. Doom
+;; :: starts one named "server", but silently skips it when another GUI Emacs
+;; :: already holds that name -- the second instance then has no socket at all
+;; :: (until magit's with-editor quietly starts "server<PID>" on first commit),
+;; :: so Ctrl+Super+h/l always fell through to sway there. Claim "server<PID>"
+;; :: up front instead; ws-passthrough.sh looks for that name first, and
+;; :: with-editor reuses this server rather than starting another.
+(unless (or (daemonp) (getenv "EMACS_SERVER_NAME"))
+  (require 'server)
+  (when (eq (server-running-p) t)
+    (setq server-name (format "server%s" (emacs-pid)))))
+
 ;; :: PID is the focused sway window's process. Anything that isn't THIS Emacs
 ;; :: (e.g. the "notes" daemon's floating frame) is passed straight back.
 (defun my/sway-workspace-passthrough (dir pid)
