@@ -1612,6 +1612,7 @@ shrink (DELTA columns, default 10)."
 (load! "modules/todo-agenda")
 (load! "modules/uuid")          ; :: SPC i u -- insert a v4 UUID
 (load! "modules/reminders")     ; :: SPC d r -- reminders.org + appt notifications
+(load! "modules/vault-sync")    ; :: auto-revert vault files edited by Orgzly/Syncthing
 (load! "modules/web")           ; :: always: todo-agenda.el uses its side-window helpers
 (load! "modules/hackernews")    ; :: SPC o h -- in-buffer Hacker News reader
 (load! "modules/reader")        ; :: SPC o w -- fetch a URL and read it as org
