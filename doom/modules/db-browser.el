@@ -26,7 +26,8 @@
 
 (defun my/sql--password (host port db user)
   ":: fetch password from the authinfo wallet (host key is server/database)"
-  (let* ((found (car (auth-source-search :host (concat host "/" db)
+  (let* ((auth-source-do-cache nil) ;; :: wallet edits apply at once (file parse stays mtime-cached)
+         (found (car (auth-source-search :host (concat host "/" db)
                                          :port (number-to-string port)
                                          :user user :max 1)))
          (secret (and found (plist-get found :secret))))

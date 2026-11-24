@@ -13,6 +13,7 @@ after-startup-command = []
 
 # Start AeroSpace at login
 start-at-login = true
+config-version = 2
 
 # Normalizations. See: https://nikitabobko.github.io/AeroSpace/guide#normalization
 enable-normalization-flatten-containers = false
@@ -83,6 +84,11 @@ enter = 'mode main'
 
 
 [mode.main.binding]
+    # A terminal scratchpad a la Guake
+    cmd-alt-minus = "exec-and-forget aerospace-scratchpad show Alacritty"
+
+
+
     alt-r = 'mode resize'
 
     # All possible keys:
@@ -233,3 +239,8 @@ enter = 'mode main'
     down = 'volume down'
     up = 'volume up'
     shift-down = ['volume set 0', 'mode main']
+
+
+[exec.env-vars]
+    # Replace 'aerospace-scratchpad/install/path' with the actual path from the command above
+    PATH = '/opt/homebrew/bin:${PATH}'

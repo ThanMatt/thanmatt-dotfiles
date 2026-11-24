@@ -139,7 +139,8 @@
 (defun my/redis--password (conn)
   ":: Password for CONN from the wallet. `:port' disambiguates it from other
    bare-host entries (email, tokens) sharing the same machine."
-  (let* ((found  (car (auth-source-search
+  (let* ((auth-source-do-cache nil) ;; :: wallet edits apply at once (file parse stays mtime-cached)
+         (found  (car (auth-source-search
                        :host (plist-get conn :host)
                        :port (number-to-string (plist-get conn :port))
                        :user (plist-get conn :user)
